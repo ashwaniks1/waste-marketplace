@@ -4,12 +4,12 @@ import { HttpError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
 import { createServerSupabase } from "@/lib/supabase/server";
 
-export type AppRole = "customer" | "buyer" | "admin";
+export type AppRole = "customer" | "buyer" | "admin" | "driver";
 
 /** Safe role for routing — comes from Supabase app_metadata (not user-editable). */
 export function getRoleFromSupabaseUser(user: SupabaseUser | null): AppRole | null {
   const r = user?.app_metadata?.role;
-  if (r === "customer" || r === "buyer" || r === "admin") return r;
+  if (r === "customer" || r === "buyer" || r === "admin" || r === "driver") return r;
   return null;
 }
 

@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -33,6 +33,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/customer") ||
     pathname.startsWith("/buyer") ||
     pathname.startsWith("/admin") ||
+    pathname.startsWith("/driver") ||
     pathname.startsWith("/conversations");
 
   if (!user && isProtectedApp) {

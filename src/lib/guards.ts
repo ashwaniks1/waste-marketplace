@@ -11,6 +11,7 @@ export async function requireRole(allowed: UserRole[]) {
   if (!allowed.includes(user.role)) {
     if (user.role === UserRole.admin) redirect("/admin");
     if (user.role === UserRole.buyer) redirect("/buyer");
+    if (user.role === UserRole.driver) redirect("/driver");
     redirect("/customer");
   }
   return user;

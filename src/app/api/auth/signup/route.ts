@@ -10,7 +10,7 @@ const signupSchema = z.object({
   name: z.string().min(1),
   phone: z.string().optional(),
   address: z.string().optional(),
-  role: z.enum(["customer", "buyer"]),
+  role: z.enum(["customer", "buyer", "driver"]),
 });
 
 /**

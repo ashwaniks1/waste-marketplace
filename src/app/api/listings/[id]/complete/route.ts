@@ -16,7 +16,11 @@ export async function POST(_request: Request, ctx: Ctx) {
     const { id } = await ctx.params;
     const result = await prisma.wasteListing.updateMany({
       where: { id, status: ListingStatus.accepted, acceptedById: me.id },
-      data: { status: ListingStatus.completed },
+      data: {
+        status: ListingStatus.completed,
+        pickupDeadlineAt: null,
+        pickupExtendedAt: null,
+      },
     });
 
     if (result.count === 0) {
@@ -28,8 +32,8 @@ export async function POST(_request: Request, ctx: Ctx) {
     const updated = await prisma.wasteListing.findUnique({
       where: { id },
       include: {
-        seller: { select: { id: true, name: true, email: true, phone: true } },
-        acceptor: { select: { id: true, name: true, email: true, phone: true } },
+        seller: { select: { id: true, name: true, email: true, phone: true, avatarUrl: true } },
+        acceptor: { select: { id: true, name: true, email: true, phone: true, avatarUrl: true } },
       },
     });
     if (!updated) return jsonError("Not found", 404);

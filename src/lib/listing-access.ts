@@ -1,13 +1,15 @@
 import { ListingStatus, UserRole, type User as AppUser } from "@prisma/client";
 import { HttpError } from "@/lib/errors";
+import { relistExpiredAcceptedListing } from "@/lib/pickup-window";
 import { prisma } from "@/lib/prisma";
 
 export async function getListingForAccess(listingId: string, me: AppUser) {
+  await relistExpiredAcceptedListing(listingId);
   const row = await prisma.wasteListing.findUnique({
     where: { id: listingId },
     include: {
-      seller: { select: { id: true, name: true, email: true, phone: true } },
-      acceptor: { select: { id: true, name: true, email: true, phone: true } },
+      seller: { select: { id: true, name: true, email: true, phone: true, avatarUrl: true } },
+      acceptor: { select: { id: true, name: true, email: true, phone: true, avatarUrl: true } },
     },
   });
   if (!row) return null;

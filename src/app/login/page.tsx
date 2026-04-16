@@ -35,6 +35,7 @@ export default function LoginPage() {
       }
       if (profile.role === "buyer") router.push("/buyer");
       else if (profile.role === "admin") router.push("/admin");
+      else if (profile.role === "driver") router.push("/driver");
       else router.push("/customer");
       router.refresh();
     } finally {

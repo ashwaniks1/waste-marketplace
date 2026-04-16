@@ -21,9 +21,26 @@ type ListingDetail = {
   status: ListingStatus;
   askingPrice: number;
   currency: string;
+  deliveryAvailable: boolean;
+  deliveryFee: number | null;
+  acceptedOfferAmount: number | null;
+  acceptedOfferCurrency: string | null;
+  pickupDeadlineAt: string | null;
+  acceptedAt: string | null;
   seller: { id: string; name: string; email: string; phone: string | null };
   acceptor: { id: string; name: string; email: string; phone: string | null } | null;
 };
+
+function formatDeadline(isoDate: string | null) {
+  if (!isoDate) return null;
+  const deadline = new Date(isoDate);
+  const diff = deadline.getTime() - Date.now();
+  if (diff <= 0) return "Due now";
+  const hours = Math.floor(diff / 3600000);
+  const minutes = Math.floor((diff % 3600000) / 60000);
+  return `${hours}h ${minutes}m remaining`;
+}
+
 
 type OfferRow = {
   id: string;
@@ -59,6 +76,8 @@ export default function CustomerListingDetailPage() {
   const [address, setAddress] = useState("");
   const [description, setDescription] = useState("");
   const [askingPrice, setAskingPrice] = useState("");
+  const [deliveryAvailable, setDeliveryAvailable] = useState(false);
+  const [deliveryFee, setDeliveryFee] = useState("");
 
   async function load() {
     const res = await fetch(`/api/listings/${id}`);
@@ -72,6 +91,8 @@ export default function CustomerListingDetailPage() {
     setAddress(data.address);
     setDescription(data.description ?? "");
     setAskingPrice(String(data.askingPrice ?? ""));
+    setDeliveryAvailable(Boolean(data.deliveryAvailable));
+    setDeliveryFee(data.deliveryFee ? String(data.deliveryFee) : "");
     setError(null);
 
     const [o, c, v] = await Promise.all([
@@ -109,6 +130,8 @@ export default function CustomerListingDetailPage() {
         address,
         description,
         askingPrice: Number(askingPrice),
+        deliveryAvailable,
+        deliveryFee: deliveryFee ? Number(deliveryFee) : null,
       }),
     });
     const data = await res.json();
@@ -190,20 +213,28 @@ export default function CustomerListingDetailPage() {
                   {editing ? (
                     <label className="mt-2 block text-sm">
                       Asking price
-                      <input
-                        type="number"
-                        min={0.01}
-                        step="0.01"
-                        className="mt-1 w-full max-w-xs rounded-lg border border-slate-200 px-2 py-1"
-                        value={askingPrice}
-                        onChange={(e) => setAskingPrice(e.target.value)}
-                      />
+                      <div className="relative mt-1">
+                        <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2 text-slate-500">$</span>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          pattern="^\d+(?:[\.,]\d{1,2})?$"
+                          className="mt-1 w-full max-w-xs rounded-lg border border-slate-200 px-2 py-1 pl-8"
+                          value={askingPrice}
+                          onChange={(e) => setAskingPrice(e.target.value)}
+                        />
+                      </div>
                     </label>
                   ) : (
                     <p className="mt-1 text-lg font-semibold text-teal-800">
                       {formatMoney(row.askingPrice, row.currency)}
                     </p>
                   )}
+                  {row.deliveryAvailable ? (
+                    <p className="mt-2 text-sm text-slate-600">
+                      Delivery available for {formatMoney(row.deliveryFee ?? 0, row.currency)}
+                    </p>
+                  ) : null}
                 </div>
               </div>
               <StatusBadge status={row.status} />
@@ -235,6 +266,54 @@ export default function CustomerListingDetailPage() {
               </label>
             ) : row.description ? (
               <p className="text-sm text-slate-600">{row.description}</p>
+            ) : null}
+
+            {editing ? (
+              <div className="mt-4 grid gap-4 sm:grid-cols-[1fr_1fr]">
+                <fieldset className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <legend className="text-sm font-medium text-slate-900">Delivery</legend>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
+                        !deliveryAvailable
+                          ? "border-teal-600 bg-teal-600 text-white shadow"
+                          : "border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
+                      }`}
+                      onClick={() => setDeliveryAvailable(false)}
+                    >
+                      None
+                    </button>
+                    <button
+                      type="button"
+                      className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
+                        deliveryAvailable
+                          ? "border-teal-600 bg-teal-600 text-white shadow"
+                          : "border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
+                      }`}
+                      onClick={() => setDeliveryAvailable(true)}
+                    >
+                      Offer delivery
+                    </button>
+                  </div>
+                  {deliveryAvailable ? (
+                    <label className="mt-3 block text-sm text-slate-900">
+                      Fee
+                      <div className="relative mt-1">
+                        <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2 text-slate-500">$</span>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          pattern="^\d+(?:[\.,]\d{1,2})?$"
+                          className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 pl-8"
+                          value={deliveryFee}
+                          onChange={(e) => setDeliveryFee(e.target.value)}
+                        />
+                      </div>
+                    </label>
+                  ) : null}
+                </fieldset>
+              </div>
             ) : null}
 
             {row.images?.length ? <ImageGallery images={row.images} /> : null}
@@ -294,7 +373,19 @@ export default function CustomerListingDetailPage() {
             {row.status === "accepted" && row.acceptor ? (
               <div className="rounded-2xl border border-teal-100 bg-teal-50/80 p-4">
                 <p className="text-sm font-semibold text-teal-900">Buyer contact</p>
-                <p className="text-sm text-teal-800">{row.acceptor.name}</p>
+                {row.acceptedOfferAmount ? (
+                  <p className="mt-1 text-sm text-teal-800">
+                    Accepted offer: {formatMoney(row.acceptedOfferAmount, row.acceptedOfferCurrency ?? row.currency)}
+                  </p>
+                ) : null}
+                {row.pickupDeadlineAt ? (
+                  <div className="mt-3 rounded-2xl border border-teal-200 bg-white p-3">
+                    <p className="text-sm font-semibold text-teal-900">Pickup deadline</p>
+                    <p className="mt-1 text-sm text-slate-700">{new Date(row.pickupDeadlineAt).toLocaleString()}</p>
+                    <p className="text-sm text-teal-800">{formatDeadline(row.pickupDeadlineAt)}</p>
+                  </div>
+                ) : null}
+                <p className="mt-3 text-sm text-teal-800">{row.acceptor.name}</p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {row.acceptor.phone ? (
                     <>

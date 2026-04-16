@@ -14,6 +14,8 @@ export default function NewListingPage() {
   const [description, setDescription] = useState("");
   const [address, setAddress] = useState("");
   const [askingPrice, setAskingPrice] = useState("");
+  const [deliveryAvailable, setDeliveryAvailable] = useState(false);
+  const [deliveryFee, setDeliveryFee] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -42,15 +44,23 @@ export default function NewListingPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           wasteType,
-          quantity,
-          description: description || undefined,
-          address,
+          quantity: quantity.trim(),
+          description: description.trim() || undefined,
+          address: address.trim(),
+          askingPrice: askingPrice.trim(),
+          deliveryAvailable,
+          deliveryFee: deliveryFee.trim() || undefined,
           images,
         }),
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error ?? "Could not create listing");
+        const details = data.details
+          ? Array.isArray(data.details._errors)
+            ? data.details._errors.join(" ")
+            : JSON.stringify(data.details)
+          : null;
+        setError(data.error ? `${data.error}${details ? ": " + details : ""}` : "Could not create listing");
         return;
       }
       router.push(`/customer/listings/${data.id}`);
@@ -90,19 +100,68 @@ export default function NewListingPage() {
           </div>
         </fieldset>
 
-        <label className="block text-sm font-medium text-slate-800">
-          Asking price (USD)
-          <input
-            required
-            type="number"
-            min={0.01}
-            step="0.01"
-            placeholder="e.g. 25.00"
-            className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-3 text-base outline-none ring-teal-500 focus:ring-2"
-            value={askingPrice}
-            onChange={(e) => setAskingPrice(e.target.value)}
-          />
-        </label>
+        <div className="grid gap-4 lg:grid-cols-[1fr_240px]">
+          <label className="block text-sm font-medium text-slate-800">
+            Asking price (USD)
+            <div className="relative mt-1">
+              <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">$</span>
+              <input
+                required
+                type="text"
+                inputMode="decimal"
+                pattern="^\d+(?:[\.,]\d{1,2})?$"
+                placeholder="e.g. 25.00"
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 pl-9 text-base outline-none ring-teal-500 focus:ring-2"
+                value={askingPrice}
+                onChange={(e) => setAskingPrice(e.target.value)}
+              />
+            </div>
+          </label>
+
+          <label className="block text-sm font-medium text-slate-800">
+            Delivery option
+            <div className="mt-2 flex flex-wrap gap-3">
+              <button
+                type="button"
+                className={`rounded-2xl border px-4 py-2 text-sm font-semibold transition ${
+                  !deliveryAvailable
+                    ? "border-teal-600 bg-teal-600 text-white shadow"
+                    : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                }`}
+                onClick={() => setDeliveryAvailable(false)}
+              >
+                No delivery
+              </button>
+              <button
+                type="button"
+                className={`rounded-2xl border px-4 py-2 text-sm font-semibold transition ${
+                  deliveryAvailable
+                    ? "border-teal-600 bg-teal-600 text-white shadow"
+                    : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                }`}
+                onClick={() => setDeliveryAvailable(true)}
+              >
+                Offer delivery
+              </button>
+            </div>
+            {deliveryAvailable ? (
+              <div className="mt-3">
+                <div className="relative">
+                  <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">$</span>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    pattern="^\d+(?:[\.,]\d{1,2})?$"
+                    placeholder="Delivery fee"
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 pl-9 text-base outline-none ring-teal-500 focus:ring-2"
+                    value={deliveryFee}
+                    onChange={(e) => setDeliveryFee(e.target.value)}
+                  />
+                </div>
+              </div>
+            ) : null}
+          </label>
+        </div>
 
         <label className="block text-sm font-medium text-slate-800">
           Approximate quantity

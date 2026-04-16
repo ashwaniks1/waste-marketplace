@@ -3,22 +3,50 @@ import { z } from "zod";
 import { requireAppUser } from "@/lib/auth";
 import { HttpError } from "@/lib/errors";
 import { handleRouteError, jsonOk } from "@/lib/http";
+import { relistExpiredAcceptedListings } from "@/lib/pickup-window";
 import { prisma } from "@/lib/prisma";
 import { serializeListing } from "@/lib/serialize";
 
 const listingInclude = {
-  seller: { select: { id: true, name: true, email: true, phone: true } },
-  acceptor: { select: { id: true, name: true, email: true, phone: true } },
+  seller: { select: { id: true, name: true, email: true, phone: true, avatarUrl: true } },
+  acceptor: { select: { id: true, name: true, email: true, phone: true, avatarUrl: true } },
 } as const;
 
 const createSchema = z.object({
   wasteType: z.nativeEnum(WasteType),
-  quantity: z.string().min(1),
-  description: z.string().optional(),
+  quantity: z
+    .string()
+    .transform((value) => value.trim())
+    .refine((value) => value.length > 0, { message: "Quantity is required" }),
+  description: z
+    .string()
+    .optional()
+    .transform((value) => (typeof value === "string" ? value.trim() : value))
+    .refine((value) => value === undefined || value.length > 0, {
+      message: "Description cannot be empty",
+    })
+    .optional(),
   images: z.array(z.string().url()).optional().default([]),
-  address: z.string().min(1),
-  askingPrice: z.coerce.number().positive(),
+  address: z
+    .string()
+    .transform((value) => value.trim())
+    .refine((value) => value.length > 0, { message: "Address is required" }),
+  askingPrice: z.preprocess((value) => {
+    if (typeof value === "string") {
+      const normalized = value.replace(/,/g, "").trim();
+      return normalized === "" ? undefined : Number(normalized);
+    }
+    return value;
+  }, z.number().positive()),
   currency: z.string().length(3).optional().default("USD"),
+  deliveryAvailable: z.boolean().optional().default(false),
+  deliveryFee: z.preprocess((value) => {
+    if (typeof value === "string") {
+      const normalized = value.replace(/,/g, "").trim();
+      return normalized === "" ? undefined : Number(normalized);
+    }
+    return value;
+  }, z.number().positive()).optional(),
 });
 
 /** Listings list — scope depends on role (buyer: open feed + optional mine; customer: own; admin: all). */
@@ -27,6 +55,8 @@ export async function GET(request: Request) {
     const me = await requireAppUser();
     const { searchParams } = new URL(request.url);
     const scope = searchParams.get("scope");
+
+    await relistExpiredAcceptedListings();
 
     if (me.role === UserRole.admin) {
       const rows = await prisma.wasteListing.findMany({
@@ -46,7 +76,7 @@ export async function GET(request: Request) {
         return jsonOk(rows.map(serializeListing));
       }
       const rows = await prisma.wasteListing.findMany({
-        where: { status: ListingStatus.open },
+        where: { status: { in: [ListingStatus.open, ListingStatus.reopened] } },
         orderBy: { createdAt: "desc" },
         include: listingInclude,
       });
@@ -83,6 +113,8 @@ export async function POST(request: Request) {
         status: ListingStatus.open,
         askingPrice: body.askingPrice,
         currency: body.currency ?? "USD",
+        deliveryAvailable: body.deliveryAvailable,
+        deliveryFee: body.deliveryFee,
       },
       include: listingInclude,
     });

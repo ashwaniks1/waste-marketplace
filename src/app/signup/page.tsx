@@ -12,7 +12,7 @@ export default function SignupPage() {
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<"customer" | "buyer">("customer");
+  const [role, setRole] = useState<"customer" | "buyer" | "driver">("customer");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -52,6 +52,7 @@ export default function SignupPage() {
       const r = data.role as string | undefined;
       if (r === "admin") router.push("/admin");
       else if (role === "buyer") router.push("/buyer");
+      else if (role === "driver") router.push("/driver");
       else router.push("/customer");
       router.refresh();
     } finally {
@@ -62,13 +63,13 @@ export default function SignupPage() {
   return (
     <main className="mx-auto flex min-h-dvh max-w-lg flex-col justify-center px-4 py-8">
       <h1 className="text-center text-2xl font-bold text-slate-900">Create account</h1>
-      <p className="mt-1 text-center text-sm text-slate-600">Join as a seller or buyer</p>
+      <p className="mt-1 text-center text-sm text-slate-600">Join as a seller, buyer, or driver</p>
 
       <form onSubmit={onSubmit} className="mt-8 space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <fieldset>
           <legend className="text-sm font-medium text-slate-700">I am a…</legend>
-          <div className="mt-2 flex gap-2">
-            <label className="flex flex-1 cursor-pointer items-center justify-center rounded-xl border border-slate-200 px-3 py-3 text-sm has-[:checked]:border-teal-600 has-[:checked]:bg-teal-50">
+          <div className="mt-2 grid gap-2 sm:grid-cols-3">
+            <label className="flex cursor-pointer items-center justify-center rounded-xl border border-slate-200 px-3 py-3 text-sm has-[:checked]:border-teal-600 has-[:checked]:bg-teal-50">
               <input
                 type="radio"
                 name="role"
@@ -78,7 +79,7 @@ export default function SignupPage() {
               />
               Seller
             </label>
-            <label className="flex flex-1 cursor-pointer items-center justify-center rounded-xl border border-slate-200 px-3 py-3 text-sm has-[:checked]:border-teal-600 has-[:checked]:bg-teal-50">
+            <label className="flex cursor-pointer items-center justify-center rounded-xl border border-slate-200 px-3 py-3 text-sm has-[:checked]:border-teal-600 has-[:checked]:bg-teal-50">
               <input
                 type="radio"
                 name="role"
@@ -87,6 +88,16 @@ export default function SignupPage() {
                 onChange={() => setRole("buyer")}
               />
               Buyer
+            </label>
+            <label className="flex cursor-pointer items-center justify-center rounded-xl border border-slate-200 px-3 py-3 text-sm has-[:checked]:border-teal-600 has-[:checked]:bg-teal-50">
+              <input
+                type="radio"
+                name="role"
+                className="sr-only"
+                checked={role === "driver"}
+                onChange={() => setRole("driver")}
+              />
+              Driver
             </label>
           </div>
         </fieldset>

@@ -2,10 +2,11 @@
 
 import type { ListingStatus, WasteType } from "@prisma/client";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { Button } from "@/components/Button";
+import { ConversationDrawer } from "@/components/ConversationDrawer";
 import { ImageGallery } from "@/components/ImageGallery";
 import { StatusBadge } from "@/components/StatusBadge";
 import { formatMoney } from "@/lib/money";
@@ -21,9 +22,26 @@ type ListingDetail = {
   status: ListingStatus;
   askingPrice: number;
   currency: string;
-  seller: { id: string; name: string; email: string; phone: string | null };
+  deliveryAvailable: boolean;
+  deliveryFee: number | null;
+  acceptedOfferAmount: number | null;
+  acceptedOfferCurrency: string | null;
+  pickupDeadlineAt: string | null;
+  acceptedAt: string | null;
+  seller: { id: string; name: string; email: string; phone: string | null; avatarUrl?: string | null };
   acceptor: { id: string; name: string; email: string; phone: string | null } | null;
 };
+
+function formatDeadline(isoDate: string | null) {
+  if (!isoDate) return null;
+  const deadline = new Date(isoDate);
+  const diff = deadline.getTime() - Date.now();
+  if (diff <= 0) return "Due now";
+  const hours = Math.floor(diff / 3600000);
+  const minutes = Math.floor((diff % 3600000) / 60000);
+  return `${hours}h ${minutes}m remaining`;
+}
+
 
 type OfferRow = {
   id: string;
@@ -41,7 +59,6 @@ type CommentRow = {
 
 export default function BuyerListingDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const router = useRouter();
   const [row, setRow] = useState<ListingDetail | null>(null);
   const [offers, setOffers] = useState<OfferRow[]>([]);
   const [comments, setComments] = useState<CommentRow[]>([]);
@@ -50,6 +67,11 @@ export default function BuyerListingDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [meId, setMeId] = useState<string | null>(null);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [chatTitle, setChatTitle] = useState("Chat");
+  const [chatSubtitle, setChatSubtitle] = useState<string | undefined>(undefined);
+  const [chatAvatarUrl, setChatAvatarUrl] = useState<string | null>(null);
 
   async function load() {
     const res = await fetch(`/api/listings/${id}`);
@@ -111,7 +133,11 @@ export default function BuyerListingDetailPage() {
       setError(data.error ?? "Could not open chat");
       return;
     }
-    router.push(`/conversations/${data.id}`);
+    setConversationId(data.id);
+    setChatTitle(row?.seller.name ?? "Seller chat");
+    setChatSubtitle(`Private chat with ${row?.seller.name ?? "seller"}`);
+    setChatAvatarUrl(row?.seller.avatarUrl ?? null);
+    setChatOpen(true);
   }
 
   async function postComment(e: React.FormEvent) {
@@ -167,6 +193,23 @@ export default function BuyerListingDetailPage() {
                   <p className="mt-1 text-lg font-semibold text-teal-800">
                     Asking {formatMoney(row.askingPrice, row.currency)}
                   </p>
+                  {row.deliveryAvailable ? (
+                    <p className="mt-1 text-sm text-slate-600">
+                      Delivery fee: {formatMoney(row.deliveryFee ?? 0, row.currency)}
+                    </p>
+                  ) : null}
+                  {row.status === "accepted" && row.acceptedOfferAmount ? (
+                    <p className="mt-1 text-sm text-teal-800">
+                      Seller accepted {formatMoney(row.acceptedOfferAmount, row.acceptedOfferCurrency ?? row.currency)}
+                    </p>
+                  ) : null}
+                  {row.status === "accepted" && row.pickupDeadlineAt ? (
+                    <div className="mt-3 rounded-2xl border border-teal-100 bg-teal-50/80 p-3">
+                      <p className="text-sm font-semibold text-teal-900">Pickup deadline</p>
+                      <p className="mt-1 text-sm text-slate-700">{new Date(row.pickupDeadlineAt).toLocaleString()}</p>
+                      <p className="text-sm text-teal-800">{formatDeadline(row.pickupDeadlineAt)}</p>
+                    </div>
+                  ) : null}
                 </div>
               </div>
               <StatusBadge status={row.status} />
@@ -289,6 +332,14 @@ export default function BuyerListingDetailPage() {
           </>
         )}
       </div>
+      <ConversationDrawer
+        open={chatOpen}
+        conversationId={conversationId}
+        title={chatTitle}
+        subtitle={chatSubtitle}
+        avatarUrl={chatAvatarUrl}
+        onClose={() => setChatOpen(false)}
+      />
     </>
   );
 }

@@ -10,6 +10,7 @@ export default async function HomePage() {
   if (metaRole) {
     if (metaRole === "buyer") redirect("/buyer");
     if (metaRole === "admin") redirect("/admin");
+    if (metaRole === "driver") redirect("/driver");
     redirect("/customer");
   }
 
@@ -18,5 +19,6 @@ export default async function HomePage() {
   if (!profile) redirect("/login");
   if (profile.role === UserRole.buyer) redirect("/buyer");
   if (profile.role === UserRole.admin) redirect("/admin");
+  if (profile.role === UserRole.driver) redirect("/driver");
   redirect("/customer");
 }

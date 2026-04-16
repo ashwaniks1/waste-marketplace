@@ -2,6 +2,7 @@ import { ListingStatus, OfferStatus, UserRole } from "@prisma/client";
 import { requireAppUser } from "@/lib/auth";
 import { HttpError } from "@/lib/errors";
 import { handleRouteError, jsonError, jsonOk } from "@/lib/http";
+import { buildPickupDeadline } from "@/lib/pickup-window";
 import { prisma } from "@/lib/prisma";
 import { serializeListing } from "@/lib/serialize";
 import { serializeOffer } from "@/lib/serialize-offer";
@@ -29,7 +30,13 @@ export async function POST(_request: Request, ctx: Ctx) {
 
       const listingUpdate = await tx.wasteListing.updateMany({
         where: { id: offer.listingId, status: ListingStatus.open },
-        data: { status: ListingStatus.accepted, acceptedById: offer.buyerId },
+        data: {
+          status: ListingStatus.accepted,
+          acceptedById: offer.buyerId,
+          acceptedAt: new Date(),
+          pickupDeadlineAt: buildPickupDeadline(),
+          pickupExtendedAt: null,
+        },
       });
       if (listingUpdate.count === 0) return { error: "conflict" as const };
 
@@ -46,15 +53,15 @@ export async function POST(_request: Request, ctx: Ctx) {
         where: { id: offer.id },
         data: { status: OfferStatus.accepted },
         include: {
-          buyer: { select: { id: true, name: true, email: true, phone: true } },
+          buyer: { select: { id: true, name: true, email: true, phone: true, avatarUrl: true } },
         },
       });
 
       const listing = await tx.wasteListing.findUnique({
         where: { id: offer.listingId },
         include: {
-          seller: { select: { id: true, name: true, email: true, phone: true } },
-          acceptor: { select: { id: true, name: true, email: true, phone: true } },
+          seller: { select: { id: true, name: true, email: true, phone: true, avatarUrl: true } },
+          acceptor: { select: { id: true, name: true, email: true, phone: true, avatarUrl: true } },
         },
       });
 
