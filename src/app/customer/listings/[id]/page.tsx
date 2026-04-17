@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { Button } from "@/components/Button";
 import { ImageGallery } from "@/components/ImageGallery";
+import { ReviewForm } from "@/components/ReviewForm";
 import { StatusBadge } from "@/components/StatusBadge";
 import { formatMoney } from "@/lib/money";
 import { WASTE_TYPE_OPTIONS } from "@/lib/waste-types";
@@ -158,6 +159,30 @@ export default function CustomerListingDetailPage() {
     const data = await res.json();
     setBusy(false);
     if (!res.ok) setError(data.error ?? "Could not decline");
+    else await load();
+  }
+
+  async function markNoShow() {
+    if (!confirm("Mark this accepted listing as a no-show?")) return;
+    setBusy(true);
+    const res = await fetch(`/api/listings/${id}/no-show`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reason: "No pickup completed" }),
+    });
+    const data = await res.json();
+    setBusy(false);
+    if (!res.ok) setError(data.error ?? "Could not mark no-show");
+    else await load();
+  }
+
+  async function reopenListing() {
+    if (!confirm("Reopen this listing so buyers can make offers again?")) return;
+    setBusy(true);
+    const res = await fetch(`/api/listings/${id}/reopen`, { method: "POST" });
+    const data = await res.json();
+    setBusy(false);
+    if (!res.ok) setError(data.error ?? "Could not reopen listing");
     else await load();
   }
 
@@ -330,7 +355,11 @@ export default function CustomerListingDetailPage() {
                         className="flex flex-col gap-2 rounded-xl border border-amber-100 bg-white p-3 sm:flex-row sm:items-center sm:justify-between"
                       >
                         <div>
-                          <p className="font-medium text-slate-900">{o.buyer.name}</p>
+                          <p className="font-medium text-slate-900">
+                            <Link href={`/profile/${o.buyer.id}`} className="text-teal-700 underline">
+                              {o.buyer.name}
+                            </Link>
+                          </p>
                           <p className="text-sm text-teal-800">{formatMoney(o.amount, o.currency)}</p>
                         </div>
                         <div className="flex gap-2">
@@ -385,7 +414,11 @@ export default function CustomerListingDetailPage() {
                     <p className="text-sm text-teal-800">{formatDeadline(row.pickupDeadlineAt)}</p>
                   </div>
                 ) : null}
-                <p className="mt-3 text-sm text-teal-800">{row.acceptor.name}</p>
+                <p className="mt-3 text-sm text-teal-800">
+                  <Link href={`/profile/${row.acceptor.id}`} className="font-medium text-teal-700 underline">
+                    {row.acceptor.name}
+                  </Link>
+                </p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {row.acceptor.phone ? (
                     <>
@@ -415,7 +448,30 @@ export default function CustomerListingDetailPage() {
                     </Link>
                   ) : null}
                 </div>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Button variant="danger" onClick={markNoShow} disabled={busy}>
+                    Mark no-show
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={() => navigator.clipboard.writeText(row.acceptor?.email ?? "")}
+                  >
+                    Copy buyer email
+                  </Button>
+                </div>
               </div>
+            ) : null}
+            {row.status === "no_show" ? (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                <p className="font-semibold text-amber-900">No-show</p>
+                <p className="mt-1 text-sm text-amber-700">This listing was marked as no-show. Reopen it to accept new offers.</p>
+                <Button className="mt-3" disabled={busy} onClick={reopenListing}>
+                  Reopen listing
+                </Button>
+              </div>
+            ) : null}
+            {row.status === "completed" && row.acceptor ? (
+              <ReviewForm listingId={row.id} toUserId={row.acceptor.id} toUserName={row.acceptor.name} onSubmitted={() => load()} />
             ) : null}
 
             <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">

@@ -68,14 +68,17 @@ enum TransactionType {
 
 /// Application profile keyed to auth.users.id (Supabase Auth).
 model User {
-  id        String   @id @db.Uuid
-  name      String
-  email     String   @unique
-  phone     String?
-  role      UserRole
-  address   String?
-  avatarUrl String?  @map("avatar_url")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id            String   @id @db.Uuid
+  name          String
+  email         String   @unique
+  phone         String?
+  role          UserRole
+  address       String?
+  vehicleType   String?  @map("vehicle_type")
+  licenseNumber String?  @map("license_number")
+  availability  String?
+  avatarUrl     String?  @map("avatar_url")
+  updatedAt     DateTime @updatedAt @map("updated_at")
   createdAt DateTime @default(now()) @map("created_at")
 
   listingsPosted   WasteListing[]    @relation("SellerListings")

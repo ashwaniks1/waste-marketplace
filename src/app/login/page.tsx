@@ -11,10 +11,15 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [verificationPending, setVerificationPending] = useState(false);
+  const [resendMessage, setResendMessage] = useState<string | null>(null);
+  const [resendLoading, setResendLoading] = useState(false);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setVerificationPending(false);
+    setResendMessage(null);
     setLoading(true);
     try {
       const res = await fetch("/api/auth/login", {
@@ -24,7 +29,13 @@ export default function LoginPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(typeof data.error === "string" ? data.error : "Login failed");
+        const message = typeof data.error === "string" ? data.error : "Login failed";
+        if (message.toLowerCase().includes("not confirmed") || message.toLowerCase().includes("email")) {
+          setVerificationPending(true);
+          setError("Your email address is not verified yet. Check your inbox or resend the confirmation email.");
+        } else {
+          setError(message);
+        }
         return;
       }
       const me = await fetch("/api/users/me");
@@ -40,6 +51,28 @@ export default function LoginPage() {
       router.refresh();
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function resendVerification() {
+    setResendLoading(true);
+    setResendMessage(null);
+    try {
+      const res = await fetch("/api/auth/resend-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setResendMessage(typeof data.error === "string" ? data.error : "Unable to resend verification email.");
+      } else {
+        setResendMessage("Verification email resent. Check your inbox.");
+      }
+    } catch {
+      setResendMessage("Unable to resend verification email.");
+    } finally {
+      setResendLoading(false);
     }
   }
 
@@ -72,9 +105,26 @@ export default function LoginPage() {
           />
         </label>
         {error ? <p className="text-sm text-rose-600">{error}</p> : null}
+        {verificationPending ? (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+            Didn’t get an email? Use the button below to resend the confirmation link.
+          </div>
+        ) : null}
         <Button type="submit" disabled={loading} className="w-full">
           {loading ? "Signing in…" : "Sign in"}
         </Button>
+        {verificationPending ? (
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={resendLoading || !email}
+            onClick={resendVerification}
+            className="w-full"
+          >
+            {resendLoading ? "Resending…" : "Resend verification email"}
+          </Button>
+        ) : null}
+        {resendMessage ? <p className="text-sm text-slate-600">{resendMessage}</p> : null}
       </form>
 
       <p className="mt-6 text-center text-sm text-slate-600">

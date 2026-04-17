@@ -17,6 +17,9 @@ export default function NewListingPage() {
   const [deliveryAvailable, setDeliveryAvailable] = useState(false);
   const [deliveryFee, setDeliveryFee] = useState("");
   const [files, setFiles] = useState<File[]>([]);
+  const [locationLabel, setLocationLabel] = useState<string | null>(null);
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -39,19 +42,22 @@ export default function NewListingPage() {
     setLoading(true);
     try {
       const images = files.length ? await uploadImages() : [];
+      const body = {
+        wasteType,
+        quantity: quantity.trim(),
+        description: description.trim() || undefined,
+        address: address.trim(),
+        askingPrice: askingPrice.trim(),
+        deliveryAvailable,
+        deliveryFee: deliveryFee.trim() || undefined,
+        images,
+        locationLat: latitude ?? undefined,
+        locationLng: longitude ?? undefined,
+      };
       const res = await fetch("/api/listings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          wasteType,
-          quantity: quantity.trim(),
-          description: description.trim() || undefined,
-          address: address.trim(),
-          askingPrice: askingPrice.trim(),
-          deliveryAvailable,
-          deliveryFee: deliveryFee.trim() || undefined,
-          images,
-        }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -194,6 +200,35 @@ export default function NewListingPage() {
             onChange={(e) => setAddress(e.target.value)}
           />
         </label>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <button
+            type="button"
+            className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-teal-300 hover:bg-teal-50"
+            onClick={() => {
+              if (!navigator.geolocation) {
+                setError("Geolocation is not available in your browser.");
+                return;
+              }
+              setError(null);
+              setLocationLabel("Finding location…");
+              navigator.geolocation.getCurrentPosition(
+                (position) => {
+                  setLatitude(position.coords.latitude);
+                  setLongitude(position.coords.longitude);
+                  setLocationLabel(`Lat ${position.coords.latitude.toFixed(4)}, Lng ${position.coords.longitude.toFixed(4)}`);
+                },
+                () => {
+                  setError("Unable to determine your location.");
+                  setLocationLabel(null);
+                },
+                { enableHighAccuracy: true, timeout: 10000 },
+              );
+            }}
+          >
+            Use current location
+          </button>
+          {locationLabel ? <p className="text-sm text-slate-500">{locationLabel}</p> : null}
+        </div>
 
         <label className="block text-sm font-medium text-slate-800">
           Photos (optional, max 5MB each)

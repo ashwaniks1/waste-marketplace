@@ -13,6 +13,8 @@ type ProfileData = {
   address?: string | null;
   avatarUrl?: string | null;
   role: "customer" | "buyer" | "driver" | "admin";
+  reviewCount?: number;
+  averageRating?: number | null;
 };
 
 export function ProfileForm() {
@@ -25,6 +27,7 @@ export function ProfileForm() {
   const [saving, setSaving] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
   useEffect(() => {
@@ -38,7 +41,11 @@ export function ProfileForm() {
           setError(data.error ?? "Unable to load profile");
           return;
         }
-        setProfile(data.profile);
+        setProfile({
+          ...data.profile,
+          reviewCount: data.reviewSummary?.reviewCount ?? 0,
+          averageRating: data.reviewSummary?.averageRating ?? null,
+        });
         setName(data.profile.name ?? "");
         setPhone(data.profile.phone ?? "");
         setAddress(data.profile.address ?? "");
@@ -62,6 +69,7 @@ export function ProfileForm() {
     () =>
       Boolean(
         profile &&
+          name.trim().length > 0 &&
           (profile.name !== name || profile.phone !== phone || profile.address !== address || profile.avatarUrl !== avatarUrl),
       ),
     [profile, name, phone, address, avatarUrl],
@@ -74,6 +82,7 @@ export function ProfileForm() {
     setAddress(profile.address ?? "");
     setAvatarUrl(profile.avatarUrl ?? null);
     setError(null);
+    setFieldErrors({});
     setToast(null);
   }
 
@@ -81,8 +90,24 @@ export function ProfileForm() {
     setToast({ type, message });
   }
 
+  function validateProfile() {
+    const nextErrors: Record<string, string> = {};
+    if (name.trim().length < 2) nextErrors.name = "Name must be at least 2 characters.";
+    if (phone.trim().replace(/\D/g, "").length < 10) nextErrors.phone = "Phone must be at least 10 digits.";
+    if (address.trim().length === 0) nextErrors.address = "Address is required.";
+    setFieldErrors(nextErrors);
+    return nextErrors;
+  }
+
   async function handleSave() {
     if (!profile) return;
+    const validationErrors = validateProfile();
+    if (Object.keys(validationErrors).length > 0) {
+      const message = "Please fix the highlighted fields before saving.";
+      setError(message);
+      showToast("error", message);
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
@@ -149,6 +174,24 @@ export function ProfileForm() {
           </span>
         </div>
 
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+            <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Rating</p>
+            <p className="mt-2 text-2xl font-semibold text-slate-900">
+              {profile.averageRating != null ? profile.averageRating.toFixed(1) : "—"}
+            </p>
+            <p className="mt-1 text-sm text-slate-600">
+              {profile.reviewCount != null && profile.reviewCount > 0
+                ? `${profile.reviewCount} review${profile.reviewCount === 1 ? "" : "s"}`
+                : "No reviews yet"}
+            </p>
+          </div>
+          <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+            <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Location</p>
+            <p className="mt-2 text-sm text-slate-700">{profile.address ?? "Not set"}</p>
+          </div>
+        </div>
+
         {error ? <p className="rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-800">{error}</p> : null}
 
         <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
@@ -175,10 +218,24 @@ export function ProfileForm() {
                 id="profile-name"
                 type="text"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-200"
+                onChange={(e) => {
+                  setName(e.target.value);
+                  setFieldErrors((current) => {
+                    const next = { ...current };
+                    delete next.name;
+                    return next;
+                  });
+                }}
+                className={`mt-2 w-full rounded-2xl border px-4 py-3 text-sm text-slate-900 outline-none transition focus:ring-2 ${
+                  fieldErrors.name
+                    ? "border-rose-500 bg-rose-50 focus:border-rose-500 focus:ring-rose-100"
+                    : "border-slate-200 bg-white focus:border-teal-500 focus:ring-teal-200"
+                }`}
                 aria-label="Full name"
+                aria-invalid={Boolean(fieldErrors.name)}
+                aria-describedby={fieldErrors.name ? "profile-name-error" : undefined}
               />
+              {fieldErrors.name ? <p id="profile-name-error" className="mt-2 text-sm text-rose-600">{fieldErrors.name}</p> : null}
             </label>
 
             <label className="block">
@@ -199,10 +256,24 @@ export function ProfileForm() {
                 id="profile-phone"
                 type="tel"
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-200"
+                onChange={(e) => {
+                  setPhone(e.target.value);
+                  setFieldErrors((current) => {
+                    const next = { ...current };
+                    delete next.phone;
+                    return next;
+                  });
+                }}
+                className={`mt-2 w-full rounded-2xl border px-4 py-3 text-sm text-slate-900 outline-none transition focus:ring-2 ${
+                  fieldErrors.phone
+                    ? "border-rose-500 bg-rose-50 focus:border-rose-500 focus:ring-rose-100"
+                    : "border-slate-200 bg-white focus:border-teal-500 focus:ring-teal-200"
+                }`}
                 aria-label="Phone number"
+                aria-invalid={Boolean(fieldErrors.phone)}
+                aria-describedby={fieldErrors.phone ? "profile-phone-error" : undefined}
               />
+              {fieldErrors.phone ? <p id="profile-phone-error" className="mt-2 text-sm text-rose-600">{fieldErrors.phone}</p> : null}
             </label>
 
             <label className="block">
@@ -211,10 +282,24 @@ export function ProfileForm() {
                 id="profile-address"
                 rows={3}
                 value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-200"
+                onChange={(e) => {
+                  setAddress(e.target.value);
+                  setFieldErrors((current) => {
+                    const next = { ...current };
+                    delete next.address;
+                    return next;
+                  });
+                }}
+                className={`mt-2 w-full rounded-2xl border px-4 py-3 text-sm text-slate-900 outline-none transition focus:ring-2 ${
+                  fieldErrors.address
+                    ? "border-rose-500 bg-rose-50 focus:border-rose-500 focus:ring-rose-100"
+                    : "border-slate-200 bg-white focus:border-teal-500 focus:ring-teal-200"
+                }`}
                 aria-label="Address"
+                aria-invalid={Boolean(fieldErrors.address)}
+                aria-describedby={fieldErrors.address ? "profile-address-error" : undefined}
               />
+              {fieldErrors.address ? <p id="profile-address-error" className="mt-2 text-sm text-rose-600">{fieldErrors.address}</p> : null}
             </label>
 
             <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">

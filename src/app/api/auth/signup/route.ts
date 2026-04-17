@@ -7,10 +7,13 @@ import { createServiceSupabase } from "@/lib/supabase/service";
 const signupSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
-  name: z.string().min(1),
-  phone: z.string().optional(),
-  address: z.string().optional(),
+  name: z.string().min(2),
+  phone: z.string().min(10).optional(),
+  address: z.string().min(1).optional(),
   role: z.enum(["customer", "buyer", "driver"]),
+  vehicleType: z.string().trim().optional(),
+  licenseNumber: z.string().trim().optional(),
+  availability: z.string().trim().optional(),
 });
 
 /**
@@ -26,14 +29,20 @@ export async function POST(request: Request) {
       adminEmail && body.email.toLowerCase() === adminEmail ? "admin" : body.role;
 
     const service = createServiceSupabase();
-    // true = user can sign in immediately (no email link). Set SUPABASE_AUTOCONFIRM_NEW_USERS=false to require confirmation.
-    const emailConfirm = process.env.SUPABASE_AUTOCONFIRM_NEW_USERS !== "false";
+    const requireEmailVerification = process.env.SUPABASE_REQUIRE_EMAIL_VERIFICATION !== "false";
+    const emailConfirm = !requireEmailVerification;
 
     const { data, error } = await service.auth.admin.createUser({
       email: body.email.trim(),
       password: body.password,
       email_confirm: emailConfirm,
-      user_metadata: { name: body.name, phone: body.phone },
+      user_metadata: {
+        name: body.name,
+        phone: body.phone,
+        vehicleType: body.vehicleType,
+        licenseNumber: body.licenseNumber,
+        availability: body.availability,
+      },
       app_metadata: { role: finalRole },
     });
 
@@ -55,6 +64,9 @@ export async function POST(request: Request) {
           phone: body.phone?.trim() || null,
           role: finalRole,
           address: body.address?.trim() || null,
+          vehicleType: body.vehicleType?.trim() || null,
+          licenseNumber: body.licenseNumber?.trim() || null,
+          availability: body.availability?.trim() || null,
         },
       });
     } catch (pe) {

@@ -2,6 +2,7 @@ import { z } from "zod";
 import { getSupabaseUser } from "@/lib/auth";
 import { handleRouteError, jsonError, jsonOk } from "@/lib/http";
 import { createServiceSupabase } from "@/lib/supabase/service";
+import { prisma } from "@/lib/prisma";
 
 const updateProfileSchema = z.object({
   name: z.string().trim().min(1, "Name is required"),
@@ -70,9 +71,19 @@ export async function GET() {
     if (result.error) throw result.error;
     if (!result.data) return jsonError("Profile not available", 404);
 
+    const reviewSummary = await prisma.review.aggregate({
+      _avg: { score: true },
+      _count: { score: true },
+      where: { toUserId: result.data.id },
+    });
+
     return jsonOk({
       profile: serializeProfile(result.data),
       avatarColumnAvailable: result.avatarColumnAvailable,
+      reviewSummary: {
+        averageRating: reviewSummary._avg.score ?? null,
+        reviewCount: reviewSummary._count.score,
+      },
     });
   } catch (e) {
     if (e instanceof Error && e.message.includes("SUPABASE_SERVICE_ROLE_KEY")) {
@@ -104,10 +115,10 @@ export async function PATCH(request: Request) {
     let { data, error } = await usersTable
       .update(updateData)
       .eq("id", authUser.id)
-      .select(body.avatarUrl !== undefined ? profileSelect : baseProfileSelect)
+      .select(profileSelect)
       .single();
 
-    if (error && body.avatarUrl !== undefined && isMissingAvatarColumnError(error)) {
+    if (error && isMissingAvatarColumnError(error)) {
       avatarColumnAvailable = false;
       delete updateData.avatar_url;
       const fallback = await usersTable

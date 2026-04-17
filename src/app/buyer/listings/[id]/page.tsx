@@ -8,6 +8,7 @@ import { AppHeader } from "@/components/AppHeader";
 import { Button } from "@/components/Button";
 import { ConversationDrawer } from "@/components/ConversationDrawer";
 import { ImageGallery } from "@/components/ImageGallery";
+import { ReviewForm } from "@/components/ReviewForm";
 import { StatusBadge } from "@/components/StatusBadge";
 import { formatMoney } from "@/lib/money";
 import { WASTE_TYPE_OPTIONS } from "@/lib/waste-types";
@@ -221,7 +222,11 @@ export default function BuyerListingDetailPage() {
 
             <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
               <p className="text-sm font-semibold text-slate-900">Seller</p>
-              <p className="text-sm text-slate-700">{row.seller.name}</p>
+              <p className="text-sm text-slate-700">
+                <Link href={`/profile/${row.seller.id}`} className="font-medium text-teal-700 underline">
+                  {row.seller.name}
+                </Link>
+              </p>
               {row.seller.phone ? (
                 <div className="mt-2 flex flex-wrap gap-2">
                   <a href={`tel:${row.seller.phone}`}>
@@ -298,6 +303,10 @@ export default function BuyerListingDetailPage() {
               <Button className="w-full sm:max-w-xs" disabled={busy} onClick={() => submitComplete()}>
                 Mark pickup completed
               </Button>
+            ) : null}
+
+            {row.status === "completed" && row.acceptor ? (
+              <ReviewForm listingId={row.id} toUserId={row.seller.id} toUserName={row.seller.name} onSubmitted={() => load()} />
             ) : null}
 
             <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
