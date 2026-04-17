@@ -31,6 +31,7 @@ export async function POST(request: Request) {
         typeof meta.name === "string" && meta.name.trim().length > 0 ? meta.name.trim() : user.email;
       const phone = typeof meta.phone === "string" ? meta.phone.trim() : null;
       const address = typeof meta.address === "string" ? meta.address.trim() : null;
+      const now = new Date();
 
       await prisma.user.upsert({
         where: { id: user.id },
@@ -40,6 +41,7 @@ export async function POST(request: Request) {
           phone,
           address,
           role,
+          lastActivityAt: now,
         },
         create: {
           id: user.id,
@@ -48,6 +50,7 @@ export async function POST(request: Request) {
           phone,
           address,
           role,
+          lastActivityAt: now,
         },
       });
     }

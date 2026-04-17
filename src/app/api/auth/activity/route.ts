@@ -3,8 +3,11 @@ import { handleRouteError, jsonOk } from "@/lib/http";
 
 export async function POST() {
   try {
-    await requireAppUser();
-    return jsonOk({ ok: true });
+    const me = await requireAppUser();
+    return jsonOk({
+      ok: true,
+      lastActivityAt: me.lastActivityAt,
+    });
   } catch (e) {
     return handleRouteError(e);
   }
