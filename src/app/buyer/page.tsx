@@ -9,12 +9,14 @@ import { ListingCard, type ListingCardListing } from "@/components/ListingCard";
 export default function BuyerHomePage() {
   const [rows, setRows] = useState<ListingCardListing[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
       const res = await fetch("/api/listings");
       const data = await res.json();
       if (res.ok) setRows(data);
+      else setError(typeof data?.error === "string" ? data.error : "Unable to load listings");
       setLoading(false);
     })();
   }, []);
@@ -32,6 +34,7 @@ export default function BuyerHomePage() {
             <div className="h-36 animate-pulse rounded-3xl bg-slate-200 dark:bg-slate-700" />
           </div>
         ) : null}
+        {error ? <p className="rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-800">{error}</p> : null}
         {!loading && rows.length === 0 ? (
           <EmptyState
             variant="listings"
