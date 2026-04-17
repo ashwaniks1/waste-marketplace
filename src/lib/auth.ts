@@ -30,8 +30,46 @@ export async function getAppUser(): Promise<AppUser | null> {
   return prisma.user.findUnique({ where: { id: authUser.id } });
 }
 
+async function getIdleTimeoutMinutes() {
+  const settings = await prisma.platformSettings.findUnique({ where: { id: 1 }, select: { sessionIdleMinutes: true } });
+  const value = settings?.sessionIdleMinutes;
+  if (typeof value === "number" && Number.isFinite(value) && value >= 5) return value;
+  return 60;
+}
+
+function minutesBetween(now: Date, then: Date) {
+  return (now.getTime() - then.getTime()) / (1000 * 60);
+}
+
 export async function requireAppUser(): Promise<AppUser> {
-  const u = await getAppUser();
+  const supabase = await createServerSupabase();
+  const {
+    data: { user: authUser },
+    error,
+  } = await supabase.auth.getUser();
+
+  if (error || !authUser) throw new HttpError(401, "Unauthorized");
+
+  const u = await prisma.user.findUnique({ where: { id: authUser.id } });
   if (!u) throw new HttpError(401, "Unauthorized");
+
+  const timeoutMinutes = await getIdleTimeoutMinutes();
+  const now = new Date();
+  const last = u.lastActivityAt ?? u.updatedAt ?? u.createdAt;
+  if (last && minutesBetween(now, last) > timeoutMinutes) {
+    // Clear cookies/session on the server side too (SSR + route handlers).
+    await supabase.auth.signOut();
+    throw new HttpError(401, "Session expired");
+  }
+
+  // Throttle DB writes: update at most once per minute.
+  if (!last || minutesBetween(now, last) >= 1) {
+    await prisma.user.update({
+      where: { id: u.id },
+      data: { lastActivityAt: now },
+      select: { id: true },
+    });
+  }
+
   return u;
 }

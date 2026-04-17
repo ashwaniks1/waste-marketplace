@@ -10,11 +10,9 @@ const updateProfileSchema = z.object({
   address: z.string().trim().optional().nullable(),
   avatarUrl: z.string().url().optional().nullable(),
   zipCode: z.string().trim().max(20).optional().nullable(),
-  profileLat: z.number().min(-90).max(90).optional().nullable(),
-  profileLng: z.number().min(-180).max(180).optional().nullable(),
 });
 
-const baseProfileSelect = "id, name, email, phone, address, role, zip_code, profile_lat, profile_lng";
+const baseProfileSelect = "id, name, email, phone, address, role, zip_code";
 const profileSelect = `${baseProfileSelect}, avatar_url`;
 
 type BaseProfileRow = {
@@ -25,8 +23,6 @@ type BaseProfileRow = {
   address: string | null;
   role: "customer" | "buyer" | "driver" | "admin";
   zip_code: string | null;
-  profile_lat: number | null;
-  profile_lng: number | null;
 };
 
 type ProfileRow = BaseProfileRow & {
@@ -43,8 +39,6 @@ function serializeProfile(row: BaseProfileRow | ProfileRow) {
     avatarUrl: "avatar_url" in row ? row.avatar_url : null,
     role: row.role,
     zipCode: row.zip_code,
-    profileLat: row.profile_lat,
-    profileLng: row.profile_lng,
   };
 }
 
@@ -70,13 +64,11 @@ async function selectProfile(
   const fallback = await usersTable.select(fallbackSelect).eq("id", userId).single();
   if (fallback.error) return { error: fallback.error };
 
-  const fb = fallback.data as Omit<BaseProfileRow, "zip_code" | "profile_lat" | "profile_lng">;
+  const fb = fallback.data as Omit<BaseProfileRow, "zip_code">;
   return {
     data: {
       ...fb,
       zip_code: null,
-      profile_lat: null,
-      profile_lng: null,
     } satisfies BaseProfileRow,
     avatarColumnAvailable: false,
   };
@@ -133,12 +125,6 @@ export async function PATCH(request: Request) {
     }
     if (body.zipCode !== undefined) {
       updateData.zip_code = body.zipCode?.trim() || null;
-    }
-    if (body.profileLat !== undefined) {
-      updateData.profile_lat = body.profileLat;
-    }
-    if (body.profileLng !== undefined) {
-      updateData.profile_lng = body.profileLng;
     }
 
     let avatarColumnAvailable = true;

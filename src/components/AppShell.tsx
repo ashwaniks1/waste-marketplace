@@ -5,7 +5,9 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { Button } from "@/components/Button";
+import { LocationProvider } from "@/components/LocationProvider";
 import { NotificationBell } from "@/components/NotificationBell";
+import { SessionActivity } from "@/components/SessionActivity";
 
 type Role = "customer" | "buyer" | "admin" | "driver";
 
@@ -117,7 +119,9 @@ export function AppShell({
   }
 
   return (
-    <div className="flex min-h-dvh flex-col bg-gradient-to-b from-emerald-50/40 via-slate-50 to-slate-100">
+    <LocationProvider>
+      <SessionActivity />
+      <div className="flex min-h-dvh flex-col bg-gradient-to-b from-emerald-50/40 via-slate-50 to-slate-100">
       <header className="sticky top-0 z-30 border-b border-emerald-100/80 bg-white/85 backdrop-blur-xl">
         <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 sm:px-6 md:px-8">
           <Link href={homeHref} className="flex min-w-0 items-center gap-3">
@@ -227,6 +231,7 @@ export function AppShell({
           </div>
         </nav>
       ) : null}
-    </div>
+      </div>
+    </LocationProvider>
   );
 }

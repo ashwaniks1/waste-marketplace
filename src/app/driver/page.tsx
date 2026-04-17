@@ -5,7 +5,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { Button } from "@/components/Button";
 import { EmptyState } from "@/components/EmptyState";
+import { LiveMap } from "@/components/LiveMap";
 import { StatusBadge } from "@/components/StatusBadge";
+import { useLiveLocation } from "@/components/LocationProvider";
 import { formatMoney } from "@/lib/money";
 import { WASTE_TYPE_OPTIONS } from "@/lib/waste-types";
 
@@ -55,6 +57,7 @@ const MILE_FILTERS = [
 ];
 
 export default function DriverPage() {
+  const location = useLiveLocation();
   const [tab, setTab] = useState<"available" | "mine">("available");
   const [feed, setFeed] = useState<FeedRow[]>([]);
   const [jobs, setJobs] = useState<DriverJob[]>([]);
@@ -70,11 +73,15 @@ export default function DriverPage() {
     if (miles) params.set("miles", miles);
     if (wasteType) params.set("wasteType", wasteType);
     params.set("sort", sort);
+    if (location.point) {
+      params.set("lat", String(location.point.lat));
+      params.set("lng", String(location.point.lng));
+    }
     const res = await fetch(`/api/driver/feed?${params.toString()}`, { cache: "no-store" });
     const data = await res.json();
     if (!res.ok) setError(data.error ?? "Unable to load pickups");
     else setFeed(data);
-  }, [miles, wasteType, sort]);
+  }, [miles, wasteType, sort, location.point]);
 
   const loadJobs = useCallback(async () => {
     const res = await fetch("/api/driver/jobs", { cache: "no-store" });
@@ -142,13 +149,25 @@ export default function DriverPage() {
           <div>
             <p className="text-lg font-semibold text-slate-900">Pickup board</p>
             <p className="mt-1 text-sm text-slate-600">
-              Claim delivery jobs sellers posted with driver pickup. Set your home base under Profile for distance filters.
+              Claim delivery jobs sellers posted with driver pickup. Distance filters use your live location.
             </p>
           </div>
           <Button type="button" onClick={refresh} disabled={loading}>
             Refresh
           </Button>
         </div>
+
+        {location.permission === "denied" ? (
+          <p className="mb-4 rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            Location permission is off, so distance filters will be disabled. Enable location access in your browser settings.
+          </p>
+        ) : location.point ? (
+          <div className="mb-6">
+            <LiveMap center={location.point} heightClassName="h-64" />
+          </div>
+        ) : (
+          <p className="mb-4 text-sm text-slate-600">Requesting your location…</p>
+        )}
 
         <div className="mb-4 flex gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-1">
           <button

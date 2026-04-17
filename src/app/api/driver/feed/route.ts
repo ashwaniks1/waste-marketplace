@@ -11,6 +11,8 @@ import { serializeListing } from "@/lib/serialize";
 
 const querySchema = z.object({
   miles: z.coerce.number().min(1).max(200).optional(),
+  lat: z.coerce.number().min(-90).max(90).optional(),
+  lng: z.coerce.number().min(-180).max(180).optional(),
   wasteType: z.nativeEnum(WasteType).optional(),
   sort: z.enum(["nearest", "payout", "newest"]).optional().default("newest"),
 });
@@ -42,17 +44,15 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const q = querySchema.parse({
       miles: searchParams.get("miles") ?? undefined,
+      lat: searchParams.get("lat") ?? undefined,
+      lng: searchParams.get("lng") ?? undefined,
       wasteType: searchParams.get("wasteType") ?? undefined,
       sort: searchParams.get("sort") ?? undefined,
     });
 
-    const driver = await prisma.user.findUnique({
-      where: { id: me.id },
-      select: { profileLat: true, profileLng: true },
-    });
     const driverPoint =
-      driver?.profileLat != null && driver?.profileLng != null
-        ? { lat: driver.profileLat, lng: driver.profileLng }
+      q.lat != null && q.lng != null && Number.isFinite(q.lat) && Number.isFinite(q.lng)
+        ? { lat: q.lat, lng: q.lng }
         : null;
 
     const listings = await prisma.wasteListing.findMany({

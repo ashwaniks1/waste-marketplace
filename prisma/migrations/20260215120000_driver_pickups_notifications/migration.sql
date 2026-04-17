@@ -62,8 +62,8 @@ CREATE TABLE IF NOT EXISTS "platform_settings" (
   "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-INSERT INTO "platform_settings" ("id", "default_driver_commission_percent")
-VALUES (1, 10)
+INSERT INTO "platform_settings" ("id", "default_driver_commission_percent", "updated_at")
+VALUES (1, 10, CURRENT_TIMESTAMP)
 ON CONFLICT ("id") DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS "notifications" (
