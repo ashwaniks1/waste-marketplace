@@ -1,4 +1,4 @@
-import { UserRole, type User as AppUser } from "@prisma/client";
+import type { User as AppUser } from "@prisma/client";
 import { HttpError } from "@/lib/errors";
 import { canViewListing } from "@/lib/listing-visibility";
 import { relistExpiredAcceptedListing } from "@/lib/pickup-window";

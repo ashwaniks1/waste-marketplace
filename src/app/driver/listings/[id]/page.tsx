@@ -47,6 +47,7 @@ export default function DriverListingDetailPage() {
 
   useEffect(() => {
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reload when listing id changes
   }, [id]);
 
   async function claim() {

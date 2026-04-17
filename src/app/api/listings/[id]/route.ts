@@ -1,4 +1,4 @@
-import { CommissionKind, ListingStatus, OfferStatus, PickupJobStatus, UserRole, WasteType } from "@prisma/client";
+import { CommissionKind, ListingStatus, OfferStatus, PickupJobStatus, WasteType } from "@prisma/client";
 import { z } from "zod";
 import { requireAppUser } from "@/lib/auth";
 import { HttpError } from "@/lib/errors";
