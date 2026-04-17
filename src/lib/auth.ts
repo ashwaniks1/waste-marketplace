@@ -30,7 +30,7 @@ export async function getAppUser(): Promise<AppUser | null> {
   return prisma.user.findUnique({ where: { id: authUser.id } });
 }
 
-async function getIdleTimeoutMinutes() {
+export async function getIdleTimeoutMinutes() {
   const settings = await prisma.platformSettings.findUnique({ where: { id: 1 }, select: { sessionIdleMinutes: true } });
   const value = settings?.sessionIdleMinutes;
   if (typeof value === "number" && Number.isFinite(value) && value >= 5) return value;
@@ -39,6 +39,26 @@ async function getIdleTimeoutMinutes() {
 
 function minutesBetween(now: Date, then: Date) {
   return (now.getTime() - then.getTime()) / (1000 * 60);
+}
+
+export function getSessionWarningSeconds({
+  now,
+  lastActivityAt,
+  timeoutMinutes,
+  warningWindowSeconds = 120,
+}: {
+  now: Date;
+  lastActivityAt: Date | null;
+  timeoutMinutes: number;
+  warningWindowSeconds?: number;
+}): number | null {
+  if (!lastActivityAt) return null;
+  const timeoutSeconds = timeoutMinutes * 60;
+  const elapsedSeconds = Math.floor((now.getTime() - lastActivityAt.getTime()) / 1000);
+  const remainingSeconds = timeoutSeconds - elapsedSeconds;
+  if (remainingSeconds <= 0) return 0;
+  if (remainingSeconds <= warningWindowSeconds) return remainingSeconds;
+  return null;
 }
 
 export async function requireAppUser(): Promise<AppUser> {
@@ -72,4 +92,15 @@ export async function requireAppUser(): Promise<AppUser> {
   }
 
   return u;
+}
+
+export async function getSessionStateForUser(user: { lastActivityAt: Date | null }) {
+  const timeoutMinutes = await getIdleTimeoutMinutes();
+  const warningSeconds = getSessionWarningSeconds({
+    now: new Date(),
+    lastActivityAt: user.lastActivityAt,
+    timeoutMinutes,
+    warningWindowSeconds: 5 * 60,
+  });
+  return { timeoutMinutes, warningSeconds };
 }
