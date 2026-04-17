@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/Button";
+import { fieldErrorsFromZod, loginFormSchema } from "@/lib/validation";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -14,10 +15,17 @@ export default function LoginPage() {
   const [verificationPending, setVerificationPending] = useState(false);
   const [resendMessage, setResendMessage] = useState<string | null>(null);
   const [resendLoading, setResendLoading] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string | undefined>>({});
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setFieldErrors({});
+    const parsed = loginFormSchema.safeParse({ email, password });
+    if (!parsed.success) {
+      setFieldErrors(fieldErrorsFromZod(parsed.error));
+      return;
+    }
     setVerificationPending(false);
     setResendMessage(null);
     setLoading(true);
@@ -88,10 +96,22 @@ export default function LoginPage() {
             type="email"
             required
             autoComplete="email"
-            className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-3 text-base outline-none ring-teal-500 focus:ring-2"
+            className={`mt-1 w-full rounded-xl border px-3 py-3 text-base outline-none ring-teal-500 focus:ring-2 ${
+              fieldErrors.email ? "border-rose-500 bg-rose-50" : "border-slate-200"
+            }`}
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              setFieldErrors((f) => ({ ...f, email: undefined }));
+            }}
+            aria-invalid={Boolean(fieldErrors.email)}
+            aria-describedby={fieldErrors.email ? "login-email-error" : undefined}
           />
+          {fieldErrors.email ? (
+            <p id="login-email-error" className="mt-1 text-sm text-rose-600" role="alert">
+              {fieldErrors.email}
+            </p>
+          ) : null}
         </label>
         <label className="block text-sm font-medium text-slate-700">
           Password
@@ -99,10 +119,22 @@ export default function LoginPage() {
             type="password"
             required
             autoComplete="current-password"
-            className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-3 text-base outline-none ring-teal-500 focus:ring-2"
+            className={`mt-1 w-full rounded-xl border px-3 py-3 text-base outline-none ring-teal-500 focus:ring-2 ${
+              fieldErrors.password ? "border-rose-500 bg-rose-50" : "border-slate-200"
+            }`}
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(e) => {
+              setPassword(e.target.value);
+              setFieldErrors((f) => ({ ...f, password: undefined }));
+            }}
+            aria-invalid={Boolean(fieldErrors.password)}
+            aria-describedby={fieldErrors.password ? "login-password-error" : undefined}
           />
+          {fieldErrors.password ? (
+            <p id="login-password-error" className="mt-1 text-sm text-rose-600" role="alert">
+              {fieldErrors.password}
+            </p>
+          ) : null}
         </label>
         {error ? <p className="text-sm text-rose-600">{error}</p> : null}
         {verificationPending ? (

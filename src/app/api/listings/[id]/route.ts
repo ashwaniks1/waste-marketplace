@@ -33,7 +33,36 @@ const patchSchema = z.object({
     }
     return value;
   }, z.number().positive()).optional(),
-});
+  latitude: z.number().min(-90).max(90).optional().nullable(),
+  longitude: z.number().min(-180).max(180).optional().nullable(),
+})
+  .superRefine((data, ctx) => {
+    if (data.latitude !== undefined && data.longitude === undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["longitude"],
+        message: "Include longitude when updating coordinates",
+      });
+    }
+    if (data.longitude !== undefined && data.latitude === undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["latitude"],
+        message: "Include latitude when updating coordinates",
+      });
+    }
+    if (data.latitude !== undefined && data.longitude !== undefined) {
+      const a = data.latitude;
+      const b = data.longitude;
+      if ((a == null) !== (b == null)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["latitude"],
+          message: "Set both latitude and longitude, or set both to null",
+        });
+      }
+    }
+  });
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -44,7 +73,7 @@ async function canReadListing(
   if (me.role === UserRole.admin) return true;
   if (me.role === UserRole.customer && row.userId === me.id) return true;
   if (me.role === UserRole.buyer) {
-    if (row.status === ListingStatus.open) return true;
+    if (row.status === ListingStatus.open || row.status === ListingStatus.reopened) return true;
     if (row.acceptedById === me.id) return true;
   }
   return false;
@@ -99,6 +128,8 @@ export async function PATCH(request: Request, ctx: Ctx) {
         ...(body.currency !== undefined ? { currency: body.currency } : {}),
         ...(body.deliveryAvailable !== undefined ? { deliveryAvailable: body.deliveryAvailable } : {}),
         ...(body.deliveryFee !== undefined ? { deliveryFee: body.deliveryFee } : {}),
+        ...(body.latitude !== undefined ? { latitude: body.latitude } : {}),
+        ...(body.longitude !== undefined ? { longitude: body.longitude } : {}),
       },
       include: listingInclude,
     });

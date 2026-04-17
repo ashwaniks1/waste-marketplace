@@ -49,6 +49,7 @@ async function selectProfile(
   supabase: ReturnType<typeof createServiceSupabase>,
   userId: string,
 ) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Supabase table not in generated types
   const usersTable = supabase.from("users") as any;
   const full = await usersTable.select(profileSelect).eq("id", userId).single();
   if (!full.error) {
@@ -101,6 +102,7 @@ export async function PATCH(request: Request) {
     const body = updateProfileSchema.parse(await request.json());
 
     const supabase = createServiceSupabase();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Supabase table not in generated types
     const usersTable = supabase.from("users") as any;
     const updateData: Record<string, string | null> = {
       name: body.name,

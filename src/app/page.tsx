@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/Button";
+import { HeroEcoBackground } from "@/components/HeroEcoBackground";
 import { LandingFooter } from "@/components/LandingFooter";
 import { MarketingNavbar } from "@/components/MarketingNavbar";
 import { getAppUser, getRoleFromSupabaseUser, getSupabaseUser } from "@/lib/auth";
@@ -30,9 +31,9 @@ export default async function HomePage() {
     <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-slate-100">
       <MarketingNavbar />
       <main className="relative overflow-hidden">
-        <section className="relative mx-auto max-w-7xl px-4 pb-20 pt-16 sm:px-6 lg:px-8 lg:pt-24">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.18),_transparent_42%)]" />
-          <div className="relative grid gap-16 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
+        <HeroEcoBackground>
+          <section className="relative mx-auto max-w-7xl px-4 pb-20 pt-16 sm:px-6 lg:px-8 lg:pt-24">
+            <div className="relative grid gap-16 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
             <div className="max-w-2xl">
               <p className="mb-4 inline-flex rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-sm font-semibold text-emerald-200">
                 Sustainable reuse marketplace
@@ -75,7 +76,8 @@ export default async function HomePage() {
               </div>
             </div>
           </div>
-        </section>
+          </section>
+        </HeroEcoBackground>
 
         <section id="how-it-works" className="mx-auto max-w-7xl px-4 pb-20 sm:px-6 lg:px-8">
           <div className="mb-12 text-center">

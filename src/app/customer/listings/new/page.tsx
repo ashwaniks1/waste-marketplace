@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { Button } from "@/components/Button";
+import { MapCoordinatesPicker } from "@/components/MapCoordinatesPicker";
 import { WASTE_TYPE_OPTIONS } from "@/lib/waste-types";
 
 export default function NewListingPage() {
@@ -17,7 +18,6 @@ export default function NewListingPage() {
   const [deliveryAvailable, setDeliveryAvailable] = useState(false);
   const [deliveryFee, setDeliveryFee] = useState("");
   const [files, setFiles] = useState<File[]>([]);
-  const [locationLabel, setLocationLabel] = useState<string | null>(null);
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -51,8 +51,8 @@ export default function NewListingPage() {
         deliveryAvailable,
         deliveryFee: deliveryFee.trim() || undefined,
         images,
-        locationLat: latitude ?? undefined,
-        locationLng: longitude ?? undefined,
+        latitude: latitude ?? undefined,
+        longitude: longitude ?? undefined,
       };
       const res = await fetch("/api/listings", {
         method: "POST",
@@ -200,35 +200,15 @@ export default function NewListingPage() {
             onChange={(e) => setAddress(e.target.value)}
           />
         </label>
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <button
-            type="button"
-            className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-teal-300 hover:bg-teal-50"
-            onClick={() => {
-              if (!navigator.geolocation) {
-                setError("Geolocation is not available in your browser.");
-                return;
-              }
-              setError(null);
-              setLocationLabel("Finding location…");
-              navigator.geolocation.getCurrentPosition(
-                (position) => {
-                  setLatitude(position.coords.latitude);
-                  setLongitude(position.coords.longitude);
-                  setLocationLabel(`Lat ${position.coords.latitude.toFixed(4)}, Lng ${position.coords.longitude.toFixed(4)}`);
-                },
-                () => {
-                  setError("Unable to determine your location.");
-                  setLocationLabel(null);
-                },
-                { enableHighAccuracy: true, timeout: 10000 },
-              );
-            }}
-          >
-            Use current location
-          </button>
-          {locationLabel ? <p className="text-sm text-slate-500">{locationLabel}</p> : null}
-        </div>
+        <MapCoordinatesPicker
+          address={address}
+          latitude={latitude}
+          longitude={longitude}
+          onChange={(lat, lng) => {
+            setLatitude(lat);
+            setLongitude(lng);
+          }}
+        />
 
         <label className="block text-sm font-medium text-slate-800">
           Photos (optional, max 5MB each)

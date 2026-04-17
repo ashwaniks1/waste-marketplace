@@ -47,7 +47,15 @@ const createSchema = z.object({
     }
     return value;
   }, z.number().positive()).optional(),
-});
+  latitude: z.number().min(-90).max(90).optional().nullable(),
+  longitude: z.number().min(-180).max(180).optional().nullable(),
+})
+  .refine(
+    (v) =>
+      (v.latitude == null && v.longitude == null) ||
+      (v.latitude != null && v.longitude != null),
+    { message: "Provide both latitude and longitude, or omit both", path: ["latitude"] },
+  );
 
 /** Listings list — scope depends on role (buyer: open feed + optional mine; customer: own; admin: all). */
 export async function GET(request: Request) {
@@ -115,6 +123,8 @@ export async function POST(request: Request) {
         currency: body.currency ?? "USD",
         deliveryAvailable: body.deliveryAvailable,
         deliveryFee: body.deliveryFee,
+        latitude: body.latitude ?? undefined,
+        longitude: body.longitude ?? undefined,
       },
       include: listingInclude,
     });

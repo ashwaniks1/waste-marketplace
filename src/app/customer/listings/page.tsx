@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { WasteListing } from "@prisma/client";
 import { AppHeader } from "@/components/AppHeader";
-import { ListingCard } from "@/components/ListingCard";
+import { EmptyState } from "@/components/EmptyState";
+import { ListingCard, type ListingCardListing } from "@/components/ListingCard";
 
 export default function CustomerListingsPage() {
-  const [rows, setRows] = useState<WasteListing[]>([]);
+  const [rows, setRows] = useState<ListingCardListing[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -22,9 +22,20 @@ export default function CustomerListingsPage() {
     <>
       <AppHeader title="My listings" backHref="/customer" role="customer" />
       <div className="space-y-3 px-4 pt-4">
-        {loading ? <p className="text-sm text-slate-600">Loading…</p> : null}
+        {loading ? (
+          <div className="space-y-3" aria-busy="true" aria-label="Loading listings">
+            <div className="h-36 animate-pulse rounded-3xl bg-slate-200 dark:bg-slate-700" />
+            <div className="h-36 animate-pulse rounded-3xl bg-slate-200 dark:bg-slate-700" />
+          </div>
+        ) : null}
         {!loading && rows.length === 0 ? (
-          <p className="text-sm text-slate-600">No listings yet — tap Sell waste on Home.</p>
+          <EmptyState
+            variant="listings"
+            title="No listings yet"
+            description="Create your first listing from the home tab to start receiving buyer offers."
+            actionLabel="Back to home"
+            actionHref="/customer"
+          />
         ) : null}
         {rows.map((l) => (
           <ListingCard key={l.id} listing={l} href={`/customer/listings/${l.id}`} />

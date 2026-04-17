@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/Button";
+import { fieldErrorsFromZod, signupFormSchema } from "@/lib/validation";
 
 const roleOptions = [
   { value: "customer", label: "Seller", icon: "♻️", description: "List waste and manage offers." },
@@ -16,9 +17,6 @@ const availabilityOptions = [
   { value: "Weekdays", label: "Weekdays" },
   { value: "Evenings", label: "Evenings" },
 ];
-
-const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const passwordRegex = /^(?=.*[A-Z])(?=.*\d).{8,}$/;
 
 export default function SignupPage() {
   const router = useRouter();
@@ -39,41 +37,32 @@ export default function SignupPage() {
 
   const requireVerification = process.env.NEXT_PUBLIC_SUPABASE_REQUIRE_EMAIL_VERIFICATION !== "false";
 
-  const isFormValid = useMemo(() => {
-    if (name.trim().length < 2) return false;
-    if (!emailRegex.test(email)) return false;
-    if (phone.replace(/\D/g, "").length < 10) return false;
-    if (address.trim().length === 0) return false;
-    if (!passwordRegex.test(password)) return false;
-    if (role === "driver") {
-      if (!vehicleType.trim() || !licenseNumber.trim() || !availability.trim()) return false;
-    }
-    return true;
-  }, [name, email, phone, address, password, role, vehicleType, licenseNumber, availability]);
+  const signupPayload = useMemo(
+    () => ({
+      name,
+      email,
+      phone,
+      address,
+      password,
+      role,
+      vehicleType: role === "driver" ? vehicleType : undefined,
+      licenseNumber: role === "driver" ? licenseNumber : undefined,
+      availability: role === "driver" ? availability : undefined,
+    }),
+    [name, email, phone, address, password, role, vehicleType, licenseNumber, availability],
+  );
 
-  function validateFields() {
-    const errors: Record<string, string> = {};
-    if (name.trim().length < 2) errors.name = "Name must be at least 2 characters.";
-    if (!emailRegex.test(email)) errors.email = "Enter a valid email address.";
-    if (phone.replace(/\D/g, "").length < 10) errors.phone = "Phone number must contain at least 10 digits.";
-    if (address.trim().length === 0) errors.address = "Address is required.";
-    if (!passwordRegex.test(password)) {
-      errors.password = "Password needs 8+ chars, one uppercase letter, and one number.";
-    }
-    if (role === "driver") {
-      if (!vehicleType.trim()) errors.vehicleType = "Vehicle type is required for drivers.";
-      if (!licenseNumber.trim()) errors.licenseNumber = "License number is required for drivers.";
-      if (!availability.trim()) errors.availability = "Availability is required for drivers.";
-    }
-    setFieldErrors(errors);
-    return errors;
-  }
+  const isFormValid = useMemo(() => signupFormSchema.safeParse(signupPayload).success, [signupPayload]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    const errors = validateFields();
-    if (Object.keys(errors).length > 0) return;
+    const parsed = signupFormSchema.safeParse(signupPayload);
+    if (!parsed.success) {
+      setFieldErrors(fieldErrorsFromZod(parsed.error));
+      return;
+    }
+    setFieldErrors({});
 
     setLoading(true);
     try {

@@ -8,9 +8,12 @@ import { serializeListing } from "@/lib/serialize";
 type Ctx = { params: Promise<{ id: string }> };
 
 const requestSchema = {
-  parse: async (body: any) => ({
-    reason: typeof body.reason === "string" ? body.reason.trim() : undefined,
-  }),
+  parse: async (body: unknown) => {
+    const b = body as { reason?: unknown };
+    return {
+      reason: typeof b.reason === "string" ? b.reason.trim() : undefined,
+    };
+  },
 };
 
 export async function POST(request: Request, ctx: Ctx) {

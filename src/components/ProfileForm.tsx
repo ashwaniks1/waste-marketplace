@@ -50,7 +50,7 @@ export function ProfileForm() {
         setPhone(data.profile.phone ?? "");
         setAddress(data.profile.address ?? "");
         setAvatarUrl(data.profile.avatarUrl ?? null);
-      } catch (err) {
+      } catch {
         setError("Unable to load profile");
       } finally {
         setLoading(false);
@@ -140,7 +140,7 @@ export function ProfileForm() {
       } else {
         showToast("success", "Profile updated successfully");
       }
-    } catch (err) {
+    } catch {
       setError("Unable to save profile");
       showToast("error", "Unable to save profile");
     } finally {

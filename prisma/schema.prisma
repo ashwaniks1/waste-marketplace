@@ -114,6 +114,8 @@ model WasteListing {
   pickupExtendedAt DateTime?   @map("pickup_extended_at")
   deliveryAvailable Boolean    @default(false) @map("delivery_available")
   deliveryFee    Decimal?      @map("delivery_fee") @db.Decimal(12, 2)
+  latitude       Float?
+  longitude      Float?
   noShowReason   String?       @map("no_show_reason")
   reopenedAt     DateTime?     @map("reopened_at")
   createdAt      DateTime      @default(now()) @map("created_at")

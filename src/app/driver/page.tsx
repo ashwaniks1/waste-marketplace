@@ -39,7 +39,7 @@ export default function DriverPage() {
       } else {
         setJobs(data);
       }
-    } catch (err) {
+    } catch {
       setError("Unable to load jobs");
     } finally {
       setLoading(false);
@@ -65,7 +65,7 @@ export default function DriverPage() {
       } else {
         setJobs((current) => current.map((job) => (job.id === jobId ? data : job)));
       }
-    } catch (err) {
+    } catch {
       setError("Unable to update job");
     } finally {
       setBusyId(null);

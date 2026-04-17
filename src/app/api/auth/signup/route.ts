@@ -1,20 +1,8 @@
 import { Prisma, UserRole } from "@prisma/client";
-import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { handleRouteError, jsonError, jsonOk } from "@/lib/http";
+import { signupFormSchema } from "@/lib/validation";
 import { createServiceSupabase } from "@/lib/supabase/service";
-
-const signupSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(8),
-  name: z.string().min(2),
-  phone: z.string().min(10).optional(),
-  address: z.string().min(1).optional(),
-  role: z.enum(["customer", "buyer", "driver"]),
-  vehicleType: z.string().trim().optional(),
-  licenseNumber: z.string().trim().optional(),
-  availability: z.string().trim().optional(),
-});
 
 /**
  * Creates the auth user with the service role (sets app_metadata.role in one request),
@@ -23,7 +11,7 @@ const signupSchema = z.object({
  */
 export async function POST(request: Request) {
   try {
-    const body = signupSchema.parse(await request.json());
+    const body = signupFormSchema.parse(await request.json());
     const adminEmail = process.env.ADMIN_EMAIL?.toLowerCase();
     const finalRole: UserRole =
       adminEmail && body.email.toLowerCase() === adminEmail ? "admin" : body.role;
@@ -61,9 +49,9 @@ export async function POST(request: Request) {
           id: data.user.id,
           email: body.email.trim(),
           name: body.name.trim(),
-          phone: body.phone?.trim() || null,
+          phone: body.phone.trim() || null,
           role: finalRole,
-          address: body.address?.trim() || null,
+          address: body.address.trim() || null,
           vehicleType: body.vehicleType?.trim() || null,
           licenseNumber: body.licenseNumber?.trim() || null,
           availability: body.availability?.trim() || null,
