@@ -31,6 +31,7 @@ type ListingDetail = {
   acceptedAt: string | null;
   seller: { id: string; name: string; email: string; phone: string | null; avatarUrl?: string | null };
   acceptor: { id: string; name: string; email: string; phone: string | null } | null;
+  assignedDriver: { id: string; name: string; email: string; avatarUrl?: string | null } | null;
 };
 
 function formatDeadline(isoDate: string | null) {
@@ -307,6 +308,14 @@ export default function BuyerListingDetailPage() {
 
             {row.status === "completed" && row.acceptor ? (
               <ReviewForm listingId={row.id} toUserId={row.seller.id} toUserName={row.seller.name} onSubmitted={() => load()} />
+            ) : null}
+            {row.status === "completed" && row.assignedDriver ? (
+              <ReviewForm
+                listingId={row.id}
+                toUserId={row.assignedDriver.id}
+                toUserName={row.assignedDriver.name}
+                onSubmitted={() => load()}
+              />
             ) : null}
 
             <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">

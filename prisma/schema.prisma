@@ -66,6 +66,19 @@ enum TransactionType {
   fee
 }
 
+enum PickupJobStatus {
+  none
+  available
+  claimed
+  assigned
+  completed
+}
+
+enum CommissionKind {
+  percent
+  fixed
+}
+
 /// Application profile keyed to auth.users.id (Supabase Auth).
 model User {
   id            String   @id @db.Uuid
@@ -78,6 +91,9 @@ model User {
   licenseNumber String?  @map("license_number")
   availability  String?
   avatarUrl     String?  @map("avatar_url")
+  zipCode       String?  @map("zip_code")
+  profileLat    Float?   @map("profile_lat")
+  profileLng    Float?   @map("profile_lng")
   updatedAt     DateTime @updatedAt @map("updated_at")
   createdAt DateTime @default(now()) @map("created_at")
 
@@ -93,6 +109,8 @@ model User {
   payeeTransactions Transaction[]    @relation("PayeeTransactions")
   reviewsGiven     Review[]         @relation("reviews_from")
   reviewsReceived  Review[]         @relation("reviews_to")
+  notifications    Notification[]
+  assignedPickups  WasteListing[]  @relation("AssignedDriverPickups")
 
   @@map("users")
 }
@@ -116,6 +134,13 @@ model WasteListing {
   deliveryFee    Decimal?      @map("delivery_fee") @db.Decimal(12, 2)
   latitude       Float?
   longitude      Float?
+  deliveryRequired Boolean     @default(false) @map("delivery_required")
+  pickupJobStatus PickupJobStatus @default(none) @map("pickup_job_status")
+  assignedDriverId String?     @map("assigned_driver_id") @db.Uuid
+  driverCommissionAmount Decimal? @map("driver_commission_amount") @db.Decimal(12, 2)
+  driverCommissionPercent Decimal? @map("driver_commission_percent") @db.Decimal(5, 2)
+  commissionKind CommissionKind? @map("commission_kind")
+  pickupZip      String?      @map("pickup_zip")
   noShowReason   String?       @map("no_show_reason")
   reopenedAt     DateTime?     @map("reopened_at")
   createdAt      DateTime      @default(now()) @map("created_at")
@@ -123,6 +148,7 @@ model WasteListing {
 
   seller User               @relation("SellerListings", fields: [userId], references: [id], onDelete: Cascade)
   acceptor    User?              @relation("AcceptedBy", fields: [acceptedById], references: [id], onDelete: SetNull)
+  assignedDriver User?         @relation("AssignedDriverPickups", fields: [assignedDriverId], references: [id], onDelete: SetNull)
   offers      Offer[]
   comments    ListingComment[]
   conversations Conversation[]
@@ -253,6 +279,7 @@ model Review {
   score      Int
   body       String?
   createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at")
 
   listing WasteListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
   fromUser User         @relation("reviews_from", fields: [fromUserId], references: [id], onDelete: Cascade)
@@ -262,4 +289,29 @@ model Review {
   @@index([fromUserId])
   @@index([toUserId])
   @@map("reviews")
+}
+
+model PlatformSettings {
+  id                             Int      @id @default(1)
+  defaultDriverCommissionPercent Decimal  @default(10) @map("default_driver_commission_percent") @db.Decimal(5, 2)
+  updatedAt                      DateTime @updatedAt @map("updated_at")
+
+  @@map("platform_settings")
+}
+
+model Notification {
+  id             String    @id @default(uuid()) @db.Uuid
+  userId         String    @map("user_id") @db.Uuid
+  type           String
+  title          String
+  body           String?
+  readAt         DateTime? @map("read_at")
+  listingId      String?   @map("listing_id") @db.Uuid
+  conversationId String?   @map("conversation_id") @db.Uuid
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@map("notifications")
 }

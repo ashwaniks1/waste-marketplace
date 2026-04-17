@@ -12,6 +12,7 @@ type ReviewRow = {
   score: number;
   body: string | null;
   createdAt: string;
+  updatedAt?: string;
   fromUser: { id: string; name: string; avatarUrl?: string | null; role: string };
 };
 
@@ -49,6 +50,8 @@ export function ProfileVisitClient({
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [menuReviewId, setMenuReviewId] = useState<string | null>(null);
+  const [editing, setEditing] = useState<{ id: string; score: number; body: string } | null>(null);
 
   const canMessageSeller =
     viewerId && viewerRole === "buyer" && profile.role === "customer" && openListings.length > 0;
@@ -135,28 +138,133 @@ export function ProfileVisitClient({
           {reviews.length === 0 ? (
             <p className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-5 text-sm text-slate-600">No reviews yet.</p>
           ) : (
-            reviews.map((review) => (
-              <div key={review.id} className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
-                <div className="flex items-center gap-3">
-                  <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-100 text-lg text-emerald-700">
-                    {review.fromUser.avatarUrl ? (
-                      <img src={review.fromUser.avatarUrl} alt={`${review.fromUser.name} avatar`} className="h-11 w-11 rounded-2xl object-cover" />
-                    ) : (
-                      review.fromUser.name[0].toUpperCase()
-                    )}
+            reviews.map((review) => {
+              const mine = viewerId && review.fromUser.id === viewerId;
+              const isEditing = editing?.id === review.id;
+              return (
+                <div key={review.id} className="relative rounded-3xl border border-slate-200 bg-slate-50 p-5">
+                  {mine ? (
+                    <div className="absolute right-3 top-3">
+                      <button
+                        type="button"
+                        className="rounded-lg px-2 py-1 text-lg text-slate-500 hover:bg-white hover:text-slate-800"
+                        aria-haspopup="menu"
+                        aria-expanded={menuReviewId === review.id}
+                        aria-label="Review actions"
+                        onClick={() => setMenuReviewId((v) => (v === review.id ? null : review.id))}
+                      >
+                        ⋯
+                      </button>
+                      {menuReviewId === review.id ? (
+                        <div className="absolute right-0 z-10 mt-1 w-36 rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
+                          <button
+                            type="button"
+                            className="block w-full px-3 py-2 text-left text-sm hover:bg-slate-50"
+                            onClick={() => {
+                              setEditing({ id: review.id, score: review.score, body: review.body ?? "" });
+                              setMenuReviewId(null);
+                            }}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            className="block w-full px-3 py-2 text-left text-sm text-rose-600 hover:bg-rose-50"
+                            onClick={async () => {
+                              if (!confirm("Delete this review?")) return;
+                              const res = await fetch(`/api/reviews/${review.id}`, { method: "DELETE" });
+                              if (res.ok) router.refresh();
+                              setMenuReviewId(null);
+                            }}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  <div className="flex items-center gap-3">
+                    <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-100 text-lg text-emerald-700">
+                      {review.fromUser.avatarUrl ? (
+                        <img src={review.fromUser.avatarUrl} alt={`${review.fromUser.name} avatar`} className="h-11 w-11 rounded-2xl object-cover" />
+                      ) : (
+                        review.fromUser.name[0].toUpperCase()
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">{review.fromUser.name}</p>
+                      <p className="text-xs uppercase tracking-[0.24em] text-slate-500">
+                        {review.fromUser.role}
+                        {mine ? " · Your review" : ""}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900">{review.fromUser.name}</p>
-                    <p className="text-xs uppercase tracking-[0.24em] text-slate-500">{review.fromUser.role}</p>
-                  </div>
+                  {isEditing ? (
+                    <form
+                      className="mt-4 space-y-3"
+                      onSubmit={async (e) => {
+                        e.preventDefault();
+                        const res = await fetch(`/api/reviews/${review.id}`, {
+                          method: "PATCH",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            score: editing.score,
+                            body: editing.body.trim() || null,
+                          }),
+                        });
+                        if (res.ok) {
+                          setEditing(null);
+                          router.refresh();
+                        }
+                      }}
+                    >
+                      <label className="block text-xs font-medium text-slate-700">
+                        Rating
+                        <select
+                          className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                          value={editing.score}
+                          onChange={(e) => setEditing({ ...editing, score: Number(e.target.value) })}
+                        >
+                          {[5, 4, 3, 2, 1].map((v) => (
+                            <option key={v} value={v}>
+                              {v} stars
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="block text-xs font-medium text-slate-700">
+                        Comment
+                        <textarea
+                          className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                          rows={3}
+                          value={editing.body}
+                          onChange={(e) => setEditing({ ...editing, body: e.target.value })}
+                        />
+                      </label>
+                      <div className="flex gap-2">
+                        <Button type="submit" className="flex-1">
+                          Save
+                        </Button>
+                        <Button type="button" variant="secondary" onClick={() => setEditing(null)}>
+                          Cancel
+                        </Button>
+                      </div>
+                    </form>
+                  ) : (
+                    <>
+                      <div className="mt-3 flex items-center justify-between gap-3">
+                        <RatingStars value={review.score} />
+                        <p className="text-xs text-slate-500">
+                          {new Date(review.createdAt).toLocaleDateString()}
+                          {review.updatedAt && review.updatedAt !== review.createdAt ? " · edited" : ""}
+                        </p>
+                      </div>
+                      {review.body ? <p className="mt-3 text-sm text-slate-700">{review.body}</p> : null}
+                    </>
+                  )}
                 </div>
-                <div className="mt-3 flex items-center justify-between gap-3">
-                  <RatingStars value={review.score} />
-                  <p className="text-xs text-slate-500">{new Date(review.createdAt).toLocaleDateString()}</p>
-                </div>
-                {review.body ? <p className="mt-3 text-sm text-slate-700">{review.body}</p> : null}
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </section>

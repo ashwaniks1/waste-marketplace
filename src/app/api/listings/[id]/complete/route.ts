@@ -1,4 +1,4 @@
-import { ListingStatus, UserRole } from "@prisma/client";
+import { ListingStatus, PickupJobStatus, UserRole } from "@prisma/client";
 import { requireAppUser } from "@/lib/auth";
 import { HttpError } from "@/lib/errors";
 import { handleRouteError, jsonError, jsonOk } from "@/lib/http";
@@ -20,6 +20,7 @@ export async function POST(_request: Request, ctx: Ctx) {
         status: ListingStatus.completed,
         pickupDeadlineAt: null,
         pickupExtendedAt: null,
+        pickupJobStatus: PickupJobStatus.completed,
       },
     });
 

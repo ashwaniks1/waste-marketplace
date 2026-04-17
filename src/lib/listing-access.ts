@@ -1,5 +1,6 @@
-import { ListingStatus, UserRole, type User as AppUser } from "@prisma/client";
+import { UserRole, type User as AppUser } from "@prisma/client";
 import { HttpError } from "@/lib/errors";
+import { canViewListing } from "@/lib/listing-visibility";
 import { relistExpiredAcceptedListing } from "@/lib/pickup-window";
 import { prisma } from "@/lib/prisma";
 
@@ -13,13 +14,8 @@ export async function getListingForAccess(listingId: string, me: AppUser) {
     },
   });
   if (!row) return null;
-  if (me.role === UserRole.admin) return row;
-  if (me.role === UserRole.customer && row.userId === me.id) return row;
-  if (me.role === UserRole.buyer) {
-    if (row.status === ListingStatus.open || row.status === ListingStatus.reopened) return row;
-    if (row.acceptedById === me.id) return row;
-  }
-  return null;
+  if (!canViewListing(me, row)) return null;
+  return row;
 }
 
 export async function requireListingRead(listingId: string, me: AppUser) {

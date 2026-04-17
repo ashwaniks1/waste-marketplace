@@ -9,5 +9,9 @@ export function serializeListing<T extends WasteListing>(row: T) {
     ...rest,
     askingPrice: moneyToNumber(row.askingPrice),
     deliveryFee: row.deliveryFee ? moneyToNumber(row.deliveryFee) : null,
+    driverCommissionAmount:
+      row.driverCommissionAmount != null ? moneyToNumber(row.driverCommissionAmount) : null,
+    driverCommissionPercent:
+      row.driverCommissionPercent != null ? moneyToNumber(row.driverCommissionPercent) : null,
   };
 }

@@ -1,8 +1,9 @@
-import { ListingStatus, OfferStatus, UserRole, WasteType } from "@prisma/client";
+import { CommissionKind, ListingStatus, OfferStatus, PickupJobStatus, UserRole, WasteType } from "@prisma/client";
 import { z } from "zod";
 import { requireAppUser } from "@/lib/auth";
 import { HttpError } from "@/lib/errors";
 import { handleRouteError, jsonError, jsonOk } from "@/lib/http";
+import { canViewListing } from "@/lib/listing-visibility";
 import { relistExpiredAcceptedListing } from "@/lib/pickup-window";
 import { prisma } from "@/lib/prisma";
 import { serializeListing } from "@/lib/serialize";
@@ -10,6 +11,7 @@ import { serializeListing } from "@/lib/serialize";
 const listingInclude = {
   seller: { select: { id: true, name: true, email: true, phone: true, avatarUrl: true } },
   acceptor: { select: { id: true, name: true, email: true, phone: true, avatarUrl: true } },
+  assignedDriver: { select: { id: true, name: true, email: true, phone: true, avatarUrl: true } },
   offers: {
     where: { status: OfferStatus.accepted },
     select: { amount: true, currency: true },
@@ -35,6 +37,11 @@ const patchSchema = z.object({
   }, z.number().positive()).optional(),
   latitude: z.number().min(-90).max(90).optional().nullable(),
   longitude: z.number().min(-180).max(180).optional().nullable(),
+  deliveryRequired: z.boolean().optional(),
+  pickupZip: z.string().trim().max(20).optional().nullable(),
+  commissionKind: z.nativeEnum(CommissionKind).optional(),
+  driverCommissionPercent: z.number().min(0).max(100).optional().nullable(),
+  driverPayoutFixed: z.number().min(0).optional().nullable(),
 })
   .superRefine((data, ctx) => {
     if (data.latitude !== undefined && data.longitude === undefined) {
@@ -66,19 +73,6 @@ const patchSchema = z.object({
 
 type Ctx = { params: Promise<{ id: string }> };
 
-async function canReadListing(
-  me: { id: string; role: UserRole },
-  row: { userId: string; status: ListingStatus; acceptedById: string | null },
-) {
-  if (me.role === UserRole.admin) return true;
-  if (me.role === UserRole.customer && row.userId === me.id) return true;
-  if (me.role === UserRole.buyer) {
-    if (row.status === ListingStatus.open || row.status === ListingStatus.reopened) return true;
-    if (row.acceptedById === me.id) return true;
-  }
-  return false;
-}
-
 export async function GET(_request: Request, ctx: Ctx) {
   try {
     const me = await requireAppUser();
@@ -89,7 +83,7 @@ export async function GET(_request: Request, ctx: Ctx) {
       include: listingInclude,
     });
     if (!row) return jsonError("Not found", 404);
-    if (!(await canReadListing(me, row))) return jsonError("Forbidden", 403);
+    if (!canViewListing(me, row)) return jsonError("Forbidden", 403);
     const serialized = serializeListing(row);
     const acceptedOffer = row.offers?.[0];
     return jsonOk({
@@ -116,6 +110,22 @@ export async function PATCH(request: Request, ctx: Ctx) {
       throw new HttpError(409, "Only open listings can be edited");
     }
 
+    const mergedDeliveryRequired =
+      body.deliveryRequired !== undefined
+        ? body.deliveryRequired
+        : body.deliveryAvailable !== undefined
+          ? body.deliveryAvailable
+          : existing.deliveryRequired;
+
+    let pickupJobStatus = existing.pickupJobStatus;
+    if (pickupJobStatus === PickupJobStatus.none || pickupJobStatus === PickupJobStatus.available) {
+      pickupJobStatus = mergedDeliveryRequired ? PickupJobStatus.available : PickupJobStatus.none;
+    }
+
+    const nextKind =
+      body.commissionKind ??
+      (body.driverPayoutFixed != null ? CommissionKind.fixed : undefined);
+
     const row = await prisma.wasteListing.update({
       where: { id },
       data: {
@@ -130,6 +140,18 @@ export async function PATCH(request: Request, ctx: Ctx) {
         ...(body.deliveryFee !== undefined ? { deliveryFee: body.deliveryFee } : {}),
         ...(body.latitude !== undefined ? { latitude: body.latitude } : {}),
         ...(body.longitude !== undefined ? { longitude: body.longitude } : {}),
+        ...(body.deliveryRequired !== undefined || body.deliveryAvailable !== undefined
+          ? { deliveryRequired: mergedDeliveryRequired }
+          : {}),
+        ...(body.pickupZip !== undefined ? { pickupZip: body.pickupZip?.trim() || null } : {}),
+        ...(nextKind !== undefined ? { commissionKind: nextKind } : {}),
+        ...(body.driverCommissionPercent !== undefined
+          ? { driverCommissionPercent: body.driverCommissionPercent }
+          : {}),
+        ...(body.driverPayoutFixed !== undefined
+          ? { driverCommissionAmount: body.driverPayoutFixed, commissionKind: CommissionKind.fixed }
+          : {}),
+        pickupJobStatus,
       },
       include: listingInclude,
     });

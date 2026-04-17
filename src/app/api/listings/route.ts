@@ -1,4 +1,4 @@
-import { ListingStatus, UserRole, WasteType } from "@prisma/client";
+import { CommissionKind, ListingStatus, PickupJobStatus, UserRole, WasteType } from "@prisma/client";
 import { z } from "zod";
 import { requireAppUser } from "@/lib/auth";
 import { HttpError } from "@/lib/errors";
@@ -10,6 +10,7 @@ import { serializeListing } from "@/lib/serialize";
 const listingInclude = {
   seller: { select: { id: true, name: true, email: true, phone: true, avatarUrl: true } },
   acceptor: { select: { id: true, name: true, email: true, phone: true, avatarUrl: true } },
+  assignedDriver: { select: { id: true, name: true, email: true, phone: true, avatarUrl: true } },
 } as const;
 
 const createSchema = z.object({
@@ -49,13 +50,27 @@ const createSchema = z.object({
   }, z.number().positive()).optional(),
   latitude: z.number().min(-90).max(90).optional().nullable(),
   longitude: z.number().min(-180).max(180).optional().nullable(),
+  deliveryRequired: z.boolean().optional(),
+  pickupZip: z.string().trim().max(20).optional().nullable(),
+  commissionKind: z.nativeEnum(CommissionKind).optional(),
+  driverCommissionPercent: z.number().min(0).max(100).optional().nullable(),
+  driverPayoutFixed: z.number().min(0).optional().nullable(),
 })
   .refine(
     (v) =>
       (v.latitude == null && v.longitude == null) ||
       (v.latitude != null && v.longitude != null),
     { message: "Provide both latitude and longitude, or omit both", path: ["latitude"] },
-  );
+  )
+  .superRefine((data, ctx) => {
+    if (data.commissionKind === CommissionKind.fixed && (data.driverPayoutFixed == null || data.driverPayoutFixed <= 0)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["driverPayoutFixed"],
+        message: "Fixed commission requires driverPayoutFixed > 0",
+      });
+    }
+  });
 
 /** Listings list — scope depends on role (buyer: open feed + optional mine; customer: own; admin: all). */
 export async function GET(request: Request) {
@@ -110,6 +125,12 @@ export async function POST(request: Request) {
     if (me.role !== UserRole.customer) throw new HttpError(403, "Only customers can create listings");
     const body = createSchema.parse(await request.json());
 
+    const deliveryRequired = body.deliveryRequired ?? body.deliveryAvailable;
+    const commissionKind =
+      body.commissionKind ??
+      (body.driverPayoutFixed != null && body.driverPayoutFixed > 0 ? CommissionKind.fixed : CommissionKind.percent);
+    const pickupJobStatus = deliveryRequired ? PickupJobStatus.available : PickupJobStatus.none;
+
     const row = await prisma.wasteListing.create({
       data: {
         userId: me.id,
@@ -125,6 +146,18 @@ export async function POST(request: Request) {
         deliveryFee: body.deliveryFee,
         latitude: body.latitude ?? undefined,
         longitude: body.longitude ?? undefined,
+        deliveryRequired,
+        pickupJobStatus,
+        pickupZip: body.pickupZip?.trim() || null,
+        commissionKind,
+        driverCommissionPercent:
+          commissionKind === CommissionKind.percent && body.driverCommissionPercent != null
+            ? body.driverCommissionPercent
+            : undefined,
+        driverCommissionAmount:
+          commissionKind === CommissionKind.fixed && body.driverPayoutFixed != null
+            ? body.driverPayoutFixed
+            : undefined,
       },
       include: listingInclude,
     });

@@ -9,9 +9,12 @@ const updateProfileSchema = z.object({
   phone: z.string().trim().optional().nullable(),
   address: z.string().trim().optional().nullable(),
   avatarUrl: z.string().url().optional().nullable(),
+  zipCode: z.string().trim().max(20).optional().nullable(),
+  profileLat: z.number().min(-90).max(90).optional().nullable(),
+  profileLng: z.number().min(-180).max(180).optional().nullable(),
 });
 
-const baseProfileSelect = "id, name, email, phone, address, role";
+const baseProfileSelect = "id, name, email, phone, address, role, zip_code, profile_lat, profile_lng";
 const profileSelect = `${baseProfileSelect}, avatar_url`;
 
 type BaseProfileRow = {
@@ -21,6 +24,9 @@ type BaseProfileRow = {
   phone: string | null;
   address: string | null;
   role: "customer" | "buyer" | "driver" | "admin";
+  zip_code: string | null;
+  profile_lat: number | null;
+  profile_lng: number | null;
 };
 
 type ProfileRow = BaseProfileRow & {
@@ -36,6 +42,9 @@ function serializeProfile(row: BaseProfileRow | ProfileRow) {
     address: row.address,
     avatarUrl: "avatar_url" in row ? row.avatar_url : null,
     role: row.role,
+    zipCode: row.zip_code,
+    profileLat: row.profile_lat,
+    profileLng: row.profile_lng,
   };
 }
 
@@ -57,10 +66,20 @@ async function selectProfile(
   }
   if (!isMissingAvatarColumnError(full.error)) return { error: full.error };
 
-  const fallback = await usersTable.select(baseProfileSelect).eq("id", userId).single();
+  const fallbackSelect = "id, name, email, phone, address, role";
+  const fallback = await usersTable.select(fallbackSelect).eq("id", userId).single();
   if (fallback.error) return { error: fallback.error };
 
-  return { data: fallback.data as BaseProfileRow, avatarColumnAvailable: false };
+  const fb = fallback.data as Omit<BaseProfileRow, "zip_code" | "profile_lat" | "profile_lng">;
+  return {
+    data: {
+      ...fb,
+      zip_code: null,
+      profile_lat: null,
+      profile_lng: null,
+    } satisfies BaseProfileRow,
+    avatarColumnAvailable: false,
+  };
 }
 
 export async function GET() {
@@ -104,13 +123,22 @@ export async function PATCH(request: Request) {
     const supabase = createServiceSupabase();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Supabase table not in generated types
     const usersTable = supabase.from("users") as any;
-    const updateData: Record<string, string | null> = {
+    const updateData: Record<string, string | number | null> = {
       name: body.name,
       phone: body.phone ?? null,
       address: body.address ?? null,
     };
     if (body.avatarUrl !== undefined) {
       updateData.avatar_url = body.avatarUrl ?? null;
+    }
+    if (body.zipCode !== undefined) {
+      updateData.zip_code = body.zipCode?.trim() || null;
+    }
+    if (body.profileLat !== undefined) {
+      updateData.profile_lat = body.profileLat;
+    }
+    if (body.profileLng !== undefined) {
+      updateData.profile_lng = body.profileLng;
     }
 
     let avatarColumnAvailable = true;

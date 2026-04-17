@@ -1,4 +1,4 @@
-import { ListingStatus } from "@prisma/client";
+import { ListingStatus, PickupJobStatus } from "@prisma/client";
 import { requireAppUser } from "@/lib/auth";
 import { HttpError } from "@/lib/errors";
 import { handleRouteError, jsonError, jsonOk } from "@/lib/http";
@@ -27,6 +27,8 @@ export async function POST(_request: Request, ctx: Ctx) {
         acceptedAt: null,
         pickupDeadlineAt: null,
         pickupExtendedAt: null,
+        pickupJobStatus: PickupJobStatus.none,
+        assignedDriverId: null,
       },
       include: {
         seller: { select: { id: true, name: true, email: true, phone: true, avatarUrl: true } },

@@ -41,6 +41,7 @@ export default async function UserProfilePage({ params }: { params: { id?: strin
   const reviews = reviewsRaw.map((review) => ({
     ...review,
     createdAt: review.createdAt.toISOString(),
+    updatedAt: review.updatedAt.toISOString(),
   }));
 
   const openListingsRaw = await prisma.wasteListing.findMany({

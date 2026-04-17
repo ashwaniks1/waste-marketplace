@@ -2,7 +2,7 @@
 
 import { WasteType } from "@prisma/client";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { Button } from "@/components/Button";
 import { MapCoordinatesPicker } from "@/components/MapCoordinatesPicker";
@@ -16,12 +16,20 @@ export default function NewListingPage() {
   const [address, setAddress] = useState("");
   const [askingPrice, setAskingPrice] = useState("");
   const [deliveryAvailable, setDeliveryAvailable] = useState(false);
+  const [deliveryRequired, setDeliveryRequired] = useState(false);
+  const [pickupZip, setPickupZip] = useState("");
+  const [driverCommissionPercent, setDriverCommissionPercent] = useState("");
   const [deliveryFee, setDeliveryFee] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (deliveryAvailable) setDeliveryRequired(true);
+    else setDeliveryRequired(false);
+  }, [deliveryAvailable]);
 
   async function uploadImages(): Promise<string[]> {
     const urls: string[] = [];
@@ -42,6 +50,7 @@ export default function NewListingPage() {
     setLoading(true);
     try {
       const images = files.length ? await uploadImages() : [];
+      const pct = driverCommissionPercent.trim();
       const body = {
         wasteType,
         quantity: quantity.trim(),
@@ -49,7 +58,10 @@ export default function NewListingPage() {
         address: address.trim(),
         askingPrice: askingPrice.trim(),
         deliveryAvailable,
+        deliveryRequired: deliveryAvailable && deliveryRequired,
         deliveryFee: deliveryFee.trim() || undefined,
+        pickupZip: pickupZip.trim() || undefined,
+        driverCommissionPercent: pct === "" ? undefined : Number(pct),
         images,
         latitude: latitude ?? undefined,
         longitude: longitude ?? undefined,
@@ -168,6 +180,41 @@ export default function NewListingPage() {
             ) : null}
           </label>
         </div>
+
+        {deliveryAvailable ? (
+          <div className="space-y-4 rounded-xl border border-emerald-100 bg-emerald-50/60 p-4">
+            <label className="flex cursor-pointer items-start gap-3 text-sm text-slate-800">
+              <input
+                type="checkbox"
+                className="mt-1 h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+                checked={deliveryRequired}
+                onChange={(e) => setDeliveryRequired(e.target.checked)}
+              />
+              <span>
+                List for <strong>driver pickup</strong> — drivers nearby can claim delivery and earn a commission.
+              </span>
+            </label>
+            <label className="block text-sm font-medium text-slate-800">
+              Pickup ZIP (optional)
+              <input
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-base outline-none ring-teal-500 focus:ring-2"
+                placeholder="e.g. 94103"
+                value={pickupZip}
+                onChange={(e) => setPickupZip(e.target.value)}
+              />
+            </label>
+            <label className="block text-sm font-medium text-slate-800">
+              Driver commission % override (optional)
+              <input
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-base outline-none ring-teal-500 focus:ring-2"
+                inputMode="decimal"
+                placeholder="Leave blank for platform default (10%)"
+                value={driverCommissionPercent}
+                onChange={(e) => setDriverCommissionPercent(e.target.value)}
+              />
+            </label>
+          </div>
+        ) : null}
 
         <label className="block text-sm font-medium text-slate-800">
           Approximate quantity

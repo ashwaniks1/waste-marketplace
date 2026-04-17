@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { Button } from "@/components/Button";
+import { NotificationBell } from "@/components/NotificationBell";
 
 type Role = "customer" | "buyer" | "admin" | "driver";
 
@@ -156,6 +157,7 @@ export function AppShell({
           ) : null}
 
           <div className="ml-auto flex items-center gap-2">
+            <NotificationBell role={role} />
             {profileLink ? (
               <Link
                 href={profileLink.href}

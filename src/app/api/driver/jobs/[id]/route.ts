@@ -1,8 +1,9 @@
-import { ListingStatus, TransportStatus, UserRole } from "@prisma/client";
+import { ListingStatus, PickupJobStatus, TransportStatus, UserRole } from "@prisma/client";
 import { z } from "zod";
 import { requireAppUser } from "@/lib/auth";
 import { HttpError } from "@/lib/errors";
 import { handleRouteError, jsonError, jsonOk } from "@/lib/http";
+import { notifyUsers } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 
 const patchSchema = z.object({
@@ -102,10 +103,33 @@ export async function PATCH(request: Request, ctx: Ctx) {
     });
 
     if (parsed.status === TransportStatus.completed && job.listing.status === ListingStatus.accepted) {
-      await prisma.wasteListing.update({
+      const listingRow = await prisma.wasteListing.update({
         where: { id: job.listing.id },
-        data: { status: ListingStatus.completed },
+        data: {
+          status: ListingStatus.completed,
+          pickupJobStatus: PickupJobStatus.completed,
+        },
+        select: { id: true, userId: true, acceptedById: true },
       });
+      const notifs: { userId: string; type: string; title: string; body?: string; listingId?: string }[] = [
+        {
+          userId: listingRow.userId,
+          type: "pickup_completed",
+          title: "Pickup completed",
+          body: "The driver marked your delivery as completed.",
+          listingId: listingRow.id,
+        },
+      ];
+      if (listingRow.acceptedById) {
+        notifs.push({
+          userId: listingRow.acceptedById,
+          type: "pickup_completed",
+          title: "Pickup completed",
+          body: "Your order pickup was completed by the driver.",
+          listingId: listingRow.id,
+        });
+      }
+      await notifyUsers(notifs);
     }
 
     return jsonOk({

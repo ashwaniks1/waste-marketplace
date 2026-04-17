@@ -4,6 +4,7 @@ import { requireAppUser } from "@/lib/auth";
 import { HttpError } from "@/lib/errors";
 import { handleRouteError, jsonError, jsonOk } from "@/lib/http";
 import { requireListingRead } from "@/lib/listing-access";
+import { notifyUsers } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 import { serializeOffer } from "@/lib/serialize-offer";
 
@@ -87,6 +88,16 @@ export async function POST(request: Request, ctx: Ctx) {
           },
           include: { buyer: { select: buyerSelect } },
         });
+
+    await notifyUsers([
+      {
+        userId: listing.userId,
+        type: "new_offer",
+        title: "New offer on your listing",
+        body: `${me.name ?? "A buyer"} submitted an offer.`,
+        listingId,
+      },
+    ]);
 
     return jsonOk(serializeOffer(row));
   } catch (e) {

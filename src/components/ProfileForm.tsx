@@ -12,6 +12,9 @@ type ProfileData = {
   phone?: string | null;
   address?: string | null;
   avatarUrl?: string | null;
+  zipCode?: string | null;
+  profileLat?: number | null;
+  profileLng?: number | null;
   role: "customer" | "buyer" | "driver" | "admin";
   reviewCount?: number;
   averageRating?: number | null;
@@ -22,6 +25,9 @@ export function ProfileForm() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
+  const [zipCode, setZipCode] = useState("");
+  const [profileLat, setProfileLat] = useState("");
+  const [profileLng, setProfileLng] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -49,6 +55,9 @@ export function ProfileForm() {
         setName(data.profile.name ?? "");
         setPhone(data.profile.phone ?? "");
         setAddress(data.profile.address ?? "");
+        setZipCode(data.profile.zipCode ?? "");
+        setProfileLat(data.profile.profileLat != null ? String(data.profile.profileLat) : "");
+        setProfileLng(data.profile.profileLng != null ? String(data.profile.profileLng) : "");
         setAvatarUrl(data.profile.avatarUrl ?? null);
       } catch {
         setError("Unable to load profile");
@@ -70,9 +79,15 @@ export function ProfileForm() {
       Boolean(
         profile &&
           name.trim().length > 0 &&
-          (profile.name !== name || profile.phone !== phone || profile.address !== address || profile.avatarUrl !== avatarUrl),
+          (profile.name !== name ||
+            profile.phone !== phone ||
+            profile.address !== address ||
+            profile.avatarUrl !== avatarUrl ||
+            (profile.zipCode ?? "") !== zipCode.trim() ||
+            String(profile.profileLat ?? "") !== profileLat.trim() ||
+            String(profile.profileLng ?? "") !== profileLng.trim()),
       ),
-    [profile, name, phone, address, avatarUrl],
+    [profile, name, phone, address, avatarUrl, zipCode, profileLat, profileLng],
   );
 
   function resetForm() {
@@ -119,6 +134,9 @@ export function ProfileForm() {
           name: name.trim(),
           phone: phone.trim() || null,
           address: address.trim() || null,
+          zipCode: zipCode.trim() || null,
+          profileLat: profileLat.trim() === "" ? null : Number(profileLat),
+          profileLng: profileLng.trim() === "" ? null : Number(profileLng),
           avatarUrl: avatarChanged ? avatarUrl || null : undefined,
         }),
       });
@@ -275,6 +293,46 @@ export function ProfileForm() {
               />
               {fieldErrors.phone ? <p id="profile-phone-error" className="mt-2 text-sm text-rose-600">{fieldErrors.phone}</p> : null}
             </label>
+
+            <label className="block">
+              <span className="text-sm font-medium text-slate-900">ZIP / postal code</span>
+              <input
+                type="text"
+                value={zipCode}
+                onChange={(e) => setZipCode(e.target.value)}
+                className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-200"
+                placeholder="e.g. 94103"
+                aria-label="ZIP or postal code"
+              />
+              <p className="mt-1 text-xs text-slate-500">Used for coarse pickup matching. Set lat/lng for distance filters.</p>
+            </label>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block">
+                <span className="text-sm font-medium text-slate-900">Home latitude</span>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={profileLat}
+                  onChange={(e) => setProfileLat(e.target.value)}
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-200"
+                  placeholder="optional"
+                  aria-label="Profile latitude"
+                />
+              </label>
+              <label className="block">
+                <span className="text-sm font-medium text-slate-900">Home longitude</span>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={profileLng}
+                  onChange={(e) => setProfileLng(e.target.value)}
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-200"
+                  placeholder="optional"
+                  aria-label="Profile longitude"
+                />
+              </label>
+            </div>
 
             <label className="block">
               <span className="text-sm font-medium text-slate-900">Address</span>

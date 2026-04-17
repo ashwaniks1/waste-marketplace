@@ -1,8 +1,9 @@
-import { ListingStatus, OfferStatus, UserRole } from "@prisma/client";
+import { ListingStatus, OfferStatus, PickupJobStatus, UserRole } from "@prisma/client";
 import { requireAppUser } from "@/lib/auth";
 import { HttpError } from "@/lib/errors";
 import { handleRouteError, jsonError, jsonOk } from "@/lib/http";
 import { buildPickupDeadline } from "@/lib/pickup-window";
+import { notifyUsers } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 import { serializeListing } from "@/lib/serialize";
 import { serializeOffer } from "@/lib/serialize-offer";
@@ -28,6 +29,11 @@ export async function POST(_request: Request, ctx: Ctx) {
         return { error: "conflict" as const };
       }
 
+      const pickupForDrivers =
+        offer.listing.deliveryRequired && offer.listing.assignedDriverId == null
+          ? PickupJobStatus.available
+          : offer.listing.pickupJobStatus;
+
       const listingUpdate = await tx.wasteListing.updateMany({
         where: { id: offer.listingId, status: ListingStatus.open },
         data: {
@@ -36,6 +42,7 @@ export async function POST(_request: Request, ctx: Ctx) {
           acceptedAt: new Date(),
           pickupDeadlineAt: buildPickupDeadline(),
           pickupExtendedAt: null,
+          pickupJobStatus: pickupForDrivers,
         },
       });
       if (listingUpdate.count === 0) return { error: "conflict" as const };
@@ -75,6 +82,17 @@ export async function POST(_request: Request, ctx: Ctx) {
     }
 
     const { listing, offer } = result;
+    if (listing) {
+      await notifyUsers([
+        {
+          userId: offer.buyerId,
+          type: "offer_accepted",
+          title: "Your offer was accepted",
+          body: `The seller accepted your offer on a listing.`,
+          listingId: listing.id,
+        },
+      ]);
+    }
     return jsonOk({
       listing: listing ? serializeListing(listing) : null,
       offer: serializeOffer(offer),

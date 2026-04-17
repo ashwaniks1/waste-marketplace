@@ -1,4 +1,4 @@
-import { ListingStatus } from "@prisma/client";
+import { ListingStatus, UserRole } from "@prisma/client";
 import { z } from "zod";
 import { requireAppUser } from "@/lib/auth";
 import { HttpError } from "@/lib/errors";
@@ -12,6 +12,16 @@ const reviewSchema = z.object({
   body: z.string().max(500).optional(),
 });
 
+function listingParticipants(listing: {
+  userId: string;
+  acceptedById: string | null;
+  assignedDriverId: string | null;
+}) {
+  return [listing.userId, listing.acceptedById, listing.assignedDriverId].filter(
+    (id): id is string => Boolean(id),
+  );
+}
+
 export async function POST(request: Request) {
   try {
     const current = await requireAppUser();
@@ -19,22 +29,23 @@ export async function POST(request: Request) {
 
     const listing = await prisma.wasteListing.findUnique({
       where: { id: body.listingId },
-      include: {
-        seller: { select: { id: true } },
-        acceptor: { select: { id: true } },
-      },
     });
     if (!listing) return jsonError("Listing not found", 404);
     if (listing.status !== ListingStatus.completed) {
       throw new HttpError(409, "Reviews can only be submitted after a completed pickup");
     }
 
-    const validReviewer = current.id === listing.userId || current.id === listing.acceptedById;
+    const isSeller = current.id === listing.userId;
+    const isBuyer = current.id === listing.acceptedById;
+    const isDriver = current.role === UserRole.driver && current.id === listing.assignedDriverId;
+    const validReviewer = isSeller || isBuyer || Boolean(isDriver);
     if (!validReviewer) {
       throw new HttpError(403, "Cannot review this listing");
     }
-    const validTarget = body.toUserId === listing.userId || body.toUserId === listing.acceptedById;
-    if (!validTarget || body.toUserId === current.id) {
+
+    const participants = listingParticipants(listing);
+    const validTarget = participants.includes(body.toUserId) && body.toUserId !== current.id;
+    if (!validTarget) {
       throw new HttpError(400, "Invalid review recipient");
     }
 
