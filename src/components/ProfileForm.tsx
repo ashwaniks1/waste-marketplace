@@ -13,6 +13,8 @@ type ProfileData = {
   address?: string | null;
   avatarUrl?: string | null;
   zipCode?: string | null;
+  countryCode?: string | null;
+  currency?: string;
   role: "customer" | "buyer" | "driver" | "admin";
   reviewCount?: number;
   averageRating?: number | null;
@@ -24,6 +26,8 @@ export function ProfileForm() {
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
   const [zipCode, setZipCode] = useState("");
+  const [countryCode, setCountryCode] = useState("");
+  const [currency, setCurrency] = useState("USD");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -61,6 +65,8 @@ export function ProfileForm() {
           setPhone(retryData.profile.phone ?? "");
           setAddress(retryData.profile.address ?? "");
           setZipCode(retryData.profile.zipCode ?? "");
+          setCountryCode(retryData.profile.countryCode ?? "");
+          setCurrency(retryData.profile.currency ?? "USD");
           setAvatarUrl(retryData.profile.avatarUrl ?? null);
           return;
         }
@@ -77,6 +83,8 @@ export function ProfileForm() {
         setPhone(data.profile.phone ?? "");
         setAddress(data.profile.address ?? "");
         setZipCode(data.profile.zipCode ?? "");
+        setCountryCode(data.profile.countryCode ?? "");
+        setCurrency(data.profile.currency ?? "USD");
         setAvatarUrl(data.profile.avatarUrl ?? null);
       } catch {
         setError("Unable to load profile");
@@ -93,6 +101,20 @@ export function ProfileForm() {
     return () => window.clearTimeout(timer);
   }, [toast]);
 
+  useEffect(() => {
+    // UI-only: server is source of truth for currency calculation.
+    const cc = countryCode.trim().toUpperCase();
+    if (cc === "CA") setCurrency("CAD");
+    else if (cc === "GB") setCurrency("GBP");
+    else if (["IE", "FR", "DE", "ES", "IT", "NL", "BE", "PT", "AT", "FI", "GR"].includes(cc)) setCurrency("EUR");
+    else if (cc === "IN") setCurrency("INR");
+    else if (cc === "AU") setCurrency("AUD");
+    else if (cc === "NZ") setCurrency("NZD");
+    else if (cc === "SG") setCurrency("SGD");
+    else if (cc === "AE") setCurrency("AED");
+    else setCurrency("USD");
+  }, [countryCode]);
+
   const hasChanges = useMemo(
     () =>
       Boolean(
@@ -102,9 +124,10 @@ export function ProfileForm() {
             profile.phone !== phone ||
             profile.address !== address ||
             profile.avatarUrl !== avatarUrl ||
-            (profile.zipCode ?? "") !== zipCode.trim()),
+            (profile.zipCode ?? "") !== zipCode.trim() ||
+            (profile.countryCode ?? "") !== countryCode.trim().toUpperCase()),
       ),
-    [profile, name, phone, address, avatarUrl, zipCode],
+    [profile, name, phone, address, avatarUrl, zipCode, countryCode],
   );
 
   function resetForm() {
@@ -113,6 +136,9 @@ export function ProfileForm() {
     setPhone(profile.phone ?? "");
     setAddress(profile.address ?? "");
     setAvatarUrl(profile.avatarUrl ?? null);
+    setZipCode(profile.zipCode ?? "");
+    setCountryCode(profile.countryCode ?? "");
+    setCurrency(profile.currency ?? "USD");
     setError(null);
     setFieldErrors({});
     setToast(null);
@@ -152,6 +178,7 @@ export function ProfileForm() {
           phone: phone.trim() || null,
           address: address.trim() || null,
           zipCode: zipCode.trim() || null,
+          countryCode: countryCode.trim() ? countryCode.trim().toUpperCase() : null,
           avatarUrl: avatarChanged ? avatarUrl || null : undefined,
         }),
       });
@@ -167,6 +194,9 @@ export function ProfileForm() {
       setPhone(data.profile.phone ?? "");
       setAddress(data.profile.address ?? "");
       setAvatarUrl(data.profile.avatarUrl ?? null);
+      setZipCode(data.profile.zipCode ?? "");
+      setCountryCode(data.profile.countryCode ?? "");
+      setCurrency(data.profile.currency ?? "USD");
       setError(null);
       if (avatarChanged && data.avatarColumnAvailable === false) {
         showToast("error", "Profile saved, but avatar could not be stored until the database migration is applied.");
@@ -320,6 +350,39 @@ export function ProfileForm() {
                 aria-label="ZIP or postal code"
               />
               <p className="mt-1 text-xs text-slate-500">Used for coarse pickup matching.</p>
+            </label>
+
+            <label className="block">
+              <span className="text-sm font-medium text-slate-900">Country</span>
+              <select
+                value={countryCode}
+                onChange={(e) => setCountryCode(e.target.value)}
+                className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-200"
+                aria-label="Country"
+              >
+                <option value="">Select…</option>
+                <option value="US">United States</option>
+                <option value="CA">Canada</option>
+                <option value="GB">United Kingdom</option>
+                <option value="IE">Ireland</option>
+                <option value="IN">India</option>
+                <option value="AU">Australia</option>
+                <option value="NZ">New Zealand</option>
+                <option value="SG">Singapore</option>
+                <option value="AE">United Arab Emirates</option>
+              </select>
+              <p className="mt-1 text-xs text-slate-500">Used to set your default currency for listings.</p>
+            </label>
+
+            <label className="block">
+              <span className="text-sm font-medium text-slate-900">Currency</span>
+              <input
+                type="text"
+                value={currency}
+                readOnly
+                className="mt-2 w-full cursor-not-allowed rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none"
+                aria-label="Currency"
+              />
             </label>
 
             <label className="block">

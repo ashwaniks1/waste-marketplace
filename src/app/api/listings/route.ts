@@ -143,7 +143,7 @@ export async function POST(request: Request) {
         address: body.address.trim(),
         status: ListingStatus.open,
         askingPrice: body.askingPrice,
-        currency: body.currency ?? "USD",
+        currency: body.currency ?? me.currency ?? "USD",
         deliveryAvailable: body.deliveryAvailable,
         deliveryFee: body.deliveryFee,
         latitude: body.latitude ?? undefined,

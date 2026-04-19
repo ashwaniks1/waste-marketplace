@@ -10,5 +10,7 @@ export function profileToClientDto(u: User) {
     avatarUrl: u.avatarUrl,
     role: u.role,
     zipCode: u.zipCode,
+    countryCode: u.countryCode,
+    currency: u.currency,
   };
 }

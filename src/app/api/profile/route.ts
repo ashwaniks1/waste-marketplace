@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { getSupabaseUserFromRoute } from "@/lib/auth";
+import { currencyForCountry, normalizeCountryCode } from "@/lib/currency";
 import { ensureAppUserProfile } from "@/lib/ensureAppUserProfile";
 import { handleRouteError, jsonError, jsonOk } from "@/lib/http";
 import { prisma } from "@/lib/prisma";
@@ -12,6 +13,7 @@ const updateProfileSchema = z.object({
   address: z.string().trim().optional().nullable(),
   avatarUrl: z.string().url().optional().nullable(),
   zipCode: z.string().trim().max(20).optional().nullable(),
+  countryCode: z.string().trim().length(2).optional().nullable(),
 });
 
 export async function GET(request: Request) {
@@ -68,6 +70,9 @@ export async function PATCH(request: Request) {
 
     const body = updateProfileSchema.parse(await request.json());
 
+    const normalizedCountry = normalizeCountryCode(body.countryCode);
+    const nextCurrency = body.countryCode !== undefined ? currencyForCountry(normalizedCountry) : undefined;
+
     const user = await prisma.user.update({
       where: { id: authUser.id },
       data: {
@@ -76,6 +81,8 @@ export async function PATCH(request: Request) {
         address: body.address ?? null,
         ...(body.avatarUrl !== undefined ? { avatarUrl: body.avatarUrl } : {}),
         ...(body.zipCode !== undefined ? { zipCode: body.zipCode?.trim() || null } : {}),
+        ...(body.countryCode !== undefined ? { countryCode: normalizedCountry } : {}),
+        ...(nextCurrency !== undefined ? { currency: nextCurrency } : {}),
       },
     });
 

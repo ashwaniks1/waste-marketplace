@@ -33,6 +33,7 @@ export async function ensureAppUserProfile(authUser: SupabaseAuthUser): Promise<
         firstName,
         lastName,
         role,
+        currency: "USD",
       },
     });
     return { user, created: true };
