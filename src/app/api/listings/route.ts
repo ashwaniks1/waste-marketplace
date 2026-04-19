@@ -130,12 +130,12 @@ export async function POST(request: Request) {
     const commissionKind =
       body.commissionKind ??
       (body.driverPayoutFixed != null && body.driverPayoutFixed > 0 ? CommissionKind.fixed : CommissionKind.percent);
-    const pickupJobStatus = PickupJobStatus.none;
+    const pickupJobStatus = deliveryRequired ? PickupJobStatus.available : PickupJobStatus.none;
 
     const row = await prisma.wasteListing.create({
       data: {
         userId: me.id,
-        title: body.title.trim(),
+        title: body.title,
         wasteType: body.wasteType,
         quantity: body.quantity.trim(),
         description: body.description?.trim() || null,
