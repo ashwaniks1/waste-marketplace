@@ -1,3 +1,4 @@
+import { createClient } from "@supabase/supabase-js";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 import type { User as AppUser } from "@prisma/client";
 import { HttpError } from "@/lib/errors";
@@ -23,11 +24,41 @@ export async function getSupabaseUser() {
   return user;
 }
 
+/**
+ * For Route Handlers: supports cookie session (browser) and `Authorization: Bearer <jwt>` (mobile → API).
+ */
+export async function getSupabaseUserFromRoute(request: Request): Promise<SupabaseUser | null> {
+  const authHeader = request.headers.get("authorization");
+  const bearer =
+    authHeader && /^Bearer\s+/i.test(authHeader) ? authHeader.replace(/^Bearer\s+/i, "").trim() : "";
+
+  if (bearer) {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (!url || !anon) return null;
+    const supabase = createClient(url, anon, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser(bearer);
+    if (error || !user) return null;
+    return user;
+  }
+
+  return getSupabaseUser();
+}
+
+export async function getAppUserForAuthUser(authUser: SupabaseUser): Promise<AppUser | null> {
+  return prisma.user.findUnique({ where: { id: authUser.id } });
+}
+
 /** Full app profile from Prisma (source of truth for listings joins). */
 export async function getAppUser(): Promise<AppUser | null> {
   const authUser = await getSupabaseUser();
   if (!authUser) return null;
-  return prisma.user.findUnique({ where: { id: authUser.id } });
+  return getAppUserForAuthUser(authUser);
 }
 
 async function getIdleTimeoutMinutes() {

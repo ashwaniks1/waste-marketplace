@@ -39,6 +39,31 @@ export function ProfileForm() {
       try {
         const res = await fetch("/api/profile");
         const data = await res.json();
+        if (res.status === 404) {
+          const heal = await fetch("/api/ensure-profile", { method: "POST", credentials: "include" });
+          const healBody = await heal.json().catch(() => ({}));
+          if (!heal.ok) {
+            setError(healBody.error ?? "Unable to restore profile");
+            return;
+          }
+          const retry = await fetch("/api/profile");
+          const retryData = await retry.json();
+          if (!retry.ok) {
+            setError(retryData.error ?? "Unable to load profile");
+            return;
+          }
+          setProfile({
+            ...retryData.profile,
+            reviewCount: retryData.reviewSummary?.reviewCount ?? 0,
+            averageRating: retryData.reviewSummary?.averageRating ?? null,
+          });
+          setName(retryData.profile.name ?? "");
+          setPhone(retryData.profile.phone ?? "");
+          setAddress(retryData.profile.address ?? "");
+          setZipCode(retryData.profile.zipCode ?? "");
+          setAvatarUrl(retryData.profile.avatarUrl ?? null);
+          return;
+        }
         if (!res.ok) {
           setError(data.error ?? "Unable to load profile");
           return;

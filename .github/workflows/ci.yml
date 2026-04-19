@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Prisma validate
+        run: npx prisma validate
+      - name: Users schema check
+        run: npm run check:users-schema
+      - name: Lint
+        run: npm run lint
+      - name: Unit tests
+        run: npm test
+      - name: Typecheck
+        run: npx tsc --noEmit
+      - name: Build
+        run: npm run build
+      - name: Install Playwright browser
+        run: npx playwright install chromium --with-deps
+      - name: E2E (smoke)
+        env:
+          CI: "true"
+        run: |
+          npm start &
+          SERVER_PID=$!
+          for i in $(seq 1 40); do
+            if curl -sf http://127.0.0.1:3000/ >/dev/null; then break; fi
+            sleep 2
+          done
+          npx playwright test
+          kill $SERVER_PID || true
