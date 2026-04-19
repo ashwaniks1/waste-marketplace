@@ -41,7 +41,7 @@ export default function BuyerHomePage() {
           />
         ) : null}
         {rows.map((l) => (
-          <ListingCard key={l.id} listing={l} href={`/buyer/listings/${l.id}`} />
+          <ListingCard key={l.id} listing={l} href={`/listing/${l.id}`} />
         ))}
         <Link
           href="/buyer/pickups"

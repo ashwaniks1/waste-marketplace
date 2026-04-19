@@ -37,7 +37,7 @@ export default function BuyerPickupsPage() {
           ) : null}
           <div className="mt-2 space-y-3">
             {active.map((l) => (
-              <ListingCard key={l.id} listing={l} href={`/buyer/listings/${l.id}`} />
+              <ListingCard key={l.id} listing={l} href={`/listing/${l.id}`} />
             ))}
           </div>
         </section>
@@ -49,7 +49,7 @@ export default function BuyerPickupsPage() {
           ) : null}
           <div className="mt-2 space-y-3">
             {done.map((l) => (
-              <ListingCard key={l.id} listing={l} href={`/buyer/listings/${l.id}`} />
+              <ListingCard key={l.id} listing={l} href={`/listing/${l.id}`} />
             ))}
           </div>
         </section>

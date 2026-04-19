@@ -43,6 +43,9 @@ export async function POST(_request: Request, ctx: Ctx) {
       ) {
         return { error: "not_available" as const };
       }
+      if (listing.deliveryRequired && !listing.buyerDeliveryConfirmed) {
+        return { error: "awaiting_buyer" as const };
+      }
       if (listing.status !== ListingStatus.open && listing.status !== ListingStatus.accepted) {
         return { error: "not_available" as const };
       }
@@ -98,6 +101,9 @@ export async function POST(_request: Request, ctx: Ctx) {
     if ("error" in result) {
       if (result.error === "not_found") return jsonError("Not found", 404);
       if (result.error === "not_available") return jsonError("Pickup is not available for drivers", 409);
+      if (result.error === "awaiting_buyer") {
+        return jsonError("The buyer has not confirmed marketplace delivery yet", 409);
+      }
       return jsonError("Another driver just claimed this pickup", 409);
     }
 

@@ -10,6 +10,15 @@ export const passwordSchema = z
   .regex(/[A-Z]/, "Include at least one uppercase letter")
   .regex(/[0-9]/, "Include at least one number");
 
+/** Given name or family name (web + mobile + API). */
+export const personNameSchema = z
+  .string()
+  .trim()
+  .min(1, "This field is required")
+  .max(60, "Maximum 60 characters")
+  .regex(/^[\p{L}\s'.-]+$/u, "Use letters, spaces, apostrophes, periods, or hyphens only")
+  .refine((s) => /\p{L}/u.test(s), { message: "Include at least one letter" });
+
 const phoneDigits = z.string().trim().refine(
   (v) => v.replace(/\D/g, "").length >= 10,
   "Phone must include at least 10 digits",
@@ -22,9 +31,11 @@ export const loginFormSchema = z.object({
 
 export const signupFormSchema = z
   .object({
-    name: z.string().trim().min(2, "Name must be at least 2 characters").max(120),
+    firstName: personNameSchema,
+    lastName: personNameSchema,
     email: emailSchema,
     password: passwordSchema,
+    confirmPassword: z.string().min(1, "Confirm your password"),
     phone: phoneDigits,
     address: z.string().trim().min(1, "Address is required").max(500),
     role: z.enum(["customer", "buyer", "driver"]),
@@ -33,6 +44,13 @@ export const signupFormSchema = z
     availability: z.string().optional(),
   })
   .superRefine((data, ctx) => {
+    if (data.password !== data.confirmPassword) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["confirmPassword"],
+        message: "Passwords do not match",
+      });
+    }
     if (data.role !== "driver") return;
     if (!data.vehicleType?.trim()) {
       ctx.addIssue({

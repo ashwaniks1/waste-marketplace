@@ -1,4 +1,11 @@
-import { CommissionKind, ListingStatus, OfferStatus, PickupJobStatus, WasteType } from "@prisma/client";
+import {
+  CommissionKind,
+  ListingStatus,
+  OfferStatus,
+  PickupJobStatus,
+  UserRole,
+  WasteType,
+} from "@prisma/client";
 import { z } from "zod";
 import { requireAppUser } from "@/lib/auth";
 import { HttpError } from "@/lib/errors";
@@ -20,10 +27,11 @@ const listingInclude = {
 } as const;
 
 const patchSchema = z.object({
+  title: z.string().min(1).max(120).optional(),
   wasteType: z.nativeEnum(WasteType).optional(),
   quantity: z.string().min(1).optional(),
   description: z.string().optional(),
-  images: z.array(z.string().url()).optional(),
+  images: z.array(z.string().url()).min(1).optional(),
   address: z.string().min(1).optional(),
   askingPrice: z.coerce.number().positive().optional(),
   currency: z.string().length(3).optional(),
@@ -86,10 +94,19 @@ export async function GET(_request: Request, ctx: Ctx) {
     if (!canViewListing(me, row)) return jsonError("Forbidden", 403);
     const serialized = serializeListing(row);
     const acceptedOffer = row.offers?.[0];
+    let handoffPin: string | null = null;
+    if (
+      me.role !== UserRole.driver &&
+      (row.acceptedById === me.id || row.userId === me.id)
+    ) {
+      const sec = await prisma.deliveryHandoffSecret.findUnique({ where: { listingId: id } });
+      if (sec?.consumedAt == null) handoffPin = sec?.pin ?? null;
+    }
     return jsonOk({
       ...serialized,
       acceptedOfferAmount: acceptedOffer ? Number(acceptedOffer.amount) : null,
       acceptedOfferCurrency: acceptedOffer ? acceptedOffer.currency : null,
+      handoffPin,
     });
   } catch (e) {
     return handleRouteError(e);
@@ -106,8 +123,8 @@ export async function PATCH(request: Request, ctx: Ctx) {
     const existing = await prisma.wasteListing.findUnique({ where: { id } });
     if (!existing) return jsonError("Not found", 404);
     if (existing.userId !== me.id) throw new HttpError(403, "Forbidden");
-    if (existing.status !== ListingStatus.open) {
-      throw new HttpError(409, "Only open listings can be edited");
+    if (existing.status === ListingStatus.completed || existing.status === ListingStatus.cancelled) {
+      throw new HttpError(409, "Completed or cancelled listings cannot be edited");
     }
 
     const mergedDeliveryRequired =
@@ -118,8 +135,11 @@ export async function PATCH(request: Request, ctx: Ctx) {
           : existing.deliveryRequired;
 
     let pickupJobStatus = existing.pickupJobStatus;
-    if (pickupJobStatus === PickupJobStatus.none || pickupJobStatus === PickupJobStatus.available) {
-      pickupJobStatus = mergedDeliveryRequired ? PickupJobStatus.available : PickupJobStatus.none;
+    if (
+      existing.status === ListingStatus.open &&
+      (pickupJobStatus === PickupJobStatus.none || pickupJobStatus === PickupJobStatus.available)
+    ) {
+      pickupJobStatus = PickupJobStatus.none;
     }
 
     const nextKind =
@@ -129,6 +149,7 @@ export async function PATCH(request: Request, ctx: Ctx) {
     const row = await prisma.wasteListing.update({
       where: { id },
       data: {
+        ...(body.title !== undefined ? { title: body.title.trim() } : {}),
         ...(body.wasteType !== undefined ? { wasteType: body.wasteType } : {}),
         ...(body.quantity !== undefined ? { quantity: body.quantity.trim() } : {}),
         ...(body.description !== undefined ? { description: body.description?.trim() || null } : {}),

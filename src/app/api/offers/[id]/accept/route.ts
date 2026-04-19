@@ -31,7 +31,7 @@ export async function POST(_request: Request, ctx: Ctx) {
 
       const pickupForDrivers =
         offer.listing.deliveryRequired && offer.listing.assignedDriverId == null
-          ? PickupJobStatus.available
+          ? PickupJobStatus.none
           : offer.listing.pickupJobStatus;
 
       const listingUpdate = await tx.wasteListing.updateMany({
@@ -43,6 +43,7 @@ export async function POST(_request: Request, ctx: Ctx) {
           pickupDeadlineAt: buildPickupDeadline(),
           pickupExtendedAt: null,
           pickupJobStatus: pickupForDrivers,
+          ...(offer.listing.deliveryRequired ? { buyerDeliveryConfirmed: false } : {}),
         },
       });
       if (listingUpdate.count === 0) return { error: "conflict" as const };
@@ -71,6 +72,17 @@ export async function POST(_request: Request, ctx: Ctx) {
           acceptor: { select: { id: true, name: true, email: true, phone: true, avatarUrl: true } },
         },
       });
+
+      if (listing?.deliveryRequired) {
+        const pin = String(Math.floor(100000 + Math.random() * 900000));
+        await tx.deliveryHandoffSecret.upsert({
+          where: { listingId: offer.listingId },
+          create: { listingId: offer.listingId, pin },
+          update: { pin, consumedAt: null },
+        });
+      } else {
+        await tx.deliveryHandoffSecret.deleteMany({ where: { listingId: offer.listingId } });
+      }
 
       return { listing, offer: accepted };
     });

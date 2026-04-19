@@ -2,7 +2,6 @@ import { UserRole } from "@prisma/client";
 import { z } from "zod";
 import { requireAppUser } from "@/lib/auth";
 import { handleRouteError, jsonError, jsonOk } from "@/lib/http";
-import { notifyUsers } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 
 const postSchema = z.object({
@@ -59,18 +58,7 @@ export async function POST(request: Request, ctx: Ctx) {
       include: { sender: { select: { id: true, name: true } } },
     });
 
-    const recipientId = conv.listing.userId === me.id ? conv.buyerId : conv.listing.userId;
-    const snippet = parsed.body.trim().slice(0, 120);
-    await notifyUsers([
-      {
-        userId: recipientId,
-        type: "chat_message",
-        title: `New message from ${row.sender.name}`,
-        body: snippet + (parsed.body.trim().length > 120 ? "…" : ""),
-        listingId: conv.listingId,
-        conversationId,
-      },
-    ]);
+    // Peer notification + conversation.updated_at handled by DB trigger `trg_messages_notify_peer`.
 
     return jsonOk(row);
   } catch (e) {

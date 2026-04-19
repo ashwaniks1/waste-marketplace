@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { handleRouteError, jsonError, jsonOk } from "@/lib/http";
 import { getRoleFromSupabaseUser, getSupabaseUser } from "@/lib/auth";
 import { createServiceSupabase } from "@/lib/supabase/service";
+import { namesFromAuthMetadata } from "@/lib/userProfileFromAuth";
 
 const paramsSchema = z.object({ id: z.string().uuid() });
 
@@ -37,7 +38,8 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
         const meta = data.user.user_metadata as Record<string, unknown> | null | undefined;
         const nameFromMeta = typeof meta?.name === "string" ? meta.name.trim() : "";
         const email = data.user.email?.trim() ?? "";
-        const name = nameFromMeta || email.split("@")[0] || "User";
+        const emailLocal = email.split("@")[0] || "User";
+        const { firstName, lastName, displayName } = namesFromAuthMetadata(meta, nameFromMeta, emailLocal);
         const roleFromMeta = getRoleFromSupabaseUser(data.user);
         const role = (roleFromMeta ?? UserRole.customer) as UserRole;
 
@@ -45,7 +47,9 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
           data: {
             id: data.user.id,
             email,
-            name,
+            name: displayName,
+            firstName,
+            lastName,
             role,
             phone: typeof meta?.phone === "string" ? meta.phone.trim() || null : null,
             address: typeof meta?.address === "string" ? meta.address.trim() || null : null,

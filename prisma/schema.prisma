@@ -123,8 +123,8 @@ model User {
 model WasteListing {
   id             String        @id @default(uuid()) @db.Uuid
   userId         String        @map("user_id") @db.Uuid
-  /// Short marketplace title for chat/cards (optional).
-  title          String?
+  /// Short marketplace title for chat/cards (required).
+  title          String
   wasteType      WasteType     @map("waste_type")
   quantity       String
   description    String?

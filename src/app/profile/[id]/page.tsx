@@ -4,6 +4,7 @@ import { getAppUser, getRoleFromSupabaseUser, getSupabaseUser } from "@/lib/auth
 import { ProfileVisitClient } from "@/components/ProfileVisitClient";
 import { ListingStatus, UserRole, type User } from "@prisma/client";
 import { createServiceSupabase } from "@/lib/supabase/service";
+import { namesFromAuthMetadata } from "@/lib/userProfileFromAuth";
 
 export default async function UserProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id: userId } = await params;
@@ -38,7 +39,8 @@ export default async function UserProfilePage({ params }: { params: Promise<{ id
       const meta = data.user.user_metadata as Record<string, unknown> | null | undefined;
       const nameFromMeta = typeof meta?.name === "string" ? meta.name.trim() : "";
       const email = data.user.email?.trim() ?? "";
-      const name = nameFromMeta || email.split("@")[0] || "User";
+      const emailLocal = email.split("@")[0] || "User";
+      const { firstName, lastName, displayName } = namesFromAuthMetadata(meta, nameFromMeta, emailLocal);
 
       const roleFromMeta = getRoleFromSupabaseUser(data.user);
       const role = (roleFromMeta ?? UserRole.customer) as UserRole;
@@ -47,7 +49,9 @@ export default async function UserProfilePage({ params }: { params: Promise<{ id
         data: {
           id: data.user.id,
           email,
-          name,
+          name: displayName,
+          firstName,
+          lastName,
           role,
           phone: typeof meta?.phone === "string" ? meta.phone.trim() || null : null,
           address: typeof meta?.address === "string" ? meta.address.trim() || null : null,
@@ -116,32 +120,42 @@ export default async function UserProfilePage({ params }: { params: Promise<{ id
     redirect("/profile");
   }
 
-  const isSelf = viewer?.id === userId;
+  const profileRestricted = Boolean(
+    viewer?.role === UserRole.driver &&
+      viewer.id !== userId &&
+      (await prisma.driverProfileBlock.findUnique({
+        where: { driverId_blockedUserId: { driverId: viewer.id, blockedUserId: userId } },
+      })),
+  );
+
   const publicProfile: Pick<User, "id" | "name" | "role" | "avatarUrl"> & {
     email?: string | null;
     phone?: string | null;
     address?: string | null;
-  } = isSelf
-    ? user
-    : {
-        id: user.id,
-        name: user.name,
-        role: user.role,
-        avatarUrl: user.avatarUrl,
-        email: null,
-        phone: null,
-        address: user.address,
-      };
+  } = {
+    id: user.id,
+    name: user.name,
+    role: user.role,
+    avatarUrl: user.avatarUrl,
+    email: null,
+    phone: null,
+    address: profileRestricted ? null : user.address,
+  };
+
+  const reviewSummaryPayload = profileRestricted
+    ? { averageRating: null as number | null, reviewCount: 0 }
+    : { averageRating: reviewSummary._avg.score ?? null, reviewCount: reviewSummary._count.score };
 
   return (
     <main className="mx-auto min-h-dvh max-w-5xl px-4 py-8">
       <ProfileVisitClient
         profile={publicProfile}
-        reviewSummary={{ averageRating: reviewSummary._avg.score ?? null, reviewCount: reviewSummary._count.score }}
-        reviews={reviews}
+        reviewSummary={reviewSummaryPayload}
+        reviews={profileRestricted ? [] : reviews}
         openListings={openListings}
         viewerId={viewer?.id ?? null}
         viewerRole={viewerRole}
+        profileRestricted={profileRestricted}
       />
     </main>
   );

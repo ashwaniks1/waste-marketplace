@@ -63,7 +63,7 @@ export function NotificationBell({ role }: { role: "customer" | "buyer" | "admin
     if (n.listingId) {
       if (role === "customer") return `/customer/listings/${n.listingId}`;
       if (role === "driver") return `/driver/listings/${n.listingId}`;
-      return `/buyer/listings/${n.listingId}`;
+      return `/listing/${n.listingId}`;
     }
     return "/profile";
   }
