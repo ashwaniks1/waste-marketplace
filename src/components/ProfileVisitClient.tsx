@@ -23,6 +23,7 @@ export function ProfileVisitClient({
   openListings,
   viewerId,
   viewerRole,
+  profileRestricted = false,
 }: {
   profile: {
     id: string;
@@ -46,6 +47,7 @@ export function ProfileVisitClient({
   }>;
   viewerId: string | null;
   viewerRole: UserRole | null;
+  profileRestricted?: boolean;
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -78,6 +80,11 @@ export function ProfileVisitClient({
 
   return (
     <div className="space-y-6">
+      {profileRestricted ? (
+        <p className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+          After a delivery you completed, detailed location and reviews stay out of this view. Use in-app chat if you still need to coordinate.
+        </p>
+      ) : null}
       <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -89,7 +96,7 @@ export function ProfileVisitClient({
               {profile.avatarUrl ? <img src={profile.avatarUrl} alt={`${profile.name} avatar`} className="h-16 w-16 rounded-3xl object-cover" /> : profile.name[0].toUpperCase()}
             </div>
             <div className="space-y-1 text-right text-sm text-slate-600">
-              <p>{profile.address ?? "Location not set"}</p>
+              <p>{profileRestricted ? "Location hidden for privacy" : profile.address ?? "Location not set"}</p>
               <p>{profile.phone ?? "Phone not available"}</p>
             </div>
           </div>
@@ -117,7 +124,7 @@ export function ProfileVisitClient({
             <Button onClick={startChat} disabled={loading} className="w-full sm:w-auto">
               {loading ? "Starting chat…" : "Message seller"}
             </Button>
-            <Link href={`/buyer/listings/${openListings[0].id}`} className="inline-flex w-full items-center justify-center rounded-2xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-200 sm:w-auto">
+            <Link href={`/listing/${openListings[0].id}`} className="inline-flex w-full items-center justify-center rounded-2xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-200 sm:w-auto">
               View listing
             </Link>
           </div>
@@ -135,7 +142,11 @@ export function ProfileVisitClient({
         </div>
 
         <div className="mt-6 space-y-4">
-          {reviews.length === 0 ? (
+          {profileRestricted ? (
+            <p className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-5 text-sm text-slate-600">
+              Reviews are hidden to protect privacy after a completed delivery.
+            </p>
+          ) : reviews.length === 0 ? (
             <p className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-5 text-sm text-slate-600">No reviews yet.</p>
           ) : (
             reviews.map((review) => {
@@ -218,20 +229,12 @@ export function ProfileVisitClient({
                         }
                       }}
                     >
-                      <label className="block text-xs font-medium text-slate-700">
-                        Rating
-                        <select
-                          className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-                          value={editing.score}
-                          onChange={(e) => setEditing({ ...editing, score: Number(e.target.value) })}
-                        >
-                          {[5, 4, 3, 2, 1].map((v) => (
-                            <option key={v} value={v}>
-                              {v} stars
-                            </option>
-                          ))}
-                        </select>
-                      </label>
+                      <div className="block text-xs font-medium text-slate-700">
+                        <span>Rating</span>
+                        <div className="mt-2 rounded-xl border border-slate-200 bg-white px-3 py-2">
+                          <RatingStars value={editing.score} onChange={(s) => setEditing({ ...editing, score: s })} />
+                        </div>
+                      </div>
                       <label className="block text-xs font-medium text-slate-700">
                         Comment
                         <textarea

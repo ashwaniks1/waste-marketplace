@@ -83,6 +83,8 @@ enum CommissionKind {
 model User {
   id            String   @id @db.Uuid
   name          String
+  firstName     String   @default("") @map("first_name")
+  lastName      String   @default("") @map("last_name")
   email         String   @unique
   phone         String?
   role          UserRole
@@ -92,10 +94,12 @@ model User {
   availability  String?
   avatarUrl     String?  @map("avatar_url")
   zipCode       String?  @map("zip_code")
+  /// IANA timezone for timestamps in the app (e.g. America/New_York); optional.
+  timezone      String?
   profileLat    Float?   @map("profile_lat")
   profileLng    Float?   @map("profile_lng")
   lastActivityAt DateTime @default(now()) @map("last_activity_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at")
   createdAt DateTime @default(now()) @map("created_at")
 
   listingsPosted   WasteListing[]    @relation("SellerListings")
@@ -119,6 +123,8 @@ model User {
 model WasteListing {
   id             String        @id @default(uuid()) @db.Uuid
   userId         String        @map("user_id") @db.Uuid
+  /// Short marketplace title for chat/cards (optional).
+  title          String?
   wasteType      WasteType     @map("waste_type")
   quantity       String
   description    String?
@@ -145,7 +151,11 @@ model WasteListing {
   noShowReason   String?       @map("no_show_reason")
   reopenedAt     DateTime?     @map("reopened_at")
   createdAt      DateTime      @default(now()) @map("created_at")
-  updatedAt      DateTime      @updatedAt @map("updated_at")
+  updatedAt      DateTime      @default(now()) @updatedAt @map("updated_at")
+  /// When true, drivers should not see pickup PII in clients (buyer/seller use chat).
+  deliveryPrivacyLocked Boolean @default(false) @map("delivery_privacy_locked")
+  /// Buyer tapped “ready for drivers” on marketplace delivery (gates driver claim).
+  buyerDeliveryConfirmed Boolean @default(false) @map("buyer_delivery_confirmed")
 
   seller User               @relation("SellerListings", fields: [userId], references: [id], onDelete: Cascade)
   acceptor    User?              @relation("AcceptedBy", fields: [acceptedById], references: [id], onDelete: SetNull)
@@ -156,11 +166,35 @@ model WasteListing {
   transportJobs TransportJob[]
   transactions Transaction[]
   reviews      Review[]
+  deliveryHandoffSecret DeliveryHandoffSecret?
 
   @@index([status])
   @@index([userId])
   @@index([acceptedById])
   @@map("waste_listings")
+}
+
+/// Buyer/seller-only delivery PIN; never exposed to drivers via RLS (drivers verify via RPC).
+model DeliveryHandoffSecret {
+  listingId String    @id @map("listing_id") @db.Uuid
+  pin       String
+  consumedAt DateTime? @map("consumed_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  listing WasteListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@map("delivery_handoff_secrets")
+}
+
+/// After verified delivery, drivers cannot enrich buyer/seller public profiles (app reads this table).
+model DriverProfileBlock {
+  driverId      String   @map("driver_id") @db.Uuid
+  blockedUserId String   @map("blocked_user_id") @db.Uuid
+  listingId     String   @map("listing_id") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@id([driverId, blockedUserId])
+  @@map("driver_profile_blocks")
 }
 
 model Offer {
@@ -171,7 +205,7 @@ model Offer {
   currency  String      @default("USD")
   status    OfferStatus @default(pending)
   createdAt DateTime    @default(now()) @map("created_at")
-  updatedAt DateTime    @updatedAt @map("updated_at")
+  updatedAt DateTime    @default(now()) @updatedAt @map("updated_at")
 
   listing WasteListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
   buyer   User         @relation(fields: [buyerId], references: [id], onDelete: Cascade)
@@ -201,7 +235,7 @@ model Conversation {
   listingId String   @map("listing_id") @db.Uuid
   buyerId   String   @map("buyer_id") @db.Uuid
   createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
   listing  WasteListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
   buyer    User         @relation(fields: [buyerId], references: [id], onDelete: Cascade)
@@ -237,7 +271,7 @@ model TransportJob {
   deliveryFee  Decimal?        @map("delivery_fee") @db.Decimal(12, 2)
   notes        String?
   createdAt    DateTime        @default(now()) @map("created_at")
-  updatedAt    DateTime        @updatedAt @map("updated_at")
+  updatedAt    DateTime        @default(now()) @updatedAt @map("updated_at")
 
   listing   WasteListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
   driver    User?         @relation("DriverJobs", fields: [driverId], references: [id], onDelete: Cascade)
@@ -260,7 +294,7 @@ model Transaction {
   type       TransactionType
   reference  String?           @unique
   createdAt  DateTime          @default(now()) @map("created_at")
-  updatedAt  DateTime          @updatedAt @map("updated_at")
+  updatedAt  DateTime          @default(now()) @updatedAt @map("updated_at")
 
   listing WasteListing? @relation(fields: [listingId], references: [id], onDelete: Cascade)
   payer   User          @relation("PayerTransactions", fields: [payerId], references: [id], onDelete: Cascade)
@@ -286,6 +320,7 @@ model Review {
   fromUser User         @relation("reviews_from", fields: [fromUserId], references: [id], onDelete: Cascade)
   toUser   User         @relation("reviews_to", fields: [toUserId], references: [id], onDelete: Cascade)
 
+  @@unique([fromUserId, toUserId], map: "reviews_from_user_to_user_key")
   @@index([listingId])
   @@index([fromUserId])
   @@index([toUserId])
@@ -296,7 +331,7 @@ model PlatformSettings {
   id                             Int      @id @default(1)
   defaultDriverCommissionPercent Decimal  @default(10) @map("default_driver_commission_percent") @db.Decimal(5, 2)
   sessionIdleMinutes             Int      @default(60) @map("session_idle_minutes")
-  updatedAt                      DateTime @updatedAt @map("updated_at")
+  updatedAt                      DateTime @default(now()) @updatedAt @map("updated_at")
 
   @@map("platform_settings")
 }
