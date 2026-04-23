@@ -1,15 +1,24 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { Button } from "@/components/Button";
 import { EmptyState } from "@/components/EmptyState";
-import { LiveMap } from "@/components/LiveMap";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useLiveLocation } from "@/components/LocationProvider";
 import { formatMoney } from "@/lib/money";
 import { WASTE_TYPE_OPTIONS } from "@/lib/waste-types";
+
+const LiveMap = dynamic(() => import("@/components/LiveMap").then((m) => m.LiveMap), {
+  ssr: false,
+  loading: () => (
+    <div className="h-64 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+      <div className="flex h-full items-center justify-center text-sm text-slate-600">Loading map…</div>
+    </div>
+  ),
+});
 
 type FeedRow = {
   id: string;

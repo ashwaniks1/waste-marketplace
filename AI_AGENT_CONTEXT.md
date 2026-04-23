@@ -350,7 +350,7 @@ General notes:
 | `/api/auth/login` | `POST` | Password login and set Supabase SSR cookies | `{ email, password }` | `{ ok: true }` |
 | `/api/auth/logout` | `POST` | Sign out current session | none | `{ ok: true }` |
 | `/api/auth/resend-verification` | `POST` | Resend verification email | `{ email }` | `{ ok: true }` |
-| `/api/auth/activity` | `POST` | Refresh idle timer / detect expired session | none | `{ ok: true }` or `401` |
+| `/api/auth/activity` | `POST` | Idle check / keepalive: `?mode=peek` (no `last_activity_at` bump; returns `timeoutMinutes`, `warningSeconds`) or `?mode=touch` (may bump activity) | none | `{ ok, lastActivityAt?, timeoutMinutes?, warningSeconds? }` or `401` |
 
 ### Users and Profile
 
@@ -746,3 +746,33 @@ Safest extension strategy:
 3. Update web route handlers and serializers.
 4. Update mobile Supabase callers and screen expectations.
 5. Run the relevant web and mobile validation commands.
+
+---
+
+## Web repo: idle session UX (cookie sessions)
+
+These details apply to the **Next.js web app** in this repository and extend the generic session notes above.
+
+### `POST /api/auth/activity`
+
+- **`?mode=peek`** — Validates Supabase session + idle timeout; **does not** bump `users.last_activity_at`. Response includes `timeoutMinutes`, `warningSeconds` (seconds remaining when inside the last **5 minutes** of the idle window; otherwise `null`).
+- **`?mode=touch`** (or any non-`peek` value) — Same validation; **may** bump `last_activity_at` (throttled to at most once per minute inside `requireAppUser`).
+
+### `requireAppUser({ touchActivity })`
+
+- Default `touchActivity: true` for normal API routes.
+- `touchActivity: false` for activity **peek** checks so passive polling does not extend the idle clock.
+
+### Client: `SessionActivity`
+
+- Mounted from `AppShell`. Uses **peek** on interval/initial load and **touch** on user interaction (click, keydown, etc.).
+- Shows a bottom banner with countdown when `warningSeconds` is returned.
+- On `401` from activity → logout + redirect to `/login`.
+
+### `POST /api/auth/login`
+
+- After successful `signInWithPassword`, calls **`ensureAppUserProfile`** so `public.users` exists (aligns with `/api/ensure-profile` / mobile-created auth users), then updates profile fields from Supabase metadata and refreshes **`last_activity_at`** so stale profiles do not immediately hit idle expiry.
+
+## Last Updated
+
+- **2026-04-23** — Merged `origin/main` into `cursor/e2e-listings-flow-0d63`: resolved `AI_AGENT_CONTEXT.md` (add/add) by keeping `main`’s cross-stack document and appending web idle-session + login behavior. Resolved `src/app/api/auth/login/route.ts` by combining **rate limiting** from `main` with **`ensureAppUserProfile`** + profile field sync + **`last_activity_at`** refresh from the feature branch.

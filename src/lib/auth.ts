@@ -61,7 +61,7 @@ export async function getAppUser(): Promise<AppUser | null> {
   return getAppUserForAuthUser(authUser);
 }
 
-async function getIdleTimeoutMinutes() {
+export async function getIdleTimeoutMinutes() {
   const settings = await prisma.platformSettings.findUnique({ where: { id: 1 }, select: { sessionIdleMinutes: true } });
   const value = settings?.sessionIdleMinutes;
   if (typeof value === "number" && Number.isFinite(value) && value >= 5) return value;
@@ -72,7 +72,37 @@ function minutesBetween(now: Date, then: Date) {
   return (now.getTime() - then.getTime()) / (1000 * 60);
 }
 
-export async function requireAppUser(): Promise<AppUser> {
+export function getSessionWarningSeconds({
+  now,
+  lastActivityAt,
+  timeoutMinutes,
+  warningWindowSeconds = 120,
+}: {
+  now: Date;
+  lastActivityAt: Date | null;
+  timeoutMinutes: number;
+  warningWindowSeconds?: number;
+}): number | null {
+  if (!lastActivityAt) return null;
+  const timeoutSeconds = timeoutMinutes * 60;
+  const elapsedSeconds = Math.floor((now.getTime() - lastActivityAt.getTime()) / 1000);
+  const remainingSeconds = timeoutSeconds - elapsedSeconds;
+  if (remainingSeconds <= 0) return 0;
+  if (remainingSeconds <= warningWindowSeconds) return remainingSeconds;
+  return null;
+}
+
+type RequireAppUserOptions = {
+  /**
+   * When false, validates the session + idle timeout but does not bump `lastActivityAt`.
+   * Used by `/api/auth/activity?mode=peek` so passive checks can warn without extending the session.
+   */
+  touchActivity?: boolean;
+};
+
+export async function requireAppUser(options: RequireAppUserOptions = {}): Promise<AppUser> {
+  const touchActivity = options.touchActivity !== false;
+
   const supabase = await createServerSupabase();
   const {
     data: { user: authUser },
@@ -93,8 +123,11 @@ export async function requireAppUser(): Promise<AppUser> {
     throw new HttpError(401, "Session expired");
   }
 
-  // Throttle DB writes: update at most once per minute.
-  if (!last || minutesBetween(now, last) >= 1) {
+  // Throttle DB writes: update at most once per minute (only when explicitly touching activity).
+  if (
+    touchActivity &&
+    (!last || minutesBetween(now, last) >= 1)
+  ) {
     await prisma.user.update({
       where: { id: u.id },
       data: { lastActivityAt: now },
@@ -102,5 +135,16 @@ export async function requireAppUser(): Promise<AppUser> {
     });
   }
 
-  return u;
+  return prisma.user.findUniqueOrThrow({ where: { id: u.id } });
+}
+
+export async function getSessionStateForUser(user: { lastActivityAt: Date | null }) {
+  const timeoutMinutes = await getIdleTimeoutMinutes();
+  const warningSeconds = getSessionWarningSeconds({
+    now: new Date(),
+    lastActivityAt: user.lastActivityAt,
+    timeoutMinutes,
+    warningWindowSeconds: 5 * 60,
+  });
+  return { timeoutMinutes, warningSeconds };
 }
