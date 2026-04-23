@@ -2,39 +2,45 @@ import Link from "next/link";
 
 export function MarketingNavbar() {
   return (
-    <header className="sticky top-0 z-40 border-b border-white/80 bg-slate-950/95 backdrop-blur-xl">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-        <Link href="/" className="flex items-center gap-3 text-white">
-          <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-500/90 text-lg font-bold shadow-lg shadow-emerald-500/20">
+    <header className="sticky top-0 z-40 border-b border-wm-border bg-wm-card/95 backdrop-blur-md">
+      <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+        <Link href="/" className="flex items-center gap-3 text-wm-secondary">
+          <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-wm-primary text-lg font-bold text-white shadow-sm">
             W
           </span>
           <div>
-            <p className="text-sm font-semibold tracking-[0.18em] uppercase text-emerald-200">Waste Marketplace</p>
-            <p className="text-xs text-slate-300">Recycle, resell, reuse</p>
+            <p className="text-sm font-semibold tracking-wide text-wm-primary">Waste Marketplace</p>
+            <p className="text-xs text-gray-600">Recycle, resell, reuse</p>
           </div>
         </Link>
 
-        <nav className="hidden items-center gap-8 text-sm text-slate-200 md:flex">
-          <a href="#how-it-works" className="transition hover:text-white">
+        <nav className="hidden items-center gap-8 text-sm font-medium text-gray-600 md:flex">
+          <a href="#how-it-works" className="transition hover:text-wm-secondary">
             How it works
           </a>
-          <a href="#sellers" className="transition hover:text-white">
-            Sellers
+          <a href="#categories" className="transition hover:text-wm-secondary">
+            Categories
           </a>
-          <a href="#buyers" className="transition hover:text-white">
-            Buyers
+          <a href="#why-us" className="transition hover:text-wm-secondary">
+            Why us
           </a>
-          <a href="#drivers" className="transition hover:text-white">
-            Drivers
+          <a href="#preview" className="transition hover:text-wm-secondary">
+            Preview
           </a>
         </nav>
 
         <div className="flex items-center gap-3">
-          <Link href="/login" className="rounded-full border border-white/10 bg-white/10 px-4 py-2 text-sm text-slate-100 transition hover:bg-white/15">
+          <Link
+            href="/login"
+            className="rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-wm-secondary transition hover:bg-gray-50"
+          >
             Login
           </Link>
-          <Link href="/signup" className="rounded-full bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-emerald-500/20 transition hover:bg-emerald-400">
-            Signup
+          <Link
+            href="/signup"
+            className="rounded-xl bg-[#22C55E] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-95"
+          >
+            Sign up
           </Link>
         </div>
       </div>
