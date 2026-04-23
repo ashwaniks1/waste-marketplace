@@ -20,11 +20,13 @@ const availabilityOptions = [
 
 export default function SignupPage() {
   const router = useRouter();
-  const [name, setName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [role, setRole] = useState<"customer" | "buyer" | "driver">("customer");
   const [vehicleType, setVehicleType] = useState("");
   const [licenseNumber, setLicenseNumber] = useState("");
@@ -39,17 +41,19 @@ export default function SignupPage() {
 
   const signupPayload = useMemo(
     () => ({
-      name,
+      firstName,
+      lastName,
       email,
       phone,
       address,
       password,
+      confirmPassword,
       role,
       vehicleType: role === "driver" ? vehicleType : undefined,
       licenseNumber: role === "driver" ? licenseNumber : undefined,
       availability: role === "driver" ? availability : undefined,
     }),
-    [name, email, phone, address, password, role, vehicleType, licenseNumber, availability],
+    [firstName, lastName, email, phone, address, password, confirmPassword, role, vehicleType, licenseNumber, availability],
   );
 
   const isFormValid = useMemo(() => signupFormSchema.safeParse(signupPayload).success, [signupPayload]);
@@ -70,11 +74,13 @@ export default function SignupPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name,
+          firstName,
+          lastName,
           email,
           phone,
           address,
           password,
+          confirmPassword,
           role,
           vehicleType: role === "driver" ? vehicleType : undefined,
           licenseNumber: role === "driver" ? licenseNumber : undefined,
@@ -178,25 +184,56 @@ export default function SignupPage() {
           </div>
         </fieldset>
 
-        <label className="block text-sm font-medium text-slate-700">
-          Full name
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => {
-              setName(e.target.value);
-              setFieldErrors((errors) => ({ ...errors, name: undefined }));
-            }}
-            className={`mt-1 w-full rounded-xl border px-3 py-3 text-base outline-none transition focus:ring-2 ${
-              fieldErrors.name
-                ? "border-rose-500 bg-rose-50 focus:border-rose-500 focus:ring-rose-100"
-                : "border-slate-200 focus:border-teal-500 focus:ring-teal-200"
-            }`}
-            aria-invalid={Boolean(fieldErrors.name)}
-            aria-describedby={fieldErrors.name ? "name-error" : undefined}
-          />
-          {fieldErrors.name ? <p id="name-error" className="mt-2 text-sm text-rose-600">{fieldErrors.name}</p> : null}
-        </label>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="block text-sm font-medium text-slate-700">
+            First name
+            <input
+              type="text"
+              value={firstName}
+              onChange={(e) => {
+                setFirstName(e.target.value);
+                setFieldErrors((errors) => ({ ...errors, firstName: undefined }));
+              }}
+              autoComplete="given-name"
+              className={`mt-1 w-full rounded-xl border px-3 py-3 text-base outline-none transition focus:ring-2 ${
+                fieldErrors.firstName
+                  ? "border-rose-500 bg-rose-50 focus:border-rose-500 focus:ring-rose-100"
+                  : "border-slate-200 focus:border-teal-500 focus:ring-teal-200"
+              }`}
+              aria-invalid={Boolean(fieldErrors.firstName)}
+              aria-describedby={fieldErrors.firstName ? "firstName-error" : undefined}
+            />
+            {fieldErrors.firstName ? (
+              <p id="firstName-error" className="mt-2 text-sm text-rose-600">
+                {fieldErrors.firstName}
+              </p>
+            ) : null}
+          </label>
+          <label className="block text-sm font-medium text-slate-700">
+            Last name
+            <input
+              type="text"
+              value={lastName}
+              onChange={(e) => {
+                setLastName(e.target.value);
+                setFieldErrors((errors) => ({ ...errors, lastName: undefined }));
+              }}
+              autoComplete="family-name"
+              className={`mt-1 w-full rounded-xl border px-3 py-3 text-base outline-none transition focus:ring-2 ${
+                fieldErrors.lastName
+                  ? "border-rose-500 bg-rose-50 focus:border-rose-500 focus:ring-rose-100"
+                  : "border-slate-200 focus:border-teal-500 focus:ring-teal-200"
+              }`}
+              aria-invalid={Boolean(fieldErrors.lastName)}
+              aria-describedby={fieldErrors.lastName ? "lastName-error" : undefined}
+            />
+            {fieldErrors.lastName ? (
+              <p id="lastName-error" className="mt-2 text-sm text-rose-600">
+                {fieldErrors.lastName}
+              </p>
+            ) : null}
+          </label>
+        </div>
 
         <label className="block text-sm font-medium text-slate-700">
           Email
@@ -278,6 +315,31 @@ export default function SignupPage() {
           />
           <p className="mt-2 text-sm text-slate-500">Minimum 8 chars, one uppercase, one number.</p>
           {fieldErrors.password ? <p id="password-error" className="mt-2 text-sm text-rose-600">{fieldErrors.password}</p> : null}
+        </label>
+
+        <label className="block text-sm font-medium text-slate-700">
+          Confirm password
+          <input
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => {
+              setConfirmPassword(e.target.value);
+              setFieldErrors((errors) => ({ ...errors, confirmPassword: undefined }));
+            }}
+            autoComplete="new-password"
+            className={`mt-1 w-full rounded-xl border px-3 py-3 text-base outline-none transition focus:ring-2 ${
+              fieldErrors.confirmPassword
+                ? "border-rose-500 bg-rose-50 focus:border-rose-500 focus:ring-rose-100"
+                : "border-slate-200 focus:border-teal-500 focus:ring-teal-200"
+            }`}
+            aria-invalid={Boolean(fieldErrors.confirmPassword)}
+            aria-describedby={fieldErrors.confirmPassword ? "confirmPassword-error" : undefined}
+          />
+          {fieldErrors.confirmPassword ? (
+            <p id="confirmPassword-error" className="mt-2 text-sm text-rose-600">
+              {fieldErrors.confirmPassword}
+            </p>
+          ) : null}
         </label>
 
         {role === "driver" ? (

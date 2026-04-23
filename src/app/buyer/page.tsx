@@ -22,12 +22,13 @@ export default function BuyerHomePage() {
   }, []);
 
   return (
-    <>
+    <div className="min-h-dvh bg-gradient-to-b from-emerald-50 via-white to-slate-50 pb-10 dark:from-emerald-950/30 dark:via-slate-950 dark:to-slate-950">
       <AppHeader title="Available near you" role="buyer" />
-      <div className="space-y-3 px-4 pt-4">
-        <p className="rounded-xl bg-slate-100 px-3 py-2 text-xs text-slate-600">
-          Map view & distance sort ship in Phase 2 — showing all open listings for now.
-        </p>
+      <div className="mx-auto w-full max-w-3xl space-y-3 px-4 pt-4">
+        <div className="rounded-2xl border border-emerald-200/60 bg-white/70 px-4 py-3 text-xs text-slate-700 shadow-sm backdrop-blur dark:border-emerald-900/40 dark:bg-slate-900/50 dark:text-slate-200">
+          Premium marketplace feed: open + reopened listings. Use filters on mobile for distance sorting; web keeps your
+          existing listing detail flows unchanged.
+        </div>
         {loading ? (
           <div className="space-y-3" aria-busy="true" aria-label="Loading listings">
             <div className="h-36 animate-pulse rounded-3xl bg-slate-200 dark:bg-slate-700" />
@@ -43,15 +44,15 @@ export default function BuyerHomePage() {
           />
         ) : null}
         {rows.map((l) => (
-          <ListingCard key={l.id} listing={l} href={`/buyer/listings/${l.id}`} />
+          <ListingCard key={l.id} listing={l} href={`/listing/${l.id}`} />
         ))}
         <Link
           href="/buyer/pickups"
-          className="mt-4 flex h-12 items-center justify-center rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-800 shadow-sm"
+          className="mt-4 flex h-12 items-center justify-center rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-800 shadow-sm transition motion-safe:hover:-translate-y-0.5 motion-safe:hover:shadow-lift dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
         >
           My pickups
         </Link>
       </div>
-    </>
+    </div>
   );
 }

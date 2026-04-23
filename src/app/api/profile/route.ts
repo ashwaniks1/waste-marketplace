@@ -1,8 +1,11 @@
 import { z } from "zod";
-import { getSupabaseUser } from "@/lib/auth";
+import { getSupabaseUserFromRoute } from "@/lib/auth";
+import { currencyForCountry, normalizeCountryCode } from "@/lib/currency";
+import { ensureAppUserProfile } from "@/lib/ensureAppUserProfile";
 import { handleRouteError, jsonError, jsonOk } from "@/lib/http";
-import { createServiceSupabase } from "@/lib/supabase/service";
 import { prisma } from "@/lib/prisma";
+import { profileToClientDto } from "@/lib/profileDto";
+import { rateLimitCombinedResponse } from "@/lib/rateLimitHttp";
 
 const updateProfileSchema = z.object({
   name: z.string().trim().min(1, "Name is required"),
@@ -10,152 +13,84 @@ const updateProfileSchema = z.object({
   address: z.string().trim().optional().nullable(),
   avatarUrl: z.string().url().optional().nullable(),
   zipCode: z.string().trim().max(20).optional().nullable(),
+  countryCode: z.string().trim().length(2).optional().nullable(),
 });
 
-const baseProfileSelect = "id, name, email, phone, address, role, zip_code";
-const profileSelect = `${baseProfileSelect}, avatar_url`;
-
-type BaseProfileRow = {
-  id: string;
-  name: string;
-  email: string;
-  phone: string | null;
-  address: string | null;
-  role: "customer" | "buyer" | "driver" | "admin";
-  zip_code: string | null;
-};
-
-type ProfileRow = BaseProfileRow & {
-  avatar_url: string | null;
-};
-
-function serializeProfile(row: BaseProfileRow | ProfileRow) {
-  return {
-    id: row.id,
-    name: row.name,
-    email: row.email,
-    phone: row.phone,
-    address: row.address,
-    avatarUrl: "avatar_url" in row ? row.avatar_url : null,
-    role: row.role,
-    zipCode: row.zip_code,
-  };
-}
-
-function isMissingAvatarColumnError(error: unknown) {
-  if (!error || typeof error !== "object") return false;
-  const maybe = error as { code?: string; message?: string };
-  return maybe.code === "PGRST204" && maybe.message?.includes("avatar_url") === true;
-}
-
-async function selectProfile(
-  supabase: ReturnType<typeof createServiceSupabase>,
-  userId: string,
-) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Supabase table not in generated types
-  const usersTable = supabase.from("users") as any;
-  const full = await usersTable.select(profileSelect).eq("id", userId).single();
-  if (!full.error) {
-    return { data: full.data as ProfileRow, avatarColumnAvailable: true };
-  }
-  if (!isMissingAvatarColumnError(full.error)) return { error: full.error };
-
-  const fallbackSelect = "id, name, email, phone, address, role";
-  const fallback = await usersTable.select(fallbackSelect).eq("id", userId).single();
-  if (fallback.error) return { error: fallback.error };
-
-  const fb = fallback.data as Omit<BaseProfileRow, "zip_code">;
-  return {
-    data: {
-      ...fb,
-      zip_code: null,
-    } satisfies BaseProfileRow,
-    avatarColumnAvailable: false,
-  };
-}
-
-export async function GET() {
+export async function GET(request: Request) {
+  let authedId: string | undefined;
   try {
-    const authUser = await getSupabaseUser();
+    const ipRl = rateLimitCombinedResponse(request, "profile-get-ip", 40, 10_000);
+    if (ipRl) return ipRl;
+
+    const authUser = await getSupabaseUserFromRoute(request);
     if (!authUser) return jsonError("Unauthorized", 401);
-    const supabase = createServiceSupabase();
-    const result = await selectProfile(supabase, authUser.id);
-    if (result.error) throw result.error;
-    if (!result.data) return jsonError("Profile not available", 404);
+    authedId = authUser.id;
+
+    const userRl = rateLimitCombinedResponse(request, "profile-get-user", 80, 60_000, authUser.id);
+    if (userRl) return userRl;
+
+    let user = await prisma.user.findUnique({ where: { id: authUser.id } });
+    if (!user) {
+      await ensureAppUserProfile(authUser);
+      user = await prisma.user.findUnique({ where: { id: authUser.id } });
+    }
+    if (!user) return jsonError("Profile not available", 404);
 
     const reviewSummary = await prisma.review.aggregate({
       _avg: { score: true },
       _count: { score: true },
-      where: { toUserId: result.data.id },
+      where: { toUserId: user.id },
     });
 
     return jsonOk({
-      profile: serializeProfile(result.data),
-      avatarColumnAvailable: result.avatarColumnAvailable,
+      profile: profileToClientDto(user),
+      avatarColumnAvailable: true,
       reviewSummary: {
         averageRating: reviewSummary._avg.score ?? null,
         reviewCount: reviewSummary._count.score,
       },
     });
   } catch (e) {
-    if (e instanceof Error && e.message.includes("SUPABASE_SERVICE_ROLE_KEY")) {
-      return jsonError("Profile updates are not configured", 503);
-    }
-    return handleRouteError(e);
+    return handleRouteError(e, { route: "GET /api/profile", userId: authedId });
   }
 }
 
 export async function PATCH(request: Request) {
+  let authedId: string | undefined;
   try {
-    const authUser = await getSupabaseUser();
+    const ipRl = rateLimitCombinedResponse(request, "profile-patch-ip", 25, 10_000);
+    if (ipRl) return ipRl;
+
+    const authUser = await getSupabaseUserFromRoute(request);
     if (!authUser) return jsonError("Unauthorized", 401);
+    authedId = authUser.id;
+
+    const userRl = rateLimitCombinedResponse(request, "profile-patch", 5, 10_000, authUser.id);
+    if (userRl) return userRl;
 
     const body = updateProfileSchema.parse(await request.json());
 
-    const supabase = createServiceSupabase();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Supabase table not in generated types
-    const usersTable = supabase.from("users") as any;
-    const updateData: Record<string, string | number | null> = {
-      name: body.name,
-      phone: body.phone ?? null,
-      address: body.address ?? null,
-    };
-    if (body.avatarUrl !== undefined) {
-      updateData.avatar_url = body.avatarUrl ?? null;
-    }
-    if (body.zipCode !== undefined) {
-      updateData.zip_code = body.zipCode?.trim() || null;
-    }
+    const normalizedCountry = normalizeCountryCode(body.countryCode);
+    const nextCurrency = body.countryCode !== undefined ? currencyForCountry(normalizedCountry) : undefined;
 
-    let avatarColumnAvailable = true;
-    let { data, error } = await usersTable
-      .update(updateData)
-      .eq("id", authUser.id)
-      .select(profileSelect)
-      .single();
-
-    if (error && isMissingAvatarColumnError(error)) {
-      avatarColumnAvailable = false;
-      delete updateData.avatar_url;
-      const fallback = await usersTable
-        .update(updateData)
-        .eq("id", authUser.id)
-        .select(baseProfileSelect)
-        .single();
-      data = fallback.data;
-      error = fallback.error;
-    }
-
-    if (error) throw error;
+    const user = await prisma.user.update({
+      where: { id: authUser.id },
+      data: {
+        name: body.name,
+        phone: body.phone ?? null,
+        address: body.address ?? null,
+        ...(body.avatarUrl !== undefined ? { avatarUrl: body.avatarUrl } : {}),
+        ...(body.zipCode !== undefined ? { zipCode: body.zipCode?.trim() || null } : {}),
+        ...(body.countryCode !== undefined ? { countryCode: normalizedCountry } : {}),
+        ...(nextCurrency !== undefined ? { currency: nextCurrency } : {}),
+      },
+    });
 
     return jsonOk({
-      profile: serializeProfile(data as BaseProfileRow | ProfileRow),
-      avatarColumnAvailable,
+      profile: profileToClientDto(user),
+      avatarColumnAvailable: true,
     });
   } catch (e) {
-    if (e instanceof Error && e.message.includes("SUPABASE_SERVICE_ROLE_KEY")) {
-      return jsonError("Profile updates are not configured", 503);
-    }
-    return handleRouteError(e);
+    return handleRouteError(e, { route: "PATCH /api/profile", userId: authedId });
   }
 }

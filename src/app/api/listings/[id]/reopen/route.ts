@@ -28,6 +28,7 @@ export async function POST(_request: Request, ctx: Ctx) {
         reopenedAt: new Date(),
         assignedDriverId: null,
         pickupJobStatus: existing.deliveryRequired ? PickupJobStatus.available : PickupJobStatus.none,
+        buyerDeliveryConfirmed: false,
         driverCommissionAmount: null,
         driverCommissionPercent: null,
       },

@@ -14,6 +14,7 @@ const listingInclude = {
 } as const;
 
 const createSchema = z.object({
+  title: z.string().trim().min(1, "Listing name is required").max(120),
   wasteType: z.nativeEnum(WasteType),
   quantity: z
     .string()
@@ -27,7 +28,7 @@ const createSchema = z.object({
       message: "Description cannot be empty",
     })
     .optional(),
-  images: z.array(z.string().url()).optional().default([]),
+  images: z.array(z.string().url()).min(1, "At least one image URL is required"),
   address: z
     .string()
     .transform((value) => value.trim())
@@ -134,6 +135,7 @@ export async function POST(request: Request) {
     const row = await prisma.wasteListing.create({
       data: {
         userId: me.id,
+        title: body.title,
         wasteType: body.wasteType,
         quantity: body.quantity.trim(),
         description: body.description?.trim() || null,
@@ -141,7 +143,7 @@ export async function POST(request: Request) {
         address: body.address.trim(),
         status: ListingStatus.open,
         askingPrice: body.askingPrice,
-        currency: body.currency ?? "USD",
+        currency: body.currency ?? me.currency ?? "USD",
         deliveryAvailable: body.deliveryAvailable,
         deliveryFee: body.deliveryFee,
         latitude: body.latitude ?? undefined,

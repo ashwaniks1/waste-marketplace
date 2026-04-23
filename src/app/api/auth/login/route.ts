@@ -1,8 +1,10 @@
 import { z } from "zod";
-import { handleRouteError, jsonError, jsonOk } from "@/lib/http";
-import { createServerSupabase } from "@/lib/supabase/server";
-import { prisma } from "@/lib/prisma";
 import { getRoleFromSupabaseUser } from "@/lib/auth";
+import { ensureAppUserProfile } from "@/lib/ensureAppUserProfile";
+import { handleRouteError, jsonError, jsonOk } from "@/lib/http";
+import { prisma } from "@/lib/prisma";
+import { rateLimitCombinedResponse } from "@/lib/rateLimitHttp";
+import { createServerSupabase } from "@/lib/supabase/server";
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -12,6 +14,9 @@ const loginSchema = z.object({
 /** Password login — sets Supabase session cookies via @supabase/ssr. */
 export async function POST(request: Request) {
   try {
+    const limited = rateLimitCombinedResponse(request, "auth-login", 10, 10_000);
+    if (limited) return limited;
+
     const body = loginSchema.parse(await request.json());
     const supabase = await createServerSupabase();
     const { error } = await supabase.auth.signInWithPassword({
@@ -20,31 +25,23 @@ export async function POST(request: Request) {
     });
     if (error) return jsonError(error.message, 401);
 
-    // Ensure the business-profile row exists for users created outside the app (Supabase Auth only).
     const {
       data: { user },
     } = await supabase.auth.getUser();
     if (user?.id && user.email) {
-      const role = getRoleFromSupabaseUser(user) ?? "customer";
+      await ensureAppUserProfile(user);
+
       const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
       const name =
         typeof meta.name === "string" && meta.name.trim().length > 0 ? meta.name.trim() : user.email;
       const phone = typeof meta.phone === "string" ? meta.phone.trim() : null;
       const address = typeof meta.address === "string" ? meta.address.trim() : null;
+      const role = getRoleFromSupabaseUser(user) ?? "buyer";
       const now = new Date();
 
-      await prisma.user.upsert({
+      await prisma.user.update({
         where: { id: user.id },
-        update: {
-          email: user.email,
-          name,
-          phone,
-          address,
-          role,
-          lastActivityAt: now,
-        },
-        create: {
-          id: user.id,
+        data: {
           email: user.email,
           name,
           phone,
@@ -54,8 +51,9 @@ export async function POST(request: Request) {
         },
       });
     }
+
     return jsonOk({ ok: true });
   } catch (e) {
-    return handleRouteError(e);
+    return handleRouteError(e, { route: "POST /api/auth/login" });
   }
 }

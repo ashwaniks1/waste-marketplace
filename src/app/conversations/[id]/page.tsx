@@ -98,7 +98,7 @@ export default function ConversationPage() {
       ? `/admin/listings/${meta.listing.id}`
       : meta.listing.userId === meId
         ? `/customer/listings/${meta.listing.id}`
-        : `/buyer/listings/${meta.listing.id}`;
+        : `/listing/${meta.listing.id}`;
   const title = `Chat · ${meta.buyer.name}`;
 
   return (

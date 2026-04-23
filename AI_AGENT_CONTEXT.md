@@ -1,179 +1,778 @@
-# AI Agent Context — Waste Marketplace
+# AI Agent Project Context Document
 
-Single source of truth for architecture, schema, APIs, env, and conventions. **Read this before changing code.** Update relevant sections (and **Last Updated**) when behavior, schema, routes, env, or flows change.
+This document covers the combined Waste Marketplace system:
+
+- Web/API repo: `waste-marketplace` (this repository)
+- Mobile repo: GitHub `ashwaniks1/waste-marketplace-mobile`
+- Local mobile checkout in this workspace: `../waste-marketplace-ios`
+
+Critical system fact:
+
+- The web app uses Next.js route handlers plus Prisma.
+- The mobile app mostly talks directly to Supabase tables, views, storage, realtime channels, and SQL RPCs under RLS.
+- Because of that split, the Prisma schema is not the whole backend. Several mobile-critical DB objects exist only in SQL migrations and are not represented in `prisma/schema.prisma`.
+
+## Project Overview
+
+- Waste Marketplace is a multi-role marketplace for recyclable or reusable waste/materials.
+- Sellers (`customer` in the DB, shown as "seller" in mobile UI) create listings with title, waste type, quantity, photos, address, price, and optional delivery.
+- Buyers browse listings, place offers, comment publicly on open listings, open private conversations, track accepted pickups, and submit reviews after completion.
+- Drivers browse delivery jobs, claim pickups, share live location, and complete transport with a handoff PIN in the mobile flow.
+- Admins can view high-level metrics, listings, and users, and there is an edge-function-based orphan-user health check.
+
+Problem solved:
+
+- Organizes the full waste resale flow in one system instead of splitting listing, negotiation, messaging, delivery coordination, and trust/reviews across multiple tools.
+
+Target users:
+
+- Sellers generating waste or scrap
+- Buyers/recyclers/scrap dealers
+- Drivers handling marketplace delivery
+- Admin/operators
+
+High-level architecture:
+
+- Web: browser -> Next.js App Router pages -> route handlers -> Prisma -> Supabase Postgres
+- Mobile: Expo app -> Supabase Auth/Data API/Realtime/Storage/RPC
+- Shared services: Supabase Auth, Postgres, Storage, Realtime
+- Server-only services: Prisma, service-role Supabase client, Google Geocoding, Sentry
+
+## Tech Stack
+
+| Area | Web/API repo | Mobile repo |
+| --- | --- | --- |
+| Frontend | Next.js 16 App Router, React 19, TypeScript, Tailwind CSS | Expo 54, React Native 0.81, React Navigation |
+| Backend | Next.js route handlers under `src/app/api` | No standalone app server; direct Supabase access plus one call to the web API |
+| Database | Supabase Postgres via Prisma 6 and raw SQL migrations | Supabase Postgres via `@supabase/supabase-js` |
+| Auth | Supabase Auth with SSR cookies and email/password | Supabase Auth with persisted mobile session |
+| Storage | Supabase Storage via service role for web uploads | Supabase Storage direct from mobile under RLS |
+| Realtime | Mostly polling on web | Supabase Realtime for chat, notifications, live tracking |
+| Maps/geo | Google Geocoding server route, Leaflet + OpenStreetMap tiles, browser geolocation | Expo Location, `react-native-maps`, OS map deep links |
+| Validation | Zod in `src/lib/validation.ts` | Custom validation helpers in `src/utils/profileValidation.ts` |
+| Error reporting | Optional Sentry (`src/instrumentation.ts`, `src/lib/http.ts`) | No active runtime Sentry wiring in code |
+| Testing | Vitest, Playwright, GitHub Actions CI | Vitest, manual Maestro flow docs |
+| Suggested hosting | Vercel + Supabase | Expo dev client / simulator; no production deployment config in repo |
+
+Third-party services:
+
+- Supabase Auth
+- Supabase Postgres
+- Supabase Storage
+- Supabase Realtime
+- Google Maps Geocoding API
+- Sentry
+- OpenStreetMap tiles
+- Expo Notifications
+
+## App Features
+
+### Authentication
+
+- Email/password signup, login, logout
+- Optional email verification with resend endpoint
+- Role-based routing after login
+- Idle session expiry enforced server-side through `platform_settings.session_idle_minutes`
+- Profile self-healing when `auth.users` exists but `public.users` is missing
+- Mobile bearer-token support for a small set of web endpoints
+
+### Core Product Features
+
+- Seller listing creation with:
+  - title
+  - waste type
+  - quantity
+  - description
+  - photo uploads
+  - address
+  - asking price and currency
+  - optional delivery fee
+  - optional coordinates
+  - optional pickup ZIP
+  - optional driver commission override
+- Buyer browse feed
+- Offer create/update/withdraw/accept/decline
+- Public listing comments
+- Private seller/buyer conversations
+- Profile pages with reviews and open listings
+- Review create/update/delete
+- Notifications table with unread tracking
+
+### User Flows
+
+- Seller flow:
+  - create listing
+  - edit listing while active
+  - review pending offers
+  - accept or decline offers
+  - comment on listing
+  - chat with interested buyers
+  - mark no-show
+  - reopen no-show listing
+- Buyer flow:
+  - browse open/reopened listings
+  - make offer or offer asking price
+  - withdraw pending offer
+  - chat privately with seller
+  - see accepted pickup
+  - confirm marketplace delivery release for drivers
+  - mark completed pickup
+  - review seller and driver after completion
+- Driver flow:
+  - browse available delivery jobs
+  - filter by distance, waste type, or payout
+  - claim pickup
+  - get transport job
+  - share live location
+  - update transport status
+  - complete with buyer PIN in mobile RPC flow
+- Admin flow:
+  - view dashboard metrics
+  - browse all listings
+  - browse all users
+  - inspect orphan auth users through a Supabase edge function + RPC
+
+### Admin Features
+
+- `ADMIN_EMAIL` can auto-promote matching signup email to `admin`
+- Admin dashboard metrics:
+  - total users
+  - total listings
+  - open listings
+  - completed listings in last 7 days
+- Admin listing and user views are read-only in the current UI
+- Admin can use service-role-backed user fallback lookup
+
+### Background Jobs / Automation
+
+- No queue worker or cron service in repo
+- SQL triggers handle:
+  - seller notification on new pending offer
+  - peer notification on new chat message
+  - `conversations.updated_at` bump on new message
+  - sync from `users` to `user_public_profiles`
+  - profile row creation from `auth.users`
+- Web code also emits notifications for:
+  - accepted offers
+  - driver claim
+  - driver job completion
+
+### Realtime Features
+
+- Mobile chat message subscription via Supabase Realtime
+- Mobile notification subscription via Supabase Realtime
+- Mobile live driver location subscription via Supabase Realtime
+- Web chat and notification UI mostly poll instead of subscribing
+
+### Notifications
+
+- Stored in `public.notifications`
+- Web notification bell polls REST endpoints
+- Mobile notifications screen listens for realtime inserts
+- Mobile also schedules local device notifications from incoming DB events
+
+### Payments
+
+- No payment processor integration
+- `transactions` table exists but there is no Stripe/payment gateway flow
+- Prices, delivery fees, and driver commission amounts are tracked as business data only
+
+## System Architecture
+
+### How Frontend Talks to Backend
+
+- Web pages call internal REST endpoints under `src/app/api`
+- Web route handlers use Prisma and sometimes the Supabase service role
+- Mobile uses `@supabase/supabase-js` directly against:
+  - tables
+  - views
+  - storage buckets
+  - realtime channels
+  - RPC functions
+- Mobile calls the web API only for `POST /api/ensure-profile`
+
+### API Structure
+
+- Cookie-authenticated REST routes for the web app
+- Limited bearer-token support for mobile on:
+  - `POST /api/ensure-profile`
+  - `GET /api/profile`
+  - `PATCH /api/profile`
+  - `GET /api/users/me`
+- Direct Supabase DB API access on mobile for marketplace data
+- SQL RPCs for sensitive driver/buyer delivery workflows
+
+### Data Flow
+
+- Web signup:
+  - service role creates Supabase Auth user with `app_metadata.role`
+  - Prisma upserts `public.users`
+- Mobile signup:
+  - client creates Supabase Auth user
+  - DB trigger or `/api/ensure-profile` creates `public.users`
+  - if no role metadata is present, current fallback behavior defaults to `buyer`
+- Listing flow:
+  - seller creates listing
+  - buyer creates pending offer
+  - seller accepts one offer
+  - listing becomes `accepted`
+  - pickup window starts
+  - buyer can complete, or driver flow can take over when delivery is used
+- Delivery flow:
+  - buyer confirms release for drivers
+  - driver claims listing
+  - transport job created
+  - driver shares live location
+  - mobile RPC verifies buyer PIN and completes delivery
+
+### Important Services
+
+- `src/lib/auth.ts`
+  - session lookup
+  - role lookup
+  - idle timeout enforcement
+- `src/lib/ensureAppUserProfile.ts`
+  - repairs or creates `public.users` rows
+- `src/lib/listing-visibility.ts`
+  - read-access rules by role
+- `src/lib/pickup-window.ts`
+  - 24h pickup deadline and 24h extension logic
+- `src/lib/commission.ts`
+  - driver payout calculation
+- `src/lib/serialize.ts` and `src/lib/serialize-offer.ts`
+  - normalize Prisma decimals to JSON numbers
+- `src/proxy.ts`
+  - auth redirects
+  - coarse API rate limits
+
+### External Integrations
+
+- Google Geocoding through `POST /api/maps/geocode`
+- Sentry server error capture if DSN is configured
+- Supabase edge function `admin-orphan-users`
+- OpenStreetMap tiles on web maps
+
+## Database Schema
+
+### Core Prisma Models
+
+| Object | Kind | Purpose / important fields |
+| --- | --- | --- |
+| `users` | table | Profile row keyed to `auth.users.id`; stores `role`, names, phone, address, country, currency, timezone, avatar, coordinates, `last_activity_at` |
+| `waste_listings` | table | Marketplace listing; key fields include `title`, `waste_type`, `asking_price`, `status`, `accepted_by`, `delivery_required`, `pickup_job_status`, coordinates, commission snapshot, privacy flags |
+| `offers` | table | Buyer offers on listings; `status` is `pending/accepted/declined/withdrawn` |
+| `listing_comments` | table | Listing discussion thread visible to listing readers |
+| `conversations` | table | One row per `(listing_id, buyer_id)` private thread |
+| `messages` | table | Chat messages within a conversation |
+| `transport_jobs` | table | Driver delivery jobs tied to listings |
+| `transactions` | table | Payment ledger placeholder; not wired to a gateway |
+| `reviews` | table | Ratings and optional review text |
+| `platform_settings` | table | Singleton config row (`id = 1`) for default driver commission and session idle timeout |
+| `notifications` | table | User notifications with read tracking |
+| `delivery_handoff_secrets` | table | Buyer/seller-readable delivery PIN; intentionally hidden from drivers |
+| `driver_profile_blocks` | table | Hides buyer/seller profile details from drivers after completed delivery |
+
+### SQL-Only Tables / Views / Functions Used by Mobile
+
+These are required even though they are not in `prisma/schema.prisma`.
+
+| Object | Kind | Purpose |
+| --- | --- | --- |
+| `user_public_profiles` | table | Safe public subset of user profile fields for cross-user profile views |
+| `listing_public_feed` | view | Mobile feed source with seller profile join and delivery/privacy fields |
+| `listing_live_locations` | table | Latest driver coordinates per listing for live tracking |
+| `driver_claim_pickup(uuid)` | RPC | Claims driver job and creates transport job |
+| `driver_set_transport_status(uuid, status)` | RPC | Updates transport status for driver |
+| `driver_complete_transport_with_pin(uuid, pin)` | RPC | Completes delivery after PIN verification |
+| `buyer_confirm_marketplace_delivery(uuid)` | RPC | Releases delivery job to drivers |
+| `admin_list_orphan_auth_user_ids()` | RPC | Edge/admin-only health check for auth/profile drift |
+| `on_offer_created_notify()` | trigger function | Creates seller notification on new offer |
+| `on_message_created_notify()` | trigger function | Creates peer notification and bumps conversation timestamp |
+| `wmp_handle_new_auth_user()` | trigger function | Mirrors new auth users into `public.users` |
+| `private.sync_user_public_profile()` | trigger function | Keeps `user_public_profiles` in sync with `users` |
+
+### Relationships
+
+- `users.id` mirrors `auth.users.id`
+- `waste_listings.user_id` -> seller
+- `waste_listings.accepted_by` -> buyer who won the listing
+- `waste_listings.assigned_driver_id` -> assigned driver
+- `offers.listing_id` + `offers.buyer_id`
+- `conversations.listing_id` + `conversations.buyer_id`
+- `messages.conversation_id`
+- `transport_jobs.listing_id`, `transport_jobs.driver_id`, `transport_jobs.requester_id`
+- `reviews.listing_id`, `reviews.from_user_id`, `reviews.to_user_id`
+
+### Enums
+
+- `UserRole`: `customer`, `buyer`, `admin`, `driver`
+- `WasteType`: `PLASTIC`, `PAPER`, `CARDBOARD`, `METAL`, `GLASS`, `E_WASTE`, `ORGANIC`, `MIXED`, `CUSTOM`
+- `ListingStatus`: `open`, `accepted`, `in_progress`, `completed`, `cancelled`, `no_show`, `reopened`
+- `OfferStatus`: `pending`, `accepted`, `declined`, `withdrawn`
+- `TransportStatus`: `scheduled`, `in_transit`, `completed`, `cancelled`
+- `TransactionStatus`: `pending`, `paid`, `failed`, `refunded`
+- `TransactionType`: `deposit`, `payout`, `fee`
+- `PickupJobStatus`: `none`, `available`, `claimed`, `assigned`, `completed`
+- `CommissionKind`: `percent`, `fixed`
+
+### Important Constraints and Indexes
+
+- `users.email` unique
+- `conversations(listing_id, buyer_id)` unique
+- `reviews(from_user_id, to_user_id)` unique
+- `waste_listings` indexed by `status`, `user_id`, `accepted_by`
+- `offers` indexed by `listing_id`, `buyer_id`
+- `transport_jobs` indexed by `listing_id`, `driver_id`, `requester_id`
+- `notifications` indexed by `(user_id, read_at)`
+- `driver_profile_blocks` primary key on `(driver_id, blocked_user_id)`
+- `listing_live_locations` indexed by `driver_id`
+
+### Multi-Tenant Logic
+
+- This is a single-tenant marketplace, not an org/workspace SaaS
+- Data isolation is per authenticated user and role
+- Mobile security relies on PostgreSQL RLS, not on hidden client code
+
+## API Specification
+
+General notes:
+
+- Web REST responses usually return camelCase JSON
+- Prisma decimal fields are converted to numbers in web API responses
+- Direct Supabase rows in mobile stay in snake_case and often return decimal values as strings
+- REST errors are generally `{ "error": string }`
+
+### Auth and Session
+
+| Route | Method | Purpose | Request shape | Response shape |
+| --- | --- | --- | --- | --- |
+| `/api/auth/signup` | `POST` | Create auth user + app profile | `{ firstName, lastName, email, password, confirmPassword, phone, address, role, vehicleType?, licenseNumber?, availability? }` | `{ id, email, role }` |
+| `/api/auth/login` | `POST` | Password login and set Supabase SSR cookies | `{ email, password }` | `{ ok: true }` |
+| `/api/auth/logout` | `POST` | Sign out current session | none | `{ ok: true }` |
+| `/api/auth/resend-verification` | `POST` | Resend verification email | `{ email }` | `{ ok: true }` |
+| `/api/auth/activity` | `POST` | Idle check / keepalive: `?mode=peek` (no `last_activity_at` bump; returns `timeoutMinutes`, `warningSeconds`) or `?mode=touch` (may bump activity) | none | `{ ok, lastActivityAt?, timeoutMinutes?, warningSeconds? }` or `401` |
+
+### Users and Profile
+
+| Route | Method | Purpose | Request shape | Response shape |
+| --- | --- | --- | --- | --- |
+| `/api/ensure-profile` | `POST` | Create/repair `public.users` row; supports cookie or bearer auth | none | `{ profile, created, avatarColumnAvailable, reviewSummary }` |
+| `/api/users/me` | `GET` | Return auth user + Prisma profile; supports cookie or bearer auth | none | `{ role, auth: { id, email }, profile }` |
+| `/api/users/:id` | `GET` | Public-ish user profile, review summary, recent reviews, open listings | none | `{ profile, reviewSummary, reviews, openListings, viewerId }` |
+| `/api/profile` | `GET` | Load current profile; supports cookie or bearer auth | none | `{ profile, avatarColumnAvailable, reviewSummary }` |
+| `/api/profile` | `PATCH` | Update current profile | `{ name, phone?, address?, avatarUrl?, zipCode?, countryCode? }` | `{ profile, avatarColumnAvailable }` |
+| `/api/profile/avatar` | `POST` | Upload avatar image to storage | multipart `file` | `{ url, path }` |
+
+### Listings
+
+| Route | Method | Purpose | Request shape | Response shape |
+| --- | --- | --- | --- | --- |
+| `/api/listings` | `GET` | Role-scoped listings list; buyer supports `?scope=mine` | query `scope?` | `Listing[]` |
+| `/api/listings` | `POST` | Create seller listing | `{ title, wasteType, quantity, description?, images[], address, askingPrice, currency?, deliveryAvailable?, deliveryFee?, latitude?, longitude?, deliveryRequired?, pickupZip?, commissionKind?, driverCommissionPercent?, driverPayoutFixed? }` | `Listing` |
+| `/api/listings/:id` | `GET` | Read single listing if viewer can access it | none | `Listing` plus accepted-offer info and optional `handoffPin` |
+| `/api/listings/:id` | `PATCH` | Edit listing | partial listing fields | updated `Listing` |
+| `/api/listings/:id/cancel` | `POST` | Seller cancel open listing | none | updated `Listing` |
+| `/api/listings/:id/complete` | `POST` | Accepting buyer marks listing complete | none | updated `Listing` |
+| `/api/listings/:id/no-show` | `POST` | Seller marks accepted listing as no-show | `{ reason? }` | updated `Listing` |
+| `/api/listings/:id/reopen` | `POST` | Seller reopens no-show listing | none | updated `Listing` |
+| `/api/listings/:id/extend-pickup` | `POST` | Seller extends pickup deadline by 24h | none | updated `Listing` |
+| `/api/listings/:id/confirm-marketplace-delivery` | `POST` | Buyer/admin releases delivery job to drivers | none | updated `Listing` |
+
+### Offers, Comments, and Conversations
+
+| Route | Method | Purpose | Request shape | Response shape |
+| --- | --- | --- | --- | --- |
+| `/api/listings/:id/offers` | `GET` | Seller/admin sees all offers; buyer sees own | none | `Offer[]` |
+| `/api/listings/:id/offers` | `POST` | Buyer create or update one pending offer | `{ amount, currency? }` | `Offer` |
+| `/api/offers/:id/accept` | `POST` | Seller/admin accepts offer and declines other pendings | none | `{ listing, offer }` |
+| `/api/offers/:id/decline` | `POST` | Seller/admin declines pending offer | none | `Offer` |
+| `/api/offers/:id/withdraw` | `POST` | Buyer withdraws pending offer | none | `Offer` |
+| `/api/listings/:id/comments` | `GET` | Fetch comments visible to listing reader | none | `Comment[]` |
+| `/api/listings/:id/comments` | `POST` | Seller comment or buyer comment on open listing | `{ body }` | `Comment` |
+| `/api/listings/:id/conversations` | `GET` | Seller/admin fetches threads; buyer fetches own | none | `Conversation[]` |
+| `/api/listings/:id/conversations` | `POST` | Buyer opens or reuses private thread | none | `Conversation` |
+| `/api/conversations/:id` | `GET` | Conversation metadata | none | `Conversation` |
+| `/api/conversations/:id/messages` | `GET` | Fetch chat history | none | `Message[]` |
+| `/api/conversations/:id/messages` | `POST` | Send chat message | `{ body }` | `Message` |
+
+### Driver
+
+| Route | Method | Purpose | Request shape | Response shape |
+| --- | --- | --- | --- | --- |
+| `/api/driver/feed` | `GET` | Driver pickup feed | query `miles?`, `lat?`, `lng?`, `wasteType?`, `sort?` | `Listing[]` enriched with `distanceMiles`, payout estimates, accepted-offer fields |
+| `/api/driver/listings/:id/claim` | `POST` | Driver claims delivery job | none | `{ listing, jobId }` |
+| `/api/driver/jobs` | `GET` | Driver's jobs with listing details | none | `TransportJob[]` |
+| `/api/driver/jobs/:id` | `GET` | Single driver job detail | none | `TransportJob` |
+| `/api/driver/jobs/:id` | `PATCH` | Update job status/notes | `{ status?, notes? }` | updated `TransportJob` |
+
+### Reviews and Notifications
+
+| Route | Method | Purpose | Request shape | Response shape |
+| --- | --- | --- | --- | --- |
+| `/api/reviews` | `POST` | Create review after completed pickup | `{ listingId, toUserId, score, body? }` | `Review` |
+| `/api/reviews/status` | `GET` | Check if current user already reviewed recipient | query `toUserId` | `{ hasReview, review }` |
+| `/api/reviews/:id` | `PATCH` | Edit own review | `{ score?, body? }` | updated `Review` |
+| `/api/reviews/:id` | `DELETE` | Delete own review | none | `{ ok: true }` |
+| `/api/notifications` | `GET` | Recent notifications for current user | query `limit?` | `{ items, unreadCount }` |
+| `/api/notifications/:id` | `PATCH` | Mark one notification read | none | `{ ok: true }` |
+| `/api/notifications/:id` | `DELETE` | Delete one notification | none | `{ ok: true }` |
+| `/api/notifications/read-all` | `POST` | Mark all notifications read | none | `{ ok: true }` |
+
+### Utility
+
+| Route | Method | Purpose | Request shape | Response shape |
+| --- | --- | --- | --- | --- |
+| `/api/upload` | `POST` | Upload listing photo using service role | multipart `file` | `{ url, path }` |
+| `/api/maps/geocode` | `POST` | Server-side address geocoding | `{ address }` | `{ latitude, longitude }` |
+
+### Supabase API Surfaces Used Directly by Mobile
+
+Mobile reads/writes these directly, so changes here require DB/RLS awareness:
+
+- tables:
+  - `users`
+  - `waste_listings`
+  - `offers`
+  - `conversations`
+  - `messages`
+  - `notifications`
+  - `reviews`
+  - `transport_jobs`
+  - `platform_settings`
+  - `delivery_handoff_secrets`
+  - `driver_profile_blocks`
+  - `listing_live_locations`
+- views:
+  - `listing_public_feed`
+  - `user_public_profiles`
+- storage buckets:
+  - `listing-photos`
+  - `avatars`
+- RPCs:
+  - `driver_claim_pickup`
+  - `driver_set_transport_status`
+  - `driver_complete_transport_with_pin`
+  - `buyer_confirm_marketplace_delivery`
+
+## Folder Structure Explained
+
+### Web/API Repo
+
+| Path | Responsibility | Put new code here when... |
+| --- | --- | --- |
+| `src/app` | Next.js pages, layouts, and route handlers | adding web pages or REST endpoints |
+| `src/app/api` | Server-side HTTP API | logic must stay server-side or use service role / cookies |
+| `src/components` | Web UI components and client-side interactions | adding/reusing interface pieces |
+| `src/components/ds` | Design-system primitives | building reusable UI tokens and shells |
+| `src/lib` | Auth, validation, domain helpers, serialization, clients | business rules or shared server utilities |
+| `src/lib/supabase` | SSR/client/service-role Supabase clients | changing how web talks to Supabase |
+| `prisma/schema.prisma` | Prisma models | changing Prisma-backed tables or enums |
+| `prisma/migrations` | Raw SQL migrations | changing schema, RLS, views, triggers, or RPCs |
+| `supabase/functions` | Supabase edge functions | adding edge-admin utilities |
+| `e2e` | Playwright smoke tests | adding web E2E coverage |
+| `scripts` | DB/schema tooling | adding local/CI health checks |
+| `docs` | Historical planning notes | adding project docs, not runtime behavior |
+
+### Mobile Repo
+
+| Path | Responsibility | Put new code here when... |
+| --- | --- | --- |
+| `../waste-marketplace-ios/src/screens` | Screen-level UI and flows | adding or modifying mobile user journeys |
+| `../waste-marketplace-ios/src/navigation` | React Navigation stacks/tabs | wiring new screens into nav |
+| `../waste-marketplace-ios/src/providers` | Session/timezone context | changing app-wide state or formatting |
+| `../waste-marketplace-ios/src/lib` | Supabase access, storage uploads, chat helpers | changing mobile backend integration |
+| `../waste-marketplace-ios/src/components` | Mobile cards and reusable visual components | adding shared mobile UI |
+| `../waste-marketplace-ios/maestro` | Manual mobile smoke automation | documenting or adding mobile smoke flows |
+
+Where new code should go:
+
+- Web-only UI change: `src/app` or `src/components`
+- Web REST/business rule: `src/app/api` plus likely `src/lib`
+- Shared DB or mobile-visible change: `prisma/migrations` first, then web/mobile callers
+- Mobile-only UX change: `../waste-marketplace-ios/src/screens` and `src/navigation`
+- Cross-stack feature: update all of these together:
+  - Prisma schema if the table is Prisma-managed
+  - SQL migrations for RLS/views/triggers/RPCs
+  - web route handlers
+  - mobile Supabase callers
+
+## Environment Variables
+
+### Web/API Repo
+
+| Variable | Purpose | Required |
+| --- | --- | --- |
+| `DATABASE_URL` | Prisma runtime connection | Yes |
+| `DIRECT_URL` | Prisma migrate/direct connection | Yes |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL | Yes |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon/publishable key | Yes |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service-role access for signup, uploads, fallback user lookup | Yes for most server features |
+| `ADMIN_EMAIL` | Signup emails matching this become admin | Optional |
+| `SUPABASE_STORAGE_BUCKET` | Overrides web listing photo bucket; default is `listing-images` | Optional |
+| `GOOGLE_MAPS_SERVER_KEY` | Enables `/api/maps/geocode` | Optional |
+| `SENTRY_DSN` | Enables server-side Sentry capture | Optional |
+| `SENTRY_TRACES_SAMPLE_RATE` | Sentry traces sample rate | Optional |
+| `SUPABASE_REQUIRE_EMAIL_VERIFICATION` | Server-side signup verification behavior | Optional |
+| `NEXT_PUBLIC_SUPABASE_REQUIRE_EMAIL_VERIFICATION` | Client-side signup page verification messaging | Optional |
+| `PLAYWRIGHT_BASE_URL` | Playwright base URL | Optional/test only |
+| `PLAYWRIGHT_SKIP_WEBSERVER` | Skip Playwright dev server launch | Optional/test only |
+| `CI` | CI behavior for retries/workers | Optional/CI only |
+
+Supabase edge function secrets:
+
+| Variable | Purpose | Required |
+| --- | --- | --- |
+| `ADMIN_ORPHAN_SECRET` | Protects `admin-orphan-users` function | Yes for that function |
+| `SUPABASE_URL` | Edge function Supabase project URL | Yes for that function |
+| `SUPABASE_SERVICE_ROLE_KEY` | Edge function RPC access | Yes for that function |
+
+### Mobile Repo
+
+| Variable | Purpose | Required |
+| --- | --- | --- |
+| `EXPO_PUBLIC_SUPABASE_URL` | Supabase URL for mobile client | Yes |
+| `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Publishable Supabase key | Yes |
+| `EXPO_PUBLIC_APP_API_URL` | Web origin used by `POST /api/ensure-profile` | Yes for profile self-heal and some profile flows |
+| `EXPO_PUBLIC_SENTRY_DSN` | Placeholder in `.env.example`; not read by code today | Optional / currently unused |
+| `EXPO_PUBLIC_ENV` | Placeholder in `.env.example`; not read by code today | Optional / currently unused |
+
+## Key Business Logic
+
+- Roles:
+  - DB roles are `customer`, `buyer`, `driver`, `admin`
+  - mobile normalizes `customer` -> `seller` for UI only
+- Listing visibility:
+  - admin sees all
+  - seller sees own listings
+  - buyer sees open/reopened listings and accepted own listings
+  - driver sees assigned listings and some delivery jobs
+- Offer rules:
+  - only buyers make offers
+  - only open listings accept offers
+  - one pending offer per buyer/listing is updated in place
+  - accepting one offer auto-declines all other pending offers
+- Comment rules:
+  - visible to anyone who can read the listing
+  - seller can comment on own listing unless cancelled
+  - buyer can comment only while listing is open
+- Conversation rules:
+  - one conversation per listing/buyer pair
+  - seller and buyer are the only regular participants
+  - mobile RLS explicitly allows seller-created conversation rows too
+- Listing lifecycle:
+  - `open` -> `accepted` via accepted offer
+  - `accepted` -> `completed` or `no_show`
+  - `no_show` -> `reopened`
+  - accepted listings get a 24-hour pickup deadline
+  - sellers can extend deadline by 24 more hours
+  - web auto-relists expired accepted listings when listing access occurs
+- Delivery logic:
+  - `delivery_required` gates driver workflows
+  - `buyer_delivery_confirmed` is intended to release jobs to drivers
+  - driver claim computes payout snapshot and creates a `transport_job`
+  - mobile completion is PIN-gated through `delivery_handoff_secrets`
+  - after verified delivery, profile/privacy restrictions are applied through DB-backed flags and blocks
+- Reviews:
+  - only after listing is completed
+  - reviewer must be a listing participant
+  - recipient must be a different listing participant
+  - one review per `(from_user, to_user)` pair
+- Session policy:
+  - idle timeout comes from `platform_settings.session_idle_minutes`
+  - activity is refreshed via `requireAppUser()` and `/api/auth/activity`
+- Country/currency:
+  - country code can update currency automatically
+  - default fallback currency is `USD`
+
+## AI Agent Instructions
+
+- Treat this as a cross-stack system, not just a Next.js app.
+- Before changing marketplace rules, inspect both:
+  - web REST code in `src/app/api`
+  - SQL/RLS/RPC/view logic in `prisma/migrations`
+- Do not assume Prisma models capture the full backend. Mobile-critical objects like `listing_public_feed`, `user_public_profiles`, `listing_live_locations`, and the driver/buyer RPCs are SQL-only.
+- Respect naming differences:
+  - web/API JSON is mostly camelCase
+  - mobile direct DB rows are snake_case
+  - DB role is `customer`, mobile label is `seller`
+- Keep service-role logic on the server only.
+- Use `src/lib/validation.ts` for web validation patterns and keep mobile validation aligned when changing auth/profile fields.
+- Preserve decimal serialization behavior by using `serializeListing` / `serializeOffer` for web API responses.
+- Be careful with privacy-sensitive fields:
+  - `delivery_handoff_secrets`
+  - `delivery_privacy_locked`
+  - `driver_profile_blocks`
+  - address visibility for drivers
+- If you change listing/offer/chat/driver behavior, verify whether mobile is calling:
+  - a REST route
+  - a table/view directly
+  - an RPC directly
+- Prefer migrations over ad hoc DB changes. If a field is used by mobile, update both schema and RLS/view projections.
+- Do not introduce a new literal `seller` role in the DB unless you are intentionally migrating away from `customer`.
+- Watch for drift between web and mobile:
+  - storage bucket names
+  - email verification env names
+  - delivery completion and PIN logic
+  - pickup job availability semantics
+- Recommended validation after non-trivial changes:
+  - web: `npm run lint`, `npm test`, `npx tsc --noEmit`, `npm run build`
+  - web smoke: `npm run test:e2e`
+  - mobile: `npm run typecheck`, `npm test`
+  - mobile manual: Maestro smoke flow if profile/auth or navigation changes
+
+## Development Workflow
+
+### Web/API Repo
+
+```bash
+npm install
+cp .env.example .env
+npx prisma migrate deploy
+npx prisma generate
+npm run dev
+```
+
+Useful commands:
+
+```bash
+npm run lint
+npm test
+npm run test:e2e
+npx tsc --noEmit
+npm run build
+npm run db:migrate
+npm run db:studio
+```
+
+### Mobile Repo
+
+```bash
+cd ../waste-marketplace-ios
+npm install
+cp .env.example .env
+npm start
+```
+
+Useful commands:
+
+```bash
+npm run typecheck
+npm test
+```
+
+Maestro smoke flow:
+
+```bash
+maestro test maestro/smoke.yaml
+```
+
+### Migrations and DB Changes
+
+- Prisma-managed schema changes: update `prisma/schema.prisma`, then create/apply a migration
+- SQL-only mobile surfaces: add or update raw SQL migration files
+- Supabase edge functions: deploy separately with `supabase functions deploy`
+- If changing RLS or SQL RPC behavior, test on mobile paths, not just web pages
+
+### Deployment
+
+- Web is intended for Vercel or similar
+- Supabase hosts auth, Postgres, storage, realtime, and edge functions
+- Run `npx prisma migrate deploy` as part of release/deploy
+- Mobile repo has local/dev guidance but no production EAS pipeline config in this workspace
+
+## Known Gaps / TODOs
+
+- Web and mobile backend surfaces can drift because:
+  - web uses Prisma + route handlers
+  - mobile uses direct Supabase + RLS + RPC
+- `prisma/schema.prisma` does not model every DB object used by mobile.
+- Email verification env naming is inconsistent:
+  - code reads `SUPABASE_REQUIRE_EMAIL_VERIFICATION`
+  - signup page reads `NEXT_PUBLIC_SUPABASE_REQUIRE_EMAIL_VERIFICATION`
+  - docs/env example still mention `SUPABASE_AUTOCONFIRM_NEW_USERS`
+- Storage bucket naming is inconsistent:
+  - web upload route defaults to `listing-images`
+  - mobile listing photo helper uses `listing-photos`
+  - avatar uploads use `avatars`
+- Mobile signup does not currently expose role selection, so new mobile-created accounts effectively fall back to buyer unless role metadata/profile is provisioned elsewhere.
+- Web and mobile delivery completion logic are not perfectly aligned:
+  - mobile relies on PIN-gated RPC completion
+  - web driver job PATCH can mark a job completed directly
+- Web listing creation marks some delivery listings as available earlier than the SQL/mobile flow intends; driver claim is still gated later by `buyerDeliveryConfirmed`.
+- Transactions/payment flows are not implemented even though a `transactions` table exists.
+- Admin UI is mostly read-only.
+- Web chat and notification UX still rely on polling in several places.
+- Test coverage is shallow:
+  - web unit tests cover validation only
+  - Playwright coverage is smoke-level
+  - mobile tests cover role normalization only
+- `buyer/pickups` still labels completed earnings as a placeholder.
+- `package.json` contains duplicate keys (`@sentry/node`, `@playwright/test`), which is a maintenance smell.
+- Some docs are historical and lag current behavior or naming.
+
+## Quick Start For AI Agents
+
+- Start here for system orientation:
+  - `README.md`
+  - `prisma/schema.prisma`
+  - `src/app/api`
+  - `src/lib/auth.ts`
+  - `src/lib/validation.ts`
+  - `src/lib/listing-visibility.ts`
+  - `src/lib/commission.ts`
+  - `src/proxy.ts`
+- For mobile context, inspect:
+  - `../waste-marketplace-ios/README.md`
+  - `../waste-marketplace-ios/src/lib/supabase.ts`
+  - `../waste-marketplace-ios/src/providers/SessionProvider.tsx`
+  - `../waste-marketplace-ios/src/screens`
+- For auth/profile changes:
+  - web: `src/app/api/auth/*`, `src/app/api/profile/route.ts`, `src/app/api/ensure-profile/route.ts`
+  - mobile: `SignUpScreen`, `LoginScreen`, `EditProfileScreen`, `ensureOwnUsersRow.ts`
+  - DB: migrations around `wmp_handle_new_auth_user`, `users`, and `user_public_profiles`
+- For listing/offer/chat changes:
+  - web: `src/app/api/listings/*`, `src/app/api/offers/*`, `src/app/api/conversations/*`
+  - mobile: `BuyerHomeScreen`, `CreateListingScreen`, `ListingDetailScreen`, `Chat*`
+  - DB: `listing_public_feed`, `offers`, `conversations`, `messages`, notification triggers
+- For driver flow changes:
+  - web: `src/app/api/driver/*`
+  - mobile: `DriverHomeScreen`, `LiveTrackScreen`, `DriverPickupCard`
+  - DB: `driver_claim_pickup`, `driver_set_transport_status`, `driver_complete_transport_with_pin`, `listing_live_locations`
+
+Safest extension strategy:
+
+1. Identify whether the behavior is web-only, mobile-only, or shared.
+2. If shared, update DB schema/RLS/view/RPC surfaces first.
+3. Update web route handlers and serializers.
+4. Update mobile Supabase callers and screen expectations.
+5. Run the relevant web and mobile validation commands.
 
 ---
 
-## Purpose
+## Web repo: idle session UX (cookie sessions)
 
-Mobile-first marketplace: **customers** list waste, **buyers** browse and make offers, **drivers** claim delivery pickups, **admins** oversee. **Supabase Auth** (cookies) + **PostgreSQL** (Prisma) + optional **Supabase Storage** for images.
+These details apply to the **Next.js web app** in this repository and extend the generic session notes above.
 
----
+### `POST /api/auth/activity`
 
-## Stack
+- **`?mode=peek`** — Validates Supabase session + idle timeout; **does not** bump `users.last_activity_at`. Response includes `timeoutMinutes`, `warningSeconds` (seconds remaining when inside the last **5 minutes** of the idle window; otherwise `null`).
+- **`?mode=touch`** (or any non-`peek` value) — Same validation; **may** bump `last_activity_at` (throttled to at most once per minute inside `requireAppUser`).
 
-| Layer | Technology |
-|--------|------------|
-| App | Next.js **16** App Router (`src/app`), React **19**, Turbopack dev |
-| API | Next Route Handlers under `src/app/api/**/route.ts` |
-| Auth | `@supabase/ssr` — server + browser clients; roles in `app_metadata.role` |
-| DB | Prisma **6** → PostgreSQL (Supabase-hosted) |
-| Validation | Zod (`src/lib/validation.ts`) |
-| Tests | Vitest (`npm test`) |
-| Maps (driver) | `leaflet` + `react-leaflet` — **must not SSR** (see Driver UI) |
+### `requireAppUser({ touchActivity })`
 
----
+- Default `touchActivity: true` for normal API routes.
+- `touchActivity: false` for activity **peek** checks so passive polling does not extend the idle clock.
 
-## Repository layout
+### Client: `SessionActivity`
 
-| Path | Role |
-|------|------|
-| `src/app/` | Routes: marketing (`page.tsx`), role homepages, `(customer|buyer|admin|driver)/**` |
-| `src/app/api/` | REST-style JSON APIs |
-| `src/components/` | Shared UI (`AppShell`, `SessionActivity`, `LiveMap`, etc.) |
-| `src/lib/` | Auth, Prisma singleton, HTTP helpers, domain helpers |
-| `prisma/schema.prisma` | Schema source of truth |
-| `prisma/migrations/` | SQL migrations |
-| `docs/` | Human-facing product/phase notes |
-| `AGENTS.md` | **Cursor Cloud** quirks (tmux + env injection, driver map SSR) |
+- Mounted from `AppShell`. Uses **peek** on interval/initial load and **touch** on user interaction (click, keydown, etc.).
+- Shows a bottom banner with countdown when `warningSeconds` is returned.
+- On `401` from activity → logout + redirect to `/login`.
 
----
+### `POST /api/auth/login`
 
-## Architecture (high level)
-
-1. **Browser** → Next.js pages (client components fetch `/api/*`).
-2. **Middleware** `src/proxy.ts` — refreshes Supabase session from cookies on matched paths.
-3. **API routes** — `requireAppUser()` (or `getSupabaseUser`) + Prisma for business data.
-4. **Supabase** — Auth sessions; service role used server-side for signup admin user creation and storage uploads.
-
-Business profile rows live in **`public.users`** (Prisma `User`), keyed by **`auth.users.id`**. Listings, offers, jobs, etc. reference `users.id`.
-
----
-
-## Authentication & sessions
-
-### Supabase
-
-- Session persisted in **HTTP-only cookies** (Supabase SSR pattern).
-- **Role** for routing: `user.app_metadata.role` — one of `customer` | `buyer` | `admin` | `driver` (set at signup via service role, not user-editable).
-
-### Prisma profile requirement
-
-- Most protected APIs use **`requireAppUser()`**: valid Supabase user **and** a row in `public.users`.
-- **`POST /api/auth/login`**: after `signInWithPassword`, **upserts** `public.users` from Supabase metadata so legacy/auth-only users get a profile. Sets **`lastActivityAt`** to now on login.
-
-### Idle timeout (app-level)
-
-- **`users.last_activity_at`** tracks last activity (column `last_activity_at`).
-- **`platform_settings.session_idle_minutes`** (default **60**, min **5** if set) defines idle window.
-- **`requireAppUser()`**:
-  - If idle exceeded → `supabase.auth.signOut()` + **`401` `"Session expired"`**.
-  - Otherwise, if **`touchActivity`** is true (default), bumps `lastActivityAt` at most **once per minute**.
-- **`touchActivity: false`**: validate session + idle only — **does not** bump `lastActivityAt` (for passive “peek” checks).
-
-### Session activity API
-
-- **`POST /api/auth/activity?mode=peek`** — does **not** extend idle clock; returns JSON: `timeoutMinutes`, `warningSeconds` (seconds until logout when inside the **last 5 minutes** of the window; `null` if not in warning window).
-- **`POST /api/auth/activity?mode=touch`** (or any non-`peek` mode) — extends activity (subject to 1-minute throttle inside `requireAppUser`).
-
-### Client: `SessionActivity` (`src/components/SessionActivity.tsx`)
-
-- Mounted from **`AppShell`**. Uses **`peek`** on an interval and on load; **`touch`** on user events (click, keydown, etc.).
-- Shows a **fixed bottom banner** with countdown when `warningSeconds` is present.
-- On **`401`** from activity → logout API + redirect to `/login`.
-
----
-
-## Database schema (Prisma)
-
-**Enums (summary):** `UserRole`, `WasteType`, `ListingStatus`, `OfferStatus`, `TransportStatus`, `TransactionStatus`, `TransactionType`, `PickupJobStatus`, `CommissionKind`.
-
-**Core models:**
-
-| Model | Table | Notes |
-|-------|--------|--------|
-| `User` | `users` | `id` = Supabase auth user UUID; `last_activity_at`, profile fields |
-| `WasteListing` | `waste_listings` | Seller `userId`, status, pricing, delivery flags, driver pickup fields |
-| `Offer` | `offers` | Buyer offers on listings |
-| `ListingComment`, `Conversation`, `Message` | `listing_comments`, `conversations`, `messages` | Social / chat |
-| `TransportJob` | `transport_jobs` | Driver jobs linked to listings |
-| `Transaction` | `transactions` | Money records (MVP scaffolding) |
-| `Review` | `reviews` | Ratings |
-| `Notification` | `notifications` | In-app notifications |
-| `PlatformSettings` | `platform_settings` | Singleton `id: 1`; includes `session_idle_minutes`, driver commission default |
-
-Apply migrations: `npx prisma migrate deploy` (and `npx prisma generate`).
-
----
-
-## Key API routes (non-exhaustive)
-
-| Area | Method | Path | Notes |
-|------|--------|------|--------|
-| Auth | POST | `/api/auth/signup` | Service role creates user + Prisma `users` |
-| Auth | POST | `/api/auth/login` | Cookie session; upsert profile + refresh `lastActivityAt` |
-| Auth | POST | `/api/auth/logout` | Clear session |
-| Auth | POST | `/api/auth/activity` | Query `mode=peek` \| `touch` — idle warning / keepalive |
-| Auth | POST | `/api/auth/resend-verification` | Email verification helper |
-| User | GET | `/api/users/me` | Auth + profile summary |
-| User | GET/PATCH | `/api/users/[id]` | Profile access rules |
-| Profile | GET/PATCH | `/api/profile` | Current user profile (+ reviews aggregate); may use Supabase REST fallback for columns |
-| Listings | GET/POST | `/api/listings` | Role-scoped list; buyer `?scope=mine` |
-| Listings | GET/PATCH | `/api/listings/[id]` | Visibility via `canViewListing` |
-| Offers | … | `/api/listings/[id]/offers`, `/api/offers/[id]/accept` | Offer lifecycle |
-| Driver | GET | `/api/driver/feed` | Pickup board |
-| Driver | POST | `/api/driver/listings/[id]/claim` | Claim pickup |
-| Driver | GET/PATCH | `/api/driver/jobs`, `/api/driver/jobs/[id]` | Jobs |
-| Maps | POST | `/api/maps/geocode` | Server-side geocode; needs `GOOGLE_MAPS_SERVER_KEY` |
-| Media | POST | `/api/upload` | Multipart; Supabase Storage bucket |
-| Reviews / Notifications | Various | `/api/reviews/*`, `/api/notifications/*` | As implemented in `src/app/api` |
-
----
-
-## Environment variables
-
-From `.env.example` and code:
-
-| Variable | Required | Notes |
-|----------|-----------|--------|
-| `DATABASE_URL` | Yes | Pooler URL for Prisma (often `?pgbouncer=true`) |
-| `DIRECT_URL` | Yes | Direct Postgres for migrations |
-| `NEXT_PUBLIC_SUPABASE_URL` | Yes | Public |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Public |
-| `SUPABASE_SERVICE_ROLE_KEY` | Yes (server) | Signup admin metadata, uploads — never expose |
-| `ADMIN_EMAIL` | Optional | Matching email → `admin` on signup |
-| `SUPABASE_STORAGE_BUCKET` | Optional | Default `listing-images` |
-| `GOOGLE_MAPS_SERVER_KEY` | Optional | Geocoding route |
-| `SUPABASE_REQUIRE_EMAIL_VERIFICATION` / `NEXT_PUBLIC_SUPABASE_REQUIRE_EMAIL_VERIFICATION` | Optional | Signup/login UX |
-
----
-
-## User flows (product)
-
-1. **Signup** → role selection → `POST /api/auth/signup` → redirect by role (or email verification UI if enabled).
-2. **Customer** → create listing (`POST /api/listings`) → manage offers → accept → pickup / driver flow as implemented.
-3. **Buyer** → open/reopened listings on home; offers; “My pickups” uses `GET /api/listings?scope=mine`.
-4. **Driver** → feed + claim; map uses client-only Leaflet load (see `AGENTS.md`).
-5. **Idle** → warning banner → logout if no activity until expiry.
-
----
-
-## Conventions for agents
-
-- **Do not** import `leaflet` in modules that SSR the driver page; use **`next/dynamic` with `ssr: false`** for map components.
-- **Protected APIs**: use `requireAppUser()` unless the route is explicitly public.
-- **Listings empty state**: distinguish **no rows** vs **401** (customer/buyer listing pages may show error string from API).
-- **Cursor Cloud**: if secrets are injected after tmux started, restart tmux server so `npm run dev` sees env (see `AGENTS.md`).
-- **`ERR_CONNECTION_REFUSED` on localhost:3000**: dev server not running or wrong port — run `npm run dev`, check tmux pane output.
-
----
-
-## Dependencies (notable)
-
-- `next`, `react`, `react-dom`, `@prisma/client`, `@supabase/ssr`, `@supabase/supabase-js`, `zod`, `leaflet`, `react-leaflet`, `vitest` (dev).
-
----
+- After successful `signInWithPassword`, calls **`ensureAppUserProfile`** so `public.users` exists (aligns with `/api/ensure-profile` / mobile-created auth users), then updates profile fields from Supabase metadata and refreshes **`last_activity_at`** so stale profiles do not immediately hit idle expiry.
 
 ## Last Updated
 
-- **2026-04-23** — Created `AI_AGENT_CONTEXT.md`. Documented stack, auth, **idle session** (`requireAppUser` + `peek`/`touch` activity API + `SessionActivity`), schema summary, API index, env vars, conventions. **Code fix:** `requireAppUser({ touchActivity })` so `mode=peek` does not bump `last_activity_at`; activity route reads **`?mode=`** query (aligned with `SessionActivity`).
+- **2026-04-23** — Merged `origin/main` into `cursor/e2e-listings-flow-0d63`: resolved `AI_AGENT_CONTEXT.md` (add/add) by keeping `main`’s cross-stack document and appending web idle-session + login behavior. Resolved `src/app/api/auth/login/route.ts` by combining **rate limiting** from `main` with **`ensureAppUserProfile`** + profile field sync + **`last_activity_at`** refresh from the feature branch.

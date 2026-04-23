@@ -1,8 +1,10 @@
-import { ListingStatus } from "@prisma/client";
+import { ListingStatus, UserRole } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { handleRouteError, jsonError, jsonOk } from "@/lib/http";
-import { getSupabaseUser } from "@/lib/auth";
+import { getRoleFromSupabaseUser, getSupabaseUser } from "@/lib/auth";
+import { createServiceSupabase } from "@/lib/supabase/service";
+import { namesFromAuthMetadata } from "@/lib/userProfileFromAuth";
 
 const paramsSchema = z.object({ id: z.string().uuid() });
 
@@ -11,7 +13,10 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     const { id } = await context.params;
     paramsSchema.parse({ id });
 
-    const user = await prisma.user.findUnique({
+    const auth = await getSupabaseUser();
+    if (!auth) return jsonError("Unauthorized", 401);
+
+    let user = await prisma.user.findUnique({
       where: { id },
       select: {
         id: true,
@@ -23,7 +28,52 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
         avatarUrl: true,
       },
     });
-    if (!user) return jsonError("User not found", 404);
+
+    if (!user) {
+      try {
+        const service = createServiceSupabase();
+        const { data, error } = await service.auth.admin.getUserById(id);
+        if (error || !data.user) return jsonError("User not found", 404);
+
+        const meta = data.user.user_metadata as Record<string, unknown> | null | undefined;
+        const nameFromMeta = typeof meta?.name === "string" ? meta.name.trim() : "";
+        const email = data.user.email?.trim() ?? "";
+        const emailLocal = email.split("@")[0] || "User";
+        const { firstName, lastName, displayName } = namesFromAuthMetadata(meta, nameFromMeta, emailLocal);
+        const roleFromMeta = getRoleFromSupabaseUser(data.user);
+        const role = (roleFromMeta ?? UserRole.customer) as UserRole;
+
+        user = await prisma.user.create({
+          data: {
+            id: data.user.id,
+            email,
+            name: displayName,
+            firstName,
+            lastName,
+            role,
+            phone: typeof meta?.phone === "string" ? meta.phone.trim() || null : null,
+            address: typeof meta?.address === "string" ? meta.address.trim() || null : null,
+            vehicleType: typeof meta?.vehicleType === "string" ? meta.vehicleType.trim() || null : null,
+            licenseNumber: typeof meta?.licenseNumber === "string" ? meta.licenseNumber.trim() || null : null,
+            availability: typeof meta?.availability === "string" ? meta.availability.trim() || null : null,
+          },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            address: true,
+            role: true,
+            avatarUrl: true,
+          },
+        });
+      } catch (e) {
+        if (e instanceof Error && e.message.includes("SUPABASE_SERVICE_ROLE_KEY")) {
+          return jsonError("Profile lookup is not configured", 503);
+        }
+        return jsonError("User not found", 404);
+      }
+    }
 
     const reviewSummary = await prisma.review.aggregate({
       _avg: { score: true },
@@ -55,11 +105,22 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       take: 3,
     });
 
-    const auth = await getSupabaseUser();
-    const viewerId = auth?.id ?? null;
+    const viewerId = auth.id;
+    const isSelf = viewerId === user.id;
+    const profile = isSelf
+      ? user
+      : {
+          id: user.id,
+          name: user.name,
+          role: user.role,
+          avatarUrl: user.avatarUrl,
+          email: null,
+          phone: null,
+          address: user.address,
+        };
 
     return jsonOk({
-      profile: user,
+      profile,
       reviewSummary: {
         averageRating: reviewSummary._avg.score ?? null,
         reviewCount: reviewSummary._count.score,

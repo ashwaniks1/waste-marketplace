@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { handleRouteError, jsonError, jsonOk } from "@/lib/http";
+import { rateLimitCombinedResponse } from "@/lib/rateLimitHttp";
 import { createServiceSupabase } from "@/lib/supabase/service";
 
 const resendSchema = z.object({
@@ -8,6 +9,9 @@ const resendSchema = z.object({
 
 export async function POST(request: Request) {
   try {
+    const limited = rateLimitCombinedResponse(request, "resend-verification", 5, 10_000);
+    if (limited) return limited;
+
     const body = resendSchema.parse(await request.json());
     const service = createServiceSupabase();
     const { data, error } = await service.auth.admin.inviteUserByEmail(body.email.trim());
@@ -22,6 +26,6 @@ export async function POST(request: Request) {
 
     return jsonOk({ ok: true });
   } catch (e) {
-    return handleRouteError(e);
+    return handleRouteError(e, { route: "POST /api/auth/resend-verification" });
   }
 }

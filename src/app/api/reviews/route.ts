@@ -1,4 +1,4 @@
-import { ListingStatus, UserRole } from "@prisma/client";
+import { Prisma, ListingStatus, UserRole } from "@prisma/client";
 import { z } from "zod";
 import { requireAppUser } from "@/lib/auth";
 import { HttpError } from "@/lib/errors";
@@ -49,26 +49,38 @@ export async function POST(request: Request) {
       throw new HttpError(400, "Invalid review recipient");
     }
 
-    const existing = await prisma.review.findFirst({
+    const existing = await prisma.review.findUnique({
       where: {
-        listingId: listing.id,
-        fromUserId: current.id,
-        toUserId: body.toUserId,
+        fromUserId_toUserId: { fromUserId: current.id, toUserId: body.toUserId },
       },
     });
     if (existing) {
-      return jsonError("You have already reviewed this user for this listing", 409);
+      return jsonError(
+        "You have already reviewed this person. Open their profile to edit or delete your review.",
+        409,
+      );
     }
 
-    const review = await prisma.review.create({
-      data: {
-        listingId: listing.id,
-        fromUserId: current.id,
-        toUserId: body.toUserId,
-        score: body.score,
-        body: body.body ?? null,
-      },
-    });
+    let review;
+    try {
+      review = await prisma.review.create({
+        data: {
+          listingId: listing.id,
+          fromUserId: current.id,
+          toUserId: body.toUserId,
+          score: body.score,
+          body: body.body ?? null,
+        },
+      });
+    } catch (e: unknown) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+        return jsonError(
+          "You have already reviewed this person. Open their profile to edit or delete your review.",
+          409,
+        );
+      }
+      throw e;
+    }
 
     return jsonOk(review);
   } catch (e) {

@@ -1,6 +1,7 @@
 import { Prisma, UserRole } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { handleRouteError, jsonError, jsonOk } from "@/lib/http";
+import { rateLimitCombinedResponse } from "@/lib/rateLimitHttp";
 import { signupFormSchema } from "@/lib/validation";
 import { createServiceSupabase } from "@/lib/supabase/service";
 
@@ -11,6 +12,9 @@ import { createServiceSupabase } from "@/lib/supabase/service";
  */
 export async function POST(request: Request) {
   try {
+    const limited = rateLimitCombinedResponse(request, "signup", 5, 10_000);
+    if (limited) return limited;
+
     const body = signupFormSchema.parse(await request.json());
     const adminEmail = process.env.ADMIN_EMAIL?.toLowerCase();
     const finalRole: UserRole =
@@ -20,12 +24,16 @@ export async function POST(request: Request) {
     const requireEmailVerification = process.env.SUPABASE_REQUIRE_EMAIL_VERIFICATION !== "false";
     const emailConfirm = !requireEmailVerification;
 
+    const displayName = `${body.firstName.trim()} ${body.lastName.trim()}`.trim();
+
     const { data, error } = await service.auth.admin.createUser({
       email: body.email.trim(),
       password: body.password,
       email_confirm: emailConfirm,
       user_metadata: {
-        name: body.name,
+        first_name: body.firstName.trim(),
+        last_name: body.lastName.trim(),
+        name: displayName,
         phone: body.phone,
         vehicleType: body.vehicleType,
         licenseNumber: body.licenseNumber,
@@ -44,11 +52,26 @@ export async function POST(request: Request) {
     if (!data.user?.id) return jsonError("Signup failed", 400);
 
     try {
-      await prisma.user.create({
-        data: {
+      await prisma.user.upsert({
+        where: { id: data.user.id },
+        create: {
           id: data.user.id,
           email: body.email.trim(),
-          name: body.name.trim(),
+          name: displayName,
+          firstName: body.firstName.trim(),
+          lastName: body.lastName.trim(),
+          phone: body.phone.trim() || null,
+          role: finalRole,
+          address: body.address.trim() || null,
+          vehicleType: body.vehicleType?.trim() || null,
+          licenseNumber: body.licenseNumber?.trim() || null,
+          availability: body.availability?.trim() || null,
+        },
+        update: {
+          email: body.email.trim(),
+          name: displayName,
+          firstName: body.firstName.trim(),
+          lastName: body.lastName.trim(),
           phone: body.phone.trim() || null,
           role: finalRole,
           address: body.address.trim() || null,
@@ -75,6 +98,6 @@ export async function POST(request: Request) {
     if (e instanceof Error && e.message.includes("SUPABASE_SERVICE_ROLE_KEY")) {
       return jsonError("Server misconfiguration: set SUPABASE_SERVICE_ROLE_KEY in .env", 503);
     }
-    return handleRouteError(e);
+    return handleRouteError(e, { route: "POST /api/auth/signup" });
   }
 }

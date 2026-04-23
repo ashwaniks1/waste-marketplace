@@ -35,9 +35,11 @@ describe("loginFormSchema", () => {
 describe("signupFormSchema", () => {
   it("accepts buyer without driver fields", () => {
     const r = signupFormSchema.safeParse({
-      name: "Jane Doe",
+      firstName: "Jane",
+      lastName: "Doe",
       email: "jane@example.com",
       password: "Secure1A",
+      confirmPassword: "Secure1A",
       phone: "+1 (555) 123-4567",
       address: "123 Main St",
       role: "buyer",
@@ -45,11 +47,27 @@ describe("signupFormSchema", () => {
     expect(r.success).toBe(true);
   });
 
-  it("rejects driver missing vehicle details", () => {
+  it("rejects mismatched confirm password", () => {
     const r = signupFormSchema.safeParse({
-      name: "Jane Doe",
+      firstName: "Jane",
+      lastName: "Doe",
       email: "jane@example.com",
       password: "Secure1A",
+      confirmPassword: "Other1A",
+      phone: "5551234567",
+      address: "123 Main St",
+      role: "buyer",
+    });
+    expect(r.success).toBe(false);
+  });
+
+  it("rejects driver missing vehicle details", () => {
+    const r = signupFormSchema.safeParse({
+      firstName: "Jane",
+      lastName: "Doe",
+      email: "jane@example.com",
+      password: "Secure1A",
+      confirmPassword: "Secure1A",
       phone: "5551234567",
       address: "123 Main St",
       role: "driver",

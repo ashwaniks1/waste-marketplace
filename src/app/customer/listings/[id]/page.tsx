@@ -14,6 +14,7 @@ import { WASTE_TYPE_OPTIONS } from "@/lib/waste-types";
 
 type ListingDetail = {
   id: string;
+  handoffPin?: string | null;
   wasteType: WasteType;
   quantity: string;
   description: string | null;
@@ -23,6 +24,8 @@ type ListingDetail = {
   askingPrice: number;
   currency: string;
   deliveryAvailable: boolean;
+  deliveryRequired?: boolean;
+  buyerDeliveryConfirmed?: boolean;
   deliveryFee: number | null;
   acceptedOfferAmount: number | null;
   acceptedOfferCurrency: string | null;
@@ -413,6 +416,27 @@ export default function CustomerListingDetailPage() {
                     <p className="text-sm font-semibold text-teal-900">Pickup deadline</p>
                     <p className="mt-1 text-sm text-slate-700">{new Date(row.pickupDeadlineAt).toLocaleString()}</p>
                     <p className="text-sm text-teal-800">{formatDeadline(row.pickupDeadlineAt)}</p>
+                  </div>
+                ) : null}
+                {(row.deliveryRequired ?? row.deliveryAvailable) &&
+                row.status === "accepted" &&
+                !row.buyerDeliveryConfirmed ? (
+                  <div className="mt-3 rounded-2xl border border-slate-200 bg-white p-3">
+                    <p className="text-sm font-semibold text-slate-900">Waiting on buyer</p>
+                    <p className="mt-1 text-xs text-slate-600">
+                      The buyer has not released this pickup to drivers yet. Drivers will be able to claim it after they confirm in the app.
+                    </p>
+                  </div>
+                ) : null}
+                {row.deliveryAvailable && row.handoffPin ? (
+                  <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50/90 p-3 dark:border-amber-900/50 dark:bg-amber-950/40">
+                    <p className="text-sm font-semibold text-amber-950 dark:text-amber-100">Delivery PIN for driver</p>
+                    <p className="mt-1 text-xs text-amber-900/90 dark:text-amber-100/80">
+                      Share this code with the assigned driver so they can mark delivery complete.
+                    </p>
+                    <p className="mt-2 text-center font-mono text-2xl font-black tracking-widest text-amber-950 dark:text-amber-50">
+                      {row.handoffPin}
+                    </p>
                   </div>
                 ) : null}
                 <p className="mt-3 text-sm text-teal-800">

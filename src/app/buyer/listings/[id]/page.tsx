@@ -15,6 +15,7 @@ import { WASTE_TYPE_OPTIONS } from "@/lib/waste-types";
 
 type ListingDetail = {
   id: string;
+  handoffPin?: string | null;
   wasteType: WasteType;
   quantity: string;
   description: string | null;
@@ -24,6 +25,8 @@ type ListingDetail = {
   askingPrice: number;
   currency: string;
   deliveryAvailable: boolean;
+  deliveryRequired?: boolean;
+  buyerDeliveryConfirmed?: boolean;
   deliveryFee: number | null;
   acceptedOfferAmount: number | null;
   acceptedOfferCurrency: string | null;
@@ -171,9 +174,24 @@ export default function BuyerListingDetailPage() {
     else await load();
   }
 
+  async function confirmMarketplaceDelivery() {
+    setBusy(true);
+    const res = await fetch(`/api/listings/${id}/confirm-marketplace-delivery`, { method: "POST" });
+    const data = await res.json();
+    setBusy(false);
+    if (!res.ok) setError(data.error ?? "Could not confirm");
+    else {
+      setError(null);
+      await load();
+    }
+  }
+
   const icon = WASTE_TYPE_OPTIONS.find((o) => o.value === row?.wasteType)?.icon;
   const iAmAcceptor = Boolean(meId && row?.acceptor?.id === meId);
   const myPending = offers.find((o) => o.status === "pending");
+  const marketplaceDelivery = Boolean(row?.deliveryRequired ?? row?.deliveryAvailable);
+  const needsBuyerDeliveryRelease =
+    Boolean(row && row.status === "accepted" && marketplaceDelivery && !row.buyerDeliveryConfirmed);
 
   return (
     <>
@@ -210,6 +228,28 @@ export default function BuyerListingDetailPage() {
                       <p className="text-sm font-semibold text-teal-900">Pickup deadline</p>
                       <p className="mt-1 text-sm text-slate-700">{new Date(row.pickupDeadlineAt).toLocaleString()}</p>
                       <p className="text-sm text-teal-800">{formatDeadline(row.pickupDeadlineAt)}</p>
+                    </div>
+                  ) : null}
+                  {needsBuyerDeliveryRelease ? (
+                    <div className="mt-3 rounded-2xl border border-sky-200 bg-sky-50/90 p-3 dark:border-sky-900/50 dark:bg-sky-950/40">
+                      <p className="text-sm font-semibold text-sky-950 dark:text-sky-100">Release pickup to drivers</p>
+                      <p className="mt-1 text-xs text-sky-900/90 dark:text-sky-100/80">
+                        Drivers only see this job after you confirm you are ready for marketplace pickup (for example once pickup details are agreed in chat).
+                      </p>
+                      <Button className="mt-3 w-full sm:w-auto" disabled={busy} onClick={() => void confirmMarketplaceDelivery()}>
+                        I’m ready — show drivers this pickup
+                      </Button>
+                    </div>
+                  ) : null}
+                  {row.status === "accepted" && marketplaceDelivery && row.handoffPin ? (
+                    <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50/90 p-3 dark:border-amber-900/50 dark:bg-amber-950/40">
+                      <p className="text-sm font-semibold text-amber-950 dark:text-amber-100">Delivery PIN</p>
+                      <p className="mt-1 text-xs text-amber-900/90 dark:text-amber-100/80">
+                        Give this code to your driver when they arrive so they can mark delivery complete in the app.
+                      </p>
+                      <p className="mt-2 text-center font-mono text-2xl font-black tracking-widest text-amber-950 dark:text-amber-50">
+                        {row.handoffPin}
+                      </p>
                     </div>
                   ) : null}
                 </div>

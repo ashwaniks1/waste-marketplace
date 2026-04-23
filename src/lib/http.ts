@@ -10,13 +10,31 @@ export function jsonError(message: string, status: number, extras?: Record<strin
   return NextResponse.json({ error: message, ...extras }, { status });
 }
 
-export function handleRouteError(e: unknown) {
+export type RouteErrorMeta = { route?: string; userId?: string };
+
+function captureServerException(e: unknown, meta?: RouteErrorMeta) {
+  if (!process.env.SENTRY_DSN) return;
+  void import("@sentry/node")
+    .then((Sentry) => {
+      Sentry.captureException(e, {
+        tags: { route: meta?.route ?? "unknown" },
+        user: meta?.userId ? { id: meta.userId } : undefined,
+      });
+    })
+    .catch(() => undefined);
+}
+
+/** Logs route + user id only — never log request bodies or PII. */
+export function handleRouteError(e: unknown, meta?: RouteErrorMeta) {
   if (e instanceof ZodError) {
     return jsonError("Validation failed", 400, { details: e.flatten() });
   }
   if (e instanceof HttpError) {
     return jsonError(e.message, e.status, e.extras);
   }
-  console.error(e);
+  const kind = e instanceof Error ? e.name : typeof e;
+  const code = e && typeof e === "object" && "code" in e ? String((e as { code: unknown }).code) : undefined;
+  console.error("[api]", { route: meta?.route, userId: meta?.userId, kind, code });
+  captureServerException(e, meta);
   return jsonError("Internal server error", 500);
 }

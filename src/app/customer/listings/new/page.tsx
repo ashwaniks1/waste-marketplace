@@ -11,6 +11,7 @@ import { WASTE_TYPE_OPTIONS } from "@/lib/waste-types";
 export default function NewListingPage() {
   const router = useRouter();
   const [wasteType, setWasteType] = useState<WasteType>("PLASTIC");
+  const [title, setTitle] = useState("");
   const [quantity, setQuantity] = useState("");
   const [description, setDescription] = useState("");
   const [address, setAddress] = useState("");
@@ -47,11 +48,20 @@ export default function NewListingPage() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    if (!title.trim()) {
+      setError("Listing name is required.");
+      return;
+    }
+    if (files.length < 1) {
+      setError("Add at least one photo of your materials.");
+      return;
+    }
     setLoading(true);
     try {
-      const images = files.length ? await uploadImages() : [];
+      const images = await uploadImages();
       const pct = driverCommissionPercent.trim();
       const body = {
+        title: title.trim(),
         wasteType,
         quantity: quantity.trim(),
         description: description.trim() || undefined,
@@ -117,6 +127,19 @@ export default function NewListingPage() {
             ))}
           </div>
         </fieldset>
+
+        <label className="block text-sm font-medium text-slate-800">
+          Listing name <span className="font-normal text-slate-500">(required)</span>
+          <input
+            type="text"
+            required
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            maxLength={120}
+            placeholder="e.g. Clean cardboard from retail backroom"
+            className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+          />
+        </label>
 
         <div className="grid gap-4 lg:grid-cols-[1fr_240px]">
           <label className="block text-sm font-medium text-slate-800">
@@ -258,7 +281,7 @@ export default function NewListingPage() {
         />
 
         <label className="block text-sm font-medium text-slate-800">
-          Photos (optional, max 5MB each)
+          Photos (required, at least one — max 5MB each)
           <input
             type="file"
             accept="image/*"

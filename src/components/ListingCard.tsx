@@ -10,6 +10,7 @@ function iconFor(type: WasteType) {
 }
 
 export type ListingCardListing = Pick<WasteListing, "id" | "wasteType" | "quantity" | "status" | "address" | "images"> & {
+  title?: string | null;
   askingPrice?: unknown;
   currency?: string;
   seller?: { name: string; avatarUrl?: string | null };
@@ -19,7 +20,13 @@ export function ListingCard({ listing, href }: { listing: ListingCardListing; hr
   const currency = listing.currency ?? "USD";
   const priceLabel =
     listing.askingPrice != null ? formatMoney(listing.askingPrice, currency) : null;
-  const label = `${listing.wasteType.replaceAll("_", " ").toLowerCase()} listing at ${listing.address}`;
+  const headline = listing.title?.trim()
+    ? listing.title.trim()
+    : listing.wasteType.replaceAll("_", " ").toLowerCase();
+  const subline = listing.title?.trim()
+    ? `${listing.wasteType.replaceAll("_", " ").toLowerCase()} · ${listing.quantity}`
+    : listing.quantity;
+  const label = `${headline} at ${listing.address}`;
   const cover = listing.images?.[0];
   const seller = listing.seller;
 
@@ -56,10 +63,8 @@ export function ListingCard({ listing, href }: { listing: ListingCardListing; hr
             </span>
           ) : null}
           <div className="min-w-0">
-            <p className="font-semibold capitalize text-slate-900 dark:text-slate-50">
-              {listing.wasteType.replaceAll("_", " ").toLowerCase()}
-            </p>
-            <p className="text-sm text-slate-600 dark:text-slate-300">{listing.quantity}</p>
+            <p className="font-semibold capitalize text-slate-900 dark:text-slate-50">{headline}</p>
+            <p className="text-sm text-slate-600 dark:text-slate-300">{subline}</p>
             {priceLabel ? (
               <p className="mt-1 text-sm font-semibold text-teal-800 dark:text-teal-300">{priceLabel}</p>
             ) : null}
