@@ -3,8 +3,9 @@ import { handleRouteError, jsonOk } from "@/lib/http";
 
 export async function POST(request: Request) {
   try {
-    const requestMode = request.headers.get("x-session-mode");
-    const touchActivity = requestMode !== "peek";
+    const { searchParams } = new URL(request.url);
+    const mode = searchParams.get("mode");
+    const touchActivity = mode !== "peek";
 
     const me = await requireAppUser({ touchActivity });
     const timeoutMinutes = await getIdleTimeoutMinutes();

@@ -61,7 +61,17 @@ export function getSessionWarningSeconds({
   return null;
 }
 
-export async function requireAppUser(): Promise<AppUser> {
+type RequireAppUserOptions = {
+  /**
+   * When false, validates the session + idle timeout but does not bump `lastActivityAt`.
+   * Used by `/api/auth/activity?mode=peek` so passive checks can warn without extending the session.
+   */
+  touchActivity?: boolean;
+};
+
+export async function requireAppUser(options: RequireAppUserOptions = {}): Promise<AppUser> {
+  const touchActivity = options.touchActivity !== false;
+
   const supabase = await createServerSupabase();
   const {
     data: { user: authUser },
@@ -82,8 +92,11 @@ export async function requireAppUser(): Promise<AppUser> {
     throw new HttpError(401, "Session expired");
   }
 
-  // Throttle DB writes: update at most once per minute.
-  if (!last || minutesBetween(now, last) >= 1) {
+  // Throttle DB writes: update at most once per minute (only when explicitly touching activity).
+  if (
+    touchActivity &&
+    (!last || minutesBetween(now, last) >= 1)
+  ) {
     await prisma.user.update({
       where: { id: u.id },
       data: { lastActivityAt: now },
@@ -91,7 +104,7 @@ export async function requireAppUser(): Promise<AppUser> {
     });
   }
 
-  return u;
+  return prisma.user.findUniqueOrThrow({ where: { id: u.id } });
 }
 
 export async function getSessionStateForUser(user: { lastActivityAt: Date | null }) {
