@@ -21,19 +21,19 @@ export default async function AdminDashboardPage() {
       <AppHeader title="Admin dashboard" role="admin" />
       <div className="space-y-6 px-4 pt-6">
         <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="rounded-3xl border border-slate-200/50 bg-white p-4 shadow-cosmos-sm">
             <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Users</p>
             <p className="mt-1 text-3xl font-bold text-slate-900">{users}</p>
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="rounded-3xl border border-slate-200/50 bg-white p-4 shadow-cosmos-sm">
             <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Listings</p>
             <p className="mt-1 text-3xl font-bold text-slate-900">{listings}</p>
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="rounded-3xl border border-slate-200/50 bg-white p-4 shadow-cosmos-sm">
             <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Open</p>
             <p className="mt-1 text-3xl font-bold text-teal-700">{openCount}</p>
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="rounded-3xl border border-slate-200/50 bg-white p-4 shadow-cosmos-sm">
             <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Done (7d)</p>
             <p className="mt-1 text-3xl font-bold text-slate-900">{completedWeek}</p>
           </div>

@@ -1,9 +1,10 @@
-import { ListingStatus, OfferStatus, UserRole } from "@prisma/client";
+import { OfferStatus, UserRole } from "@prisma/client";
 import { z } from "zod";
 import { requireAppUser } from "@/lib/auth";
 import { HttpError } from "@/lib/errors";
 import { handleRouteError, jsonError, jsonOk } from "@/lib/http";
 import { requireListingRead } from "@/lib/listing-access";
+import { listingIsOpenForMarketplaceActions } from "@/lib/listing-marketplace";
 import { prisma } from "@/lib/prisma";
 import { serializeOffer } from "@/lib/serialize-offer";
 
@@ -60,7 +61,7 @@ export async function POST(request: Request, ctx: Ctx) {
     const body = postSchema.parse(await request.json());
     const listing = await prisma.wasteListing.findUnique({ where: { id: listingId } });
     if (!listing) return jsonError("Not found", 404);
-    if (listing.status !== ListingStatus.open) {
+    if (!listingIsOpenForMarketplaceActions(listing.status)) {
       return jsonError("This listing is not accepting offers", 409);
     }
     if (listing.userId === me.id) throw new HttpError(403, "Cannot offer on your own listing");

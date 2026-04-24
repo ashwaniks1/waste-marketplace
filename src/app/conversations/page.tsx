@@ -52,7 +52,7 @@ export default function ConversationsListPage() {
   return (
     <>
       <AppHeader title="Messages" role={role} />
-      <div className="mx-auto max-w-2xl space-y-3 px-4 pb-10 pt-2 sm:px-6">
+      <div className="mx-auto max-w-2xl space-y-3 pt-1">
         {loading ? (
           <p className="text-sm text-slate-600">Loading…</p>
         ) : rows.length === 0 ? (
@@ -99,7 +99,7 @@ export default function ConversationsListPage() {
                 <li key={row.id}>
                   <Link
                     href={`/conversations/${row.id}`}
-                    className="flex gap-3 rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-sm transition hover:border-teal-200 hover:bg-white"
+                    className="flex gap-3 rounded-3xl border border-slate-200/50 bg-white p-4 shadow-cosmos-sm transition hover:border-teal-200/80 hover:shadow-cosmos-md"
                   >
                     <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-emerald-50">
                       {cover ? (

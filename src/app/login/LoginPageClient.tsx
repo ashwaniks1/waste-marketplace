@@ -121,7 +121,7 @@ export function LoginPageClient() {
   }
 
   return (
-    <main className="min-h-dvh bg-slate-50">
+    <main className="min-h-dvh bg-cosmos-page">
       <div className="mx-auto grid min-h-dvh max-w-6xl lg:grid-cols-2">
         <div className="relative hidden flex-col justify-center p-10 lg:flex">
           <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-950 to-emerald-950" />
@@ -137,7 +137,7 @@ export function LoginPageClient() {
           </div>
         </div>
 
-        <div className="flex flex-col justify-center px-4 py-10 sm:px-8">
+        <div className="flex flex-col justify-center bg-cosmos-page px-4 py-10 sm:px-8">
           <div className="mx-auto w-full max-w-md">
             <div className="mb-4 flex justify-end lg:justify-start">
               <Link
@@ -155,7 +155,7 @@ export function LoginPageClient() {
                 type="button"
                 onClick={() => void signInWithGoogle()}
                 disabled={googleLoading}
-                className="flex w-full items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50 disabled:opacity-60"
+                className="flex w-full items-center justify-center gap-3 rounded-2xl border border-slate-200/60 bg-white px-4 py-3.5 text-sm font-semibold text-slate-800 shadow-cosmos-sm transition hover:bg-cosmos-page-alt/80 disabled:opacity-60"
               >
                 <span className="text-lg" aria-hidden>
                   G
@@ -164,12 +164,12 @@ export function LoginPageClient() {
               </button>
 
               <div className="relative py-2 text-center text-xs text-slate-500">
-                <span className="relative z-10 bg-slate-50 px-2">or email</span>
-                <span className="absolute inset-x-0 top-1/2 z-0 h-px -translate-y-1/2 bg-slate-200" />
+                <span className="relative z-10 bg-cosmos-page px-2">or email</span>
+                <span className="absolute inset-x-0 top-1/2 z-0 h-px -translate-y-1/2 bg-slate-200/80" />
               </div>
             </div>
 
-            <form onSubmit={onSubmit} className="mt-2 space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <form onSubmit={onSubmit} className="mt-2 space-y-4 rounded-3xl border border-slate-200/50 bg-white p-6 shadow-cosmos-md">
               <label className="block text-sm font-medium text-slate-700">
                 Email
                 <input
@@ -218,7 +218,7 @@ export function LoginPageClient() {
               </label>
               {error ? <p className="text-sm text-rose-600">{error}</p> : null}
               {verificationPending ? (
-                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                <div className="rounded-2xl border border-amber-200/80 bg-amber-50/90 p-4 text-sm text-amber-900 shadow-cosmos-sm">
                   Didn’t get an email? Use the button below to resend the confirmation link.
                 </div>
               ) : null}

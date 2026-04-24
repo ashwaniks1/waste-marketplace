@@ -63,7 +63,10 @@ export default function ConversationPage() {
   useEffect(() => {
     if (!meta || meId == null) return;
     if (role === "customer" && meta.listing.userId === meId) {
-      router.replace(`/customer/messages?c=${encodeURIComponent(id)}`);
+      router.replace(
+        `/customer/listings/${meta.listing.id}?c=${encodeURIComponent(String(id))}`,
+        { scroll: false },
+      );
     }
   }, [id, meId, meta, role, router]);
 
@@ -105,7 +108,7 @@ export default function ConversationPage() {
     role === "admin"
       ? `/admin/listings/${meta.listing.id}`
       : meta.listing.userId === meId
-        ? `/customer/listings/${meta.listing.id}`
+        ? `/customer/listings/${meta.listing.id}?c=${encodeURIComponent(String(id))}`
         : `/listing/${meta.listing.id}`;
   const title = `Chat · ${meta.buyer.name}`;
 
@@ -113,7 +116,7 @@ export default function ConversationPage() {
     <>
       <AppHeader title={title} backHref={backHref} role={role} />
       <div className="mx-auto flex max-w-3xl flex-col px-4 pb-28 pt-4 sm:px-6">
-        <div className="min-h-[50vh] flex-1 space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="min-h-[50vh] flex-1 space-y-3 rounded-3xl border border-slate-200/50 bg-white p-4 shadow-cosmos-md">
           {messages.map((m) => (
             <div
               key={m.id}

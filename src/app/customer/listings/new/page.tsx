@@ -3,7 +3,6 @@
 import { WasteType } from "@prisma/client";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { AppHeader } from "@/components/AppHeader";
 import { Button } from "@/components/Button";
 import { MapCoordinatesPicker } from "@/components/MapCoordinatesPicker";
 import { WASTE_TYPE_OPTIONS } from "@/lib/waste-types";
@@ -101,9 +100,22 @@ export default function NewListingPage() {
   }
 
   return (
-    <>
-      <AppHeader title="Create listing" backHref="/customer" role="customer" />
-      <form onSubmit={onSubmit} className="space-y-5 px-4 pb-8 pt-4">
+    <div className="space-y-6 pb-10 pt-1 lg:h-full lg:overflow-y-auto lg:pb-0 lg:pr-1">
+      <section className="overflow-hidden rounded-[2rem] border border-emerald-100/80 bg-white/90 p-6 shadow-sm ring-1 ring-emerald-50/80 backdrop-blur sm:p-8">
+        <span className="inline-flex rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-emerald-700">
+          New listing
+        </span>
+        <h1 className="mt-4 max-w-3xl text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">
+          Create a listing buyers can trust in a few seconds.
+        </h1>
+        <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">
+          Clear photos, honest quantity, and a clean pickup help offers come in faster. Use the map pin to place your
+          pickup—your related list and inbox return after you publish.
+        </p>
+      </section>
+
+      <form onSubmit={onSubmit} className="space-y-5">
+        <section className="space-y-5 rounded-[1.85rem] border border-slate-200 bg-white/92 p-5 shadow-sm sm:p-6">
         <fieldset>
           <legend className="text-sm font-medium text-slate-800">Waste type</legend>
           <div className="mt-2 grid grid-cols-3 gap-2">
@@ -278,6 +290,7 @@ export default function NewListingPage() {
             setLatitude(lat);
             setLongitude(lng);
           }}
+          onAddressFromCoordinates={(formatted) => setAddress(formatted)}
         />
 
         <label className="block text-sm font-medium text-slate-800">
@@ -296,7 +309,8 @@ export default function NewListingPage() {
         <Button type="submit" disabled={loading} className="w-full">
           {loading ? "Submitting…" : "Submit request"}
         </Button>
+        </section>
       </form>
-    </>
+    </div>
   );
 }

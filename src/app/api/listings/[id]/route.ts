@@ -10,6 +10,7 @@ import { z } from "zod";
 import { requireAppUser } from "@/lib/auth";
 import { HttpError } from "@/lib/errors";
 import { handleRouteError, jsonError, jsonOk } from "@/lib/http";
+import { listingIsOpenForMarketplaceActions } from "@/lib/listing-marketplace";
 import { canViewListing } from "@/lib/listing-visibility";
 import { relistExpiredAcceptedListing } from "@/lib/pickup-window";
 import { prisma } from "@/lib/prisma";
@@ -113,7 +114,7 @@ export async function GET(_request: Request, ctx: Ctx) {
   }
 }
 
-/** Edit listing — owner only, open status only. */
+/** Edit listing — owner only; not when completed or cancelled. */
 export async function PATCH(request: Request, ctx: Ctx) {
   try {
     const me = await requireAppUser();
@@ -136,7 +137,7 @@ export async function PATCH(request: Request, ctx: Ctx) {
 
     let pickupJobStatus = existing.pickupJobStatus;
     if (
-      existing.status === ListingStatus.open &&
+      listingIsOpenForMarketplaceActions(existing.status) &&
       (pickupJobStatus === PickupJobStatus.none || pickupJobStatus === PickupJobStatus.available)
     ) {
       pickupJobStatus = PickupJobStatus.none;

@@ -3,7 +3,8 @@
 @tailwind utilities;
 
 :root {
-  --background: #f1f5f9;
+  /* Cosmos-style neutral app canvas (aligned with tailwind `cosmos.page`) */
+  --background: #f3f2f2;
   --foreground: #0f172a;
   --eco-primary: #0d9488;
   --eco-primary-dark: #0f766e;
@@ -11,8 +12,9 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0f172a;
-    --foreground: #f8fafc;
+    /* Keep Cosmos canvas consistent across OS themes. */
+    --background: #f3f2f2;
+    --foreground: #0f172a;
   }
 }
 
@@ -23,8 +25,16 @@ body {
 }
 
 @layer utilities {
+  /**
+   * Legacy name — now matches Cosmos canvas for a single app surface
+   * across buyer / driver / admin / seller.
+   */
   .bg-app-gradient {
-    background: linear-gradient(165deg, #e8edf3 0%, #f4f6f8 40%, #eef2f6 100%);
+    @apply bg-cosmos-page;
+  }
+
+  .bg-cosmos-page {
+    background-color: #f3f2f2;
   }
 }
 

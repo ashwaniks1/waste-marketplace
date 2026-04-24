@@ -23,7 +23,7 @@ export default async function AdminListingsPage() {
           return (
             <div
               key={l.id}
-              className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-teal-200"
+              className="rounded-3xl border border-slate-200/50 bg-white p-4 shadow-cosmos-sm transition hover:border-teal-200/80 hover:shadow-cosmos-md"
             >
               <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                 <div className="flex items-center gap-2">

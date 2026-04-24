@@ -15,7 +15,7 @@ import { WASTE_TYPE_OPTIONS } from "@/lib/waste-types";
 const LiveMap = dynamic(() => import("@/components/LiveMap").then((m) => m.LiveMap), {
   ssr: false,
   loading: () => (
-    <div className="h-64 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+    <div className="h-64 overflow-hidden rounded-3xl border border-slate-200/50 bg-white shadow-cosmos-md">
       <div className="flex h-full items-center justify-center text-sm text-slate-600">Loading map…</div>
     </div>
   ),
@@ -97,95 +97,102 @@ export default function DriverPage() {
   return (
     <>
       <AppHeader title="Pickup board" role="driver" />
-      <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
-        <div className="mb-6 flex flex-col gap-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-lg font-semibold text-slate-900">Open jobs</p>
-            <p className="mt-1 text-sm text-slate-600">
-              Claim delivery jobs with driver pickup. Distance uses your live location when you allow it.
+      <div className="grid min-h-0 grid-cols-1 gap-4 px-4 py-6 sm:px-6 lg:grid-cols-12 lg:gap-6">
+        <aside className="min-h-0 space-y-4 lg:col-span-4">
+          <div className="flex flex-col gap-4 rounded-3xl border border-slate-200/50 bg-white p-5 shadow-cosmos-md sm:flex-row sm:items-center sm:justify-between lg:flex-col lg:items-start">
+            <div>
+              <p className="text-lg font-semibold text-slate-900">Open jobs</p>
+              <p className="mt-1 text-sm text-slate-600">
+                Claim delivery jobs with driver pickup. Distance uses your live location when you allow it.
+              </p>
+            </div>
+            <Button type="button" onClick={refresh} disabled={loading}>
+              Refresh
+            </Button>
+          </div>
+
+          {location.permission === "denied" ? (
+            <p className="rounded-3xl border border-amber-200/60 bg-amber-50/90 px-4 py-3 text-sm text-amber-900 shadow-cosmos-sm">
+              Location is off, so “nearest” sort and distance labels are limited. Turn on location in your browser
+              settings to sort by distance and see how far each stop is.
             </p>
+          ) : location.point ? (
+            <div>
+              <LiveMap center={location.point} heightClassName="h-64" />
+            </div>
+          ) : (
+            <p className="text-sm text-slate-600">Requesting your location…</p>
+          )}
+
+          <div className="grid gap-3 rounded-3xl border border-slate-200/50 bg-white p-4 shadow-cosmos-sm">
+            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              {region === "IN" ? "Radius" : "Distance"}
+              <select
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                value={miles}
+                onChange={(e) => setMiles(e.target.value)}
+              >
+                {distanceOptions.map((o) => (
+                  <option key={o.value || "any"} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Waste type
+              <select
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                value={wasteType}
+                onChange={(e) => setWasteType(e.target.value)}
+              >
+                {wasteOptions.map((o) => (
+                  <option key={o.value || "all"} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Sort
+              <select
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                value={sort}
+                onChange={(e) => setSort(e.target.value as typeof sort)}
+              >
+                <option value="newest">Newest</option>
+                <option value="nearest">Nearest</option>
+                <option value="payout">Highest payout</option>
+              </select>
+            </label>
           </div>
-          <Button type="button" onClick={refresh} disabled={loading}>
-            Refresh
-          </Button>
-        </div>
+        </aside>
 
-        {location.permission === "denied" ? (
-          <p className="mb-4 rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            Location is off, so “nearest” sort and distance labels are limited. Turn on location in your browser
-            settings to sort by distance and see how far each stop is.
-          </p>
-        ) : location.point ? (
-          <div className="mb-6">
-            <LiveMap center={location.point} heightClassName="h-64" />
-          </div>
-        ) : (
-          <p className="mb-4 text-sm text-slate-600">Requesting your location…</p>
-        )}
+        <section className="min-h-0 space-y-3 lg:col-span-8">
+          {error ? (
+            <p className="rounded-3xl border border-rose-200/60 bg-rose-50/90 px-4 py-3 text-sm text-rose-800 shadow-cosmos-sm">
+              {error}
+            </p>
+          ) : null}
 
-        <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-            {region === "IN" ? "Radius" : "Distance"}
-            <select
-              className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-              value={miles}
-              onChange={(e) => setMiles(e.target.value)}
-            >
-              {distanceOptions.map((o) => (
-                <option key={o.value || "any"} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-            Waste type
-            <select
-              className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-              value={wasteType}
-              onChange={(e) => setWasteType(e.target.value)}
-            >
-              {wasteOptions.map((o) => (
-                <option key={o.value || "all"} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-            Sort
-            <select
-              className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-              value={sort}
-              onChange={(e) => setSort(e.target.value as typeof sort)}
-            >
-              <option value="newest">Newest</option>
-              <option value="nearest">Nearest</option>
-              <option value="payout">Highest payout</option>
-            </select>
-          </label>
-        </div>
+          {loading ? <p className="text-sm text-slate-600">Loading…</p> : null}
 
-        {error ? <p className="mb-4 rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-800">{error}</p> : null}
+          {!loading && feed.length === 0 ? (
+            <EmptyState
+              variant="pickups"
+              title="No pickups in range"
+              description="Try widening the distance filter, pick another material, or check back when sellers post delivery jobs."
+            />
+          ) : null}
 
-        {loading ? <p className="text-sm text-slate-600">Loading…</p> : null}
-
-        {!loading && feed.length === 0 ? (
-          <EmptyState
-            variant="pickups"
-            title="No pickups in range"
-            description="Try widening the distance filter, pick another material, or check back when sellers post delivery jobs."
-          />
-        ) : null}
-
-        {!loading && feed.length > 0 ? (
-          <div className="space-y-3">
+          {!loading && feed.length > 0 ? (
+            <div className="space-y-3">
             {feed.map((row) => {
               const label = WASTE_TYPE_OPTIONS.find((o) => o.value === row.wasteType)?.label ?? row.wasteType;
               return (
                 <div
                   key={row.id}
-                  className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md"
+                  className="rounded-3xl border border-slate-200/50 bg-white p-5 shadow-cosmos-sm transition hover:shadow-cosmos-md"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
@@ -216,6 +223,7 @@ export default function DriverPage() {
             })}
           </div>
         ) : null}
+        </section>
       </div>
     </>
   );

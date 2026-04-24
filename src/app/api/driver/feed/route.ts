@@ -60,7 +60,7 @@ export async function GET(request: Request) {
         deliveryRequired: true,
         pickupJobStatus: PickupJobStatus.available,
         assignedDriverId: null,
-        status: { in: [ListingStatus.open, ListingStatus.accepted] },
+        status: { in: [ListingStatus.open, ListingStatus.reopened, ListingStatus.accepted] },
         ...(q.wasteType ? { wasteType: q.wasteType } : {}),
       },
       orderBy: { createdAt: "desc" },

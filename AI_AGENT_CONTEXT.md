@@ -101,6 +101,11 @@ Third-party services:
 ### User Flows
 
 - Seller flow:
+  - web seller routes use a persistent 3-column workspace:
+    - left rail for all seller listings
+    - center canvas for selected listing details or forms
+    - right rail for buyer inbox and active chat
+    - desktop seller layout is fixed-height so the three panels stay visible together and each panel scrolls internally
   - create listing
   - edit listing while active
   - review pending offers

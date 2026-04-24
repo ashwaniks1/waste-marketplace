@@ -2,6 +2,7 @@ import { ListingStatus, PickupJobStatus } from "@prisma/client";
 import { requireAppUser } from "@/lib/auth";
 import { HttpError } from "@/lib/errors";
 import { handleRouteError, jsonError, jsonOk } from "@/lib/http";
+import { listingIsOpenForMarketplaceActions } from "@/lib/listing-marketplace";
 import { prisma } from "@/lib/prisma";
 import { serializeListing } from "@/lib/serialize";
 
@@ -16,8 +17,8 @@ export async function POST(_request: Request, ctx: Ctx) {
     const existing = await prisma.wasteListing.findUnique({ where: { id } });
     if (!existing) return jsonError("Not found", 404);
     if (existing.userId !== me.id) throw new HttpError(403, "Forbidden");
-    if (existing.status !== ListingStatus.open) {
-      throw new HttpError(409, "Only open listings can be cancelled");
+    if (!listingIsOpenForMarketplaceActions(existing.status)) {
+      throw new HttpError(409, "Only open or active reopened listings can be cancelled");
     }
 
     const row = await prisma.wasteListing.update({

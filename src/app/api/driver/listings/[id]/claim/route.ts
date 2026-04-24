@@ -46,7 +46,11 @@ export async function POST(_request: Request, ctx: Ctx) {
       if (listing.deliveryRequired && !listing.buyerDeliveryConfirmed) {
         return { error: "awaiting_buyer" as const };
       }
-      if (listing.status !== ListingStatus.open && listing.status !== ListingStatus.accepted) {
+      if (
+        listing.status !== ListingStatus.open &&
+        listing.status !== ListingStatus.reopened &&
+        listing.status !== ListingStatus.accepted
+      ) {
         return { error: "not_available" as const };
       }
 

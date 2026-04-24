@@ -27,10 +27,25 @@ const config: Config = {
           border: "#E2E8F0",
           cta: "#22C55E",
         },
+        /** Salesforce Cosmos / SLDS-inspired workspace canvas */
+        cosmos: {
+          page: "#f3f2f2",
+          "page-alt": "#ecebea",
+          border: "rgba(15, 23, 42, 0.08)",
+          "panel-tint": "#fafaf9",
+        },
       },
       boxShadow: {
         glass: "0 8px 32px rgba(15, 118, 110, 0.12)",
         lift: "0 12px 40px rgba(15, 23, 42, 0.12)",
+        /** Soft elevation for cards (content vs. chrome) */
+        "cosmos-sm": "0 1px 2px 0 rgba(0, 0, 0, 0.04), 0 1px 3px 0 rgba(0, 0, 0, 0.06)",
+        "cosmos-md": "0 2px 4px 0 rgba(0, 0, 0, 0.04), 0 4px 8px 0 rgba(0, 0, 0, 0.06)",
+        "cosmos-nav": "0 1px 0 0 rgba(0, 0, 0, 0.05)",
+      },
+      borderRadius: {
+        "4xl": "1.5rem",
+        "5xl": "1.75rem",
       },
       keyframes: {
         "fade-in-up": {

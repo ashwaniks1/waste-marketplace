@@ -4,6 +4,7 @@ import { requireAppUser } from "@/lib/auth";
 import { HttpError } from "@/lib/errors";
 import { handleRouteError, jsonOk } from "@/lib/http";
 import { requireListingRead } from "@/lib/listing-access";
+import { listingIsOpenForMarketplaceActions } from "@/lib/listing-marketplace";
 import { prisma } from "@/lib/prisma";
 
 const postSchema = z.object({
@@ -46,7 +47,7 @@ export async function POST(request: Request, ctx: Ctx) {
 
     const isSeller = me.role === UserRole.customer && listing.userId === me.id;
     const isBuyerComment =
-      me.role === UserRole.buyer && listing.status === ListingStatus.open;
+      me.role === UserRole.buyer && listingIsOpenForMarketplaceActions(listing.status);
 
     if (!isSeller && !isBuyerComment) {
       throw new HttpError(403, "You cannot comment on this listing");

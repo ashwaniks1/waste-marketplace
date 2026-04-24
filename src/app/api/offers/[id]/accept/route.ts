@@ -2,6 +2,7 @@ import { ListingStatus, OfferStatus, PickupJobStatus, UserRole } from "@prisma/c
 import { requireAppUser } from "@/lib/auth";
 import { HttpError } from "@/lib/errors";
 import { handleRouteError, jsonError, jsonOk } from "@/lib/http";
+import { listingIsOpenForMarketplaceActions } from "@/lib/listing-marketplace";
 import { buildPickupDeadline } from "@/lib/pickup-window";
 import { notifyUsers } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
@@ -25,7 +26,7 @@ export async function POST(_request: Request, ctx: Ctx) {
       if (offer.listing.userId !== me.id && me.role !== UserRole.admin) {
         return { error: "forbidden" as const };
       }
-      if (offer.status !== OfferStatus.pending || offer.listing.status !== ListingStatus.open) {
+      if (offer.status !== OfferStatus.pending || !listingIsOpenForMarketplaceActions(offer.listing.status)) {
         return { error: "conflict" as const };
       }
 
@@ -35,7 +36,10 @@ export async function POST(_request: Request, ctx: Ctx) {
           : offer.listing.pickupJobStatus;
 
       const listingUpdate = await tx.wasteListing.updateMany({
-        where: { id: offer.listingId, status: ListingStatus.open },
+        where: {
+          id: offer.listingId,
+          status: { in: [ListingStatus.open, ListingStatus.reopened] },
+        },
         data: {
           status: ListingStatus.accepted,
           acceptedById: offer.buyerId,

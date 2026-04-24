@@ -7,12 +7,15 @@ export default async function AdminUsersPage() {
   return (
     <>
       <AppHeader title="Users" backHref="/admin" role="admin" />
-      <div className="divide-y divide-slate-200 px-4 pt-4">
+      <div className="space-y-3 pt-2">
         {users.map((u) => (
-          <div key={u.id} className="flex flex-col gap-1 py-3">
+          <div
+            key={u.id}
+            className="flex flex-col gap-1 rounded-3xl border border-slate-200/50 bg-white px-4 py-3 shadow-cosmos-sm"
+          >
             <p className="font-semibold text-slate-900">{u.name}</p>
             <p className="text-sm text-slate-600">{u.email}</p>
-            <span className="w-fit rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">
+            <span className="w-fit rounded-full bg-cosmos-page-alt px-2.5 py-0.5 text-xs font-medium text-slate-700 ring-1 ring-slate-200/60">
               {u.role}
             </span>
             {u.phone ? <p className="text-xs text-slate-500">{u.phone}</p> : null}

@@ -147,7 +147,7 @@ export default async function UserProfilePage({ params }: { params: Promise<{ id
     : { averageRating: reviewSummary._avg.score ?? null, reviewCount: reviewSummary._count.score };
 
   return (
-    <main className="mx-auto min-h-dvh max-w-5xl px-4 py-8">
+    <main className="mx-auto min-h-dvh max-w-5xl bg-cosmos-page px-4 py-8">
       <ProfileVisitClient
         profile={publicProfile}
         reviewSummary={reviewSummaryPayload}
