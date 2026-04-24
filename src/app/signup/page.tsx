@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { AIAuthIllustration } from "@/components/AIAuthIllustration";
 import { Button } from "@/components/Button";
 import { detectMarketRegion, optionalTaxIdLabel, type MarketRegion } from "@/lib/marketRegion";
 import {
@@ -22,6 +23,30 @@ const availabilityOptions = [
   { value: "Weekdays", label: "Weekdays" },
   { value: "Evenings", label: "Evenings" },
 ];
+
+const signupSteps = [
+  { n: 1 as const, short: "Role" },
+  { n: 2 as const, short: "Account" },
+  { n: 3 as const, short: "Optional" },
+];
+
+function SignupBrandPanel() {
+  return (
+    <div className="relative hidden flex-col justify-center p-8 lg:flex lg:p-10">
+      <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-950 to-emerald-950" />
+      <div className="relative z-10 px-4">
+        <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-300">Waste Marketplace</p>
+        <h1 className="mt-4 max-w-md text-3xl font-semibold tracking-tight text-white">Join as a seller, buyer, or driver.</h1>
+        <p className="mt-4 max-w-sm text-sm leading-6 text-slate-300">
+          Pick a role, create your sign-in, then add business details if you want — everything stays editable in your profile.
+        </p>
+        <div className="mt-10 max-w-lg">
+          <AIAuthIllustration />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function SignupPage() {
   const router = useRouter();
@@ -183,19 +208,30 @@ export default function SignupPage() {
 
   if (signedUp) {
     return (
-      <main className="mx-auto flex min-h-dvh max-w-lg flex-col justify-center px-4 py-8">
-        <div className="space-y-4 rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-          <h1 className="text-xl font-semibold text-slate-900">Check your email</h1>
-          <p className="text-sm leading-6 text-slate-600">
-            We sent a verification link to <span className="font-semibold text-slate-900">{pendingEmail}</span>.
-            Please verify your address before signing in.
-          </p>
-          <p className="text-sm text-slate-600">
-            If you don’t see it shortly, check spam or try again in a few minutes.
-          </p>
-          <Link href="/login">
-            <Button className="w-full">Back to sign in</Button>
-          </Link>
+      <main className="min-h-dvh bg-slate-50 text-slate-900">
+        <div className="mx-auto grid min-h-dvh max-w-6xl lg:grid-cols-2">
+          <SignupBrandPanel />
+          <div className="flex flex-col justify-center px-4 py-10 sm:px-8">
+            <div className="mx-auto w-full max-w-md space-y-4 rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+              <h1 className="text-2xl font-bold text-slate-900">Check your email</h1>
+              <p className="text-sm leading-6 text-slate-600">
+                We sent a verification link to <span className="font-semibold text-slate-900">{pendingEmail}</span>.
+                Please verify your address before signing in.
+              </p>
+              <p className="text-sm text-slate-600">
+                If you don’t see it shortly, check spam or try again in a few minutes.
+              </p>
+              <Link href="/login" className="block">
+                <Button className="w-full">Back to sign in</Button>
+              </Link>
+            </div>
+            <p className="mx-auto mt-6 w-full max-w-md text-center text-sm text-slate-600">
+              Wrong email?{" "}
+              <Link href="/signup" className="font-semibold text-teal-700">
+                Start over
+              </Link>
+            </p>
+          </div>
         </div>
       </main>
     );
@@ -204,62 +240,101 @@ export default function SignupPage() {
   const taxLabel = optionalTaxIdLabel(marketRegion);
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-lg flex-col justify-center px-4 py-8">
-      <h1 className="text-center text-2xl font-bold text-slate-900">Create account</h1>
-      <p className="mt-1 text-center text-sm text-slate-600">Three quick steps — business details stay optional.</p>
+    <main className="min-h-dvh bg-slate-50 text-slate-900">
+      <div className="mx-auto grid min-h-dvh max-w-6xl lg:grid-cols-2">
+        <SignupBrandPanel />
 
-      <ol className="mx-auto mt-6 flex items-center gap-2 text-xs font-medium text-slate-500">
-        <li className={step >= 1 ? "text-teal-700" : ""}>1 · Role</li>
-        <li aria-hidden>·</li>
-        <li className={step >= 2 ? "text-teal-700" : ""}>2 · Basics</li>
-        <li aria-hidden>·</li>
-        <li className={step >= 3 ? "text-teal-700" : ""}>3 · Optional</li>
-      </ol>
+        <div className="flex flex-col justify-center px-4 py-10 sm:px-8">
+          <div className="mx-auto w-full max-w-md">
+            <h1 className="text-center text-2xl font-bold text-slate-900 lg:text-left">Create account</h1>
+            <p className="mt-1 text-center text-sm text-slate-600 lg:text-left">
+              Three quick steps. Business and tax fields on the last step are optional.
+            </p>
 
-      <form onSubmit={step === 1 ? goStep2 : step === 2 ? goStep3 : onSubmit} className="mt-8 space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        {step === 1 ? (
-          <fieldset>
-            <legend className="text-sm font-medium text-slate-700">Step 1 — I am a…</legend>
-            <div className="mt-2 grid gap-3 sm:grid-cols-3">
-              {roleOptions.map((option) => {
-                const active = role === option.value;
-                return (
-                  <label
-                    key={option.value}
-                    className={`group flex cursor-pointer flex-col gap-3 rounded-3xl border p-4 text-left transition ${
-                      active
-                        ? "border-teal-500 bg-teal-50 shadow-sm"
-                        : "border-slate-200 bg-white hover:border-teal-300 hover:bg-slate-50"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="role"
-                      className="sr-only"
-                      checked={role === option.value}
-                      onChange={() => setRole(option.value)}
-                    />
-                    <div className="flex items-center gap-3">
-                      <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-xl">
-                        {option.icon}
+            <nav aria-label="Sign up progress" className="mt-6">
+              <ol className="flex flex-wrap items-center justify-center gap-2 lg:justify-start">
+                {signupSteps.map((s, i) => {
+                  const current = step === s.n;
+                  const done = step > s.n;
+                  return (
+                    <li key={s.n} className="flex items-center gap-2">
+                      {i > 0 ? (
+                        <span className="hidden text-slate-300 sm:inline" aria-hidden>
+                          /
+                        </span>
+                      ) : null}
+                      <span
+                        className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                          current
+                            ? "bg-teal-600 text-white shadow-sm"
+                            : done
+                              ? "bg-teal-100 text-teal-900"
+                              : "bg-slate-200/80 text-slate-700"
+                        }`}
+                        aria-current={current ? "step" : undefined}
+                      >
+                        <span className="tabular-nums opacity-90">{s.n}</span>
+                        {s.short}
                       </span>
-                      <div>
-                        <p className="text-sm font-semibold text-slate-900">{option.label}</p>
-                        <p className="text-xs text-slate-500">{option.description}</p>
-                      </div>
-                    </div>
-                  </label>
-                );
-              })}
-            </div>
-          </fieldset>
-        ) : null}
+                    </li>
+                  );
+                })}
+              </ol>
+            </nav>
 
-        {step === 2 ? (
-          <div className="space-y-4">
-            <p className="text-sm font-medium text-slate-700">Step 2 — Your details</p>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label className="block text-sm font-medium text-slate-700">
+            <form
+              onSubmit={step === 1 ? goStep2 : step === 2 ? goStep3 : onSubmit}
+              className="mt-6 space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+            >
+              {step === 1 ? (
+                <div>
+                  <p id="signup-role-heading" className="text-sm font-medium text-slate-800">
+                    How will you use Waste Marketplace?
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">Choose one — you can discuss details with others after joining.</p>
+                  <div
+                    className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3"
+                    role="group"
+                    aria-labelledby="signup-role-heading"
+                  >
+                    {roleOptions.map((option) => {
+                      const active = role === option.value;
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() => setRole(option.value)}
+                          aria-pressed={active}
+                          className={`flex w-full flex-col gap-3 rounded-2xl border-2 p-4 text-left transition duration-200 motion-safe:active:scale-[0.99] ${
+                            active
+                              ? "border-teal-500 bg-gradient-to-br from-teal-50 to-emerald-50 shadow-md ring-2 ring-teal-500/25"
+                              : "border-slate-200 bg-white hover:border-teal-300 hover:shadow-sm"
+                          }`}
+                        >
+                          <span
+                            className={`inline-flex h-12 w-12 items-center justify-center rounded-2xl text-2xl transition-colors ${
+                              active ? "bg-white/80 shadow-sm" : "bg-slate-100"
+                            }`}
+                            aria-hidden
+                          >
+                            {option.icon}
+                          </span>
+                          <div>
+                            <p className="text-sm font-semibold text-slate-900">{option.label}</p>
+                            <p className="mt-1 text-xs leading-relaxed text-slate-600">{option.description}</p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
+
+              {step === 2 ? (
+                <div className="space-y-4">
+                  <p className="text-sm font-medium text-slate-800">Your name and sign-in</p>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <label className="block text-sm font-medium text-slate-700">
                 First name
                 <input
                   type="text"
@@ -364,9 +439,10 @@ export default function SignupPage() {
           </div>
         ) : null}
 
-        {step === 3 ? (
-          <div className="space-y-4">
-            <p className="text-sm font-medium text-slate-700">Step 3 — Optional (add now or later in profile)</p>
+              {step === 3 ? (
+                <div className="space-y-4">
+                  <p className="text-sm font-medium text-slate-800">Optional profile details</p>
+                  <p className="text-xs text-slate-500">Add these now or anytime from your profile.</p>
 
             <label className="block text-sm font-medium text-slate-700">
               Prices & units
@@ -553,12 +629,15 @@ export default function SignupPage() {
         </div>
       </form>
 
-      <p className="mt-6 text-center text-sm text-slate-600">
-        Already have an account?{" "}
-        <Link href="/login" className="font-semibold text-teal-700">
-          Sign in
-        </Link>
-      </p>
+            <p className="mt-6 text-center text-sm text-slate-600 lg:text-left">
+              Already have an account?{" "}
+              <Link href="/login" className="font-semibold text-teal-700">
+                Sign in
+              </Link>
+            </p>
+          </div>
+        </div>
+      </div>
     </main>
   );
 }
