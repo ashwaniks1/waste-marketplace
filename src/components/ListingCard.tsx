@@ -34,9 +34,9 @@ export function ListingCard({ listing, href }: { listing: ListingCardListing; hr
     <Link
       href={href}
       aria-label={label}
-      className="group block overflow-hidden rounded-3xl border border-slate-200/90 bg-white/90 shadow-sm ring-1 ring-slate-100/80 backdrop-blur-sm transition motion-safe:hover:-translate-y-0.5 motion-safe:hover:shadow-lift focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 dark:border-slate-700 dark:bg-slate-900/70 dark:ring-slate-800"
+      className="group block overflow-hidden rounded-3xl border border-slate-200/50 bg-white shadow-cosmos-sm ring-1 ring-slate-200/30 transition motion-safe:hover:-translate-y-0.5 motion-safe:hover:shadow-cosmos-md focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-400"
     >
-      <div className="relative flex h-28 w-full items-center justify-center bg-gradient-to-br from-emerald-50 via-white to-teal-50 dark:from-emerald-950/40 dark:via-slate-900 dark:to-teal-950/30">
+      <div className="relative flex h-28 w-full items-center justify-center bg-gradient-to-br from-cosmos-page-alt via-white to-cosmos-page-alt/80">
         {cover ? (
           // eslint-disable-next-line @next/next/no-img-element -- remote listing URLs from storage
           <img
@@ -63,18 +63,18 @@ export function ListingCard({ listing, href }: { listing: ListingCardListing; hr
             </span>
           ) : null}
           <div className="min-w-0">
-            <p className="font-semibold capitalize text-slate-900 dark:text-slate-50">{headline}</p>
-            <p className="text-sm text-slate-600 dark:text-slate-300">{subline}</p>
+            <p className="font-semibold capitalize text-slate-900">{headline}</p>
+            <p className="text-sm text-slate-600">{subline}</p>
             {priceLabel ? (
-              <p className="mt-1 text-sm font-semibold text-teal-800 dark:text-teal-300">{priceLabel}</p>
+              <p className="mt-1 text-sm font-semibold text-teal-800">{priceLabel}</p>
             ) : null}
-            <p className="mt-2 line-clamp-2 text-sm text-slate-500 dark:text-slate-400">{listing.address}</p>
+            <p className="mt-2 line-clamp-2 text-sm text-slate-500">{listing.address}</p>
           </div>
         </div>
         {seller ? (
           <div className="shrink-0 text-center">
             <UserAvatar name={seller.name} avatarUrl={seller.avatarUrl} size="sm" />
-            <p className="mt-1 max-w-[4.5rem] truncate text-xs text-slate-500 dark:text-slate-400">{seller.name}</p>
+            <p className="mt-1 max-w-[4.5rem] truncate text-xs text-slate-500">{seller.name}</p>
           </div>
         ) : null}
       </div>

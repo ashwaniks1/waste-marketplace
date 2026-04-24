@@ -281,10 +281,10 @@ export function ProfileForm() {
   return (
     <>
       <section
-        className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm ring-1 ring-slate-100/80"
+        className="overflow-hidden rounded-3xl border border-slate-200/50 bg-white shadow-cosmos-md ring-1 ring-slate-200/30"
         aria-busy={busy}
       >
-        <div className="border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-5 py-5 sm:px-8 sm:py-6">
+        <div className="border-b border-slate-200/50 bg-cosmos-page-alt/80 px-5 py-5 sm:px-8 sm:py-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Account</p>
@@ -482,7 +482,7 @@ export function ProfileForm() {
                     type="text"
                     value={zipCode}
                     onChange={(e) => setZipCode(e.target.value)}
-                    className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
+                    className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
                   />
                 </label>
 
@@ -491,7 +491,7 @@ export function ProfileForm() {
                   <select
                     value={countryCode}
                     onChange={(e) => setCountryCode(e.target.value)}
-                    className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
+                    className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
                   >
                     <option value="">Select…</option>
                     <option value="US">United States</option>
@@ -512,7 +512,7 @@ export function ProfileForm() {
                     type="text"
                     value={currency}
                     readOnly
-                    className="mt-1.5 w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm"
+                    className="mt-1.5 w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700"
                   />
                 </label>
 
@@ -529,7 +529,7 @@ export function ProfileForm() {
                         return n;
                       });
                     }}
-                    className={`mt-1.5 w-full rounded-xl border px-3 py-2.5 text-sm outline-none focus:ring-2 ${
+                    className={`mt-1.5 w-full rounded-xl border bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 ${
                       fieldErrors.address
                         ? "border-rose-400 focus:ring-rose-100"
                         : "border-slate-200 focus:border-teal-500 focus:ring-teal-100"

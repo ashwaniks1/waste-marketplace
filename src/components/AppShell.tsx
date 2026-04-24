@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
+import { BrandMark } from "@/components/brand/BrandMark";
 import { UserMenu } from "@/components/UserMenu";
 import { LocationProvider } from "@/components/LocationProvider";
 import { NotificationBell } from "@/components/NotificationBell";
@@ -152,25 +153,26 @@ export function AppShell({
   return (
     <LocationProvider>
       <SessionActivity />
-      <div className="flex min-h-dvh flex-col border-t border-slate-200/70 bg-app-gradient">
-      <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 sm:px-6 md:px-8">
-          <Link href={homeHref} className="flex min-w-0 items-center gap-3">
-            <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-800 text-sm font-bold text-white shadow-sm shadow-slate-900/20">
-              W
-            </span>
+      <div className="flex min-h-dvh flex-col border-t border-slate-200/50 bg-cosmos-page">
+      <header className="sticky top-0 z-30 border-b border-slate-200/60 bg-white shadow-cosmos-nav backdrop-blur-xl">
+        <div className="mx-auto flex w-full max-w-[min(100rem,100%)] items-center gap-3 px-4 py-2.5 sm:px-6 md:px-8">
+          <Link
+            href={homeHref}
+            className="group flex min-w-0 items-center gap-3 rounded-full py-1 pl-0.5 pr-2 transition hover:bg-slate-50"
+          >
+            <BrandMark />
             <div className="min-w-0">
-              <p className="truncate text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-600">
+              <p className="truncate text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
                 Waste Marketplace
               </p>
-              <p className="truncate text-sm font-semibold text-slate-900">
+              <p className="truncate text-sm font-bold leading-tight text-slate-900">
                 {role === "admin" ? "Admin" : role === "buyer" ? "Buyer" : role === "driver" ? "Driver" : "Seller"}
               </p>
             </div>
           </Link>
 
           {desktopNav.length > 0 ? (
-            <nav className="ml-2 hidden min-w-0 flex-1 items-center justify-center gap-0.5 rounded-full border border-slate-200 bg-slate-50/90 p-1 sm:flex md:justify-start">
+            <nav className="ml-1 hidden min-w-0 flex-1 items-center justify-center gap-0.5 rounded-full bg-slate-100/80 p-1 sm:flex md:ml-2 md:justify-start">
               {desktopNav.map((item) => {
                 const active = navItemIsActive(pathname, item.href);
                 const showJobsBadge = item.href === "/driver/jobs" && driverActiveJobCount > 0;
@@ -179,10 +181,10 @@ export function AppShell({
                     key={item.href}
                     href={item.href}
                     aria-current={active ? "page" : undefined}
-                    className={`relative rounded-full px-3 py-2 text-sm font-medium transition md:px-4 ${
+                    className={`relative rounded-full px-3 py-2 text-sm font-semibold transition md:px-4 ${
                       active
-                        ? "bg-white text-slate-950 shadow-sm ring-1 ring-slate-200"
-                        : "text-slate-600 hover:bg-white hover:text-slate-900"
+                        ? "bg-white text-slate-950 shadow-cosmos-sm ring-1 ring-slate-200/80"
+                        : "text-slate-600 hover:bg-white/80 hover:text-slate-900"
                     }`}
                   >
                     {item.label}
@@ -207,17 +209,35 @@ export function AppShell({
       {showHeader ? <AppHeader title={title} backHref={backHref} role={role} /> : null}
 
       <main
-        className={`mx-auto w-full flex-1 px-3 py-3 sm:px-4 sm:py-4 md:px-6 md:py-5 lg:px-8 ${
-          role === "customer" ? "max-w-[min(100rem,100%)]" : "max-w-6xl"
+        className={`mx-auto w-full min-h-0 max-w-[min(100rem,100%)] flex-1 px-3 py-3 sm:px-5 sm:py-4 md:px-6 md:py-4 lg:px-8 ${
+          role === "customer"
+            ? "flex flex-col lg:h-[calc(100dvh-5.5rem)] lg:max-h-[calc(100dvh-5.5rem)] lg:overflow-hidden lg:py-2"
+            : "lg:py-2"
         }`}
       >
-        {children}
+        {role === "customer" ? <div className="flex min-h-0 flex-1 flex-col lg:h-full">{children}</div> : children}
       </main>
+
+      {(role === "buyer" || role === "driver") ? (
+        <Link
+          href="/conversations"
+          className="fixed bottom-5 right-5 z-40 inline-flex h-14 w-14 items-center justify-center rounded-full bg-slate-900 text-white shadow-lg shadow-slate-900/25 transition hover:scale-105 hover:bg-slate-800 focus-visible:outline focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2"
+          aria-label="Open messages"
+        >
+          <svg className="h-7 w-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+            <path
+              d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10z"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </Link>
+      ) : null}
 
       {/* Mobile bottom nav */}
       {nav.length > 0 ? (
-        <nav className="sticky bottom-0 z-20 border-t border-slate-200/90 bg-white/95 px-2 py-2 backdrop-blur sm:hidden">
-          <div className="mx-auto flex w-full max-w-md items-center gap-1 rounded-full border border-slate-200 bg-white/90 p-1 shadow-sm">
+        <nav className="sticky bottom-0 z-20 border-t border-slate-200/60 bg-white/95 px-2 py-2 shadow-cosmos-nav backdrop-blur sm:hidden">
+          <div className="mx-auto flex w-full max-w-md items-center gap-0.5 rounded-full border border-slate-200/80 bg-slate-100/80 p-1 shadow-cosmos-sm">
           {nav.map((item) => {
             const active = navItemIsActive(pathname, item.href);
             const showJobsBadge = item.href === "/driver/jobs" && driverActiveJobCount > 0;
@@ -226,8 +246,10 @@ export function AppShell({
                 key={item.href}
                 href={item.href}
                 aria-current={active ? "page" : undefined}
-                className={`relative flex flex-1 flex-col items-center rounded-full py-2 text-xs font-medium transition ${
-                  active ? "bg-emerald-50 text-teal-700" : "text-slate-500 hover:bg-slate-50"
+                className={`relative flex flex-1 flex-col items-center rounded-full py-2 text-xs font-semibold transition ${
+                  active
+                    ? "bg-white text-slate-950 shadow-cosmos-sm ring-1 ring-slate-200/80"
+                    : "text-slate-600 hover:bg-white/80 hover:text-slate-900"
                 }`}
               >
                 {item.label}

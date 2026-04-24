@@ -81,11 +81,11 @@ export function ProfileVisitClient({
   return (
     <div className="space-y-6">
       {profileRestricted ? (
-        <p className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+        <p className="rounded-3xl border border-slate-200/50 bg-cosmos-page-alt/60 p-4 text-sm text-slate-700 shadow-cosmos-sm">
           After a delivery you completed, detailed location and reviews stay out of this view. Use in-app chat if you still need to coordinate.
         </p>
       ) : null}
-      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+      <section className="rounded-3xl border border-slate-200/50 bg-white p-6 shadow-cosmos-md">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-xl font-semibold text-slate-900">{profile.name}</p>
@@ -103,7 +103,7 @@ export function ProfileVisitClient({
         </div>
 
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
-          <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+          <div className="rounded-3xl border border-slate-200/50 bg-cosmos-page-alt/50 p-4 shadow-cosmos-sm">
             <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Rating</p>
             <p className="mt-2 text-2xl font-semibold text-slate-900">
               {reviewSummary.averageRating != null ? reviewSummary.averageRating.toFixed(1) : "—"}
@@ -112,7 +112,7 @@ export function ProfileVisitClient({
               {reviewSummary.reviewCount > 0 ? `${reviewSummary.reviewCount} review${reviewSummary.reviewCount === 1 ? "" : "s"}` : "No reviews yet"}
             </p>
           </div>
-          <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+          <div className="rounded-3xl border border-slate-200/50 bg-cosmos-page-alt/50 p-4 shadow-cosmos-sm">
             <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Available listings</p>
             <p className="mt-2 text-xl font-semibold text-slate-900">{openListings.length}</p>
             {openListings.length > 0 ? <p className="mt-1 text-sm text-slate-600">Open listing available to start a chat.</p> : <p className="mt-1 text-sm text-slate-600">No open listings right now.</p>}
@@ -124,7 +124,10 @@ export function ProfileVisitClient({
             <Button onClick={startChat} disabled={loading} className="w-full sm:w-auto">
               {loading ? "Starting chat…" : "Message seller"}
             </Button>
-            <Link href={`/listing/${openListings[0].id}`} className="inline-flex w-full items-center justify-center rounded-2xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-200 sm:w-auto">
+            <Link
+              href={`/listing/${openListings[0].id}`}
+              className="inline-flex w-full items-center justify-center rounded-2xl border border-slate-200/60 bg-cosmos-page-alt/60 px-4 py-3 text-sm font-semibold text-slate-900 shadow-cosmos-sm transition hover:bg-cosmos-page-alt sm:w-auto"
+            >
               View listing
             </Link>
           </div>
@@ -132,7 +135,7 @@ export function ProfileVisitClient({
         {error ? <p className="mt-3 text-sm text-rose-600">{error}</p> : null}
       </section>
 
-      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+      <section className="rounded-3xl border border-slate-200/50 bg-white p-6 shadow-cosmos-md">
         <div className="flex items-center justify-between gap-4">
           <div>
             <p className="text-base font-semibold text-slate-900">Reviews</p>
@@ -153,7 +156,7 @@ export function ProfileVisitClient({
               const mine = viewerId && review.fromUser.id === viewerId;
               const isEditing = editing?.id === review.id;
               return (
-                <div key={review.id} className="relative rounded-3xl border border-slate-200 bg-slate-50 p-5">
+                <div key={review.id} className="relative rounded-3xl border border-slate-200/50 bg-cosmos-page-alt/40 p-5 shadow-cosmos-sm">
                   {mine ? (
                     <div className="absolute right-3 top-3">
                       <button
@@ -167,7 +170,7 @@ export function ProfileVisitClient({
                         ⋯
                       </button>
                       {menuReviewId === review.id ? (
-                        <div className="absolute right-0 z-10 mt-1 w-36 rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
+                        <div className="absolute right-0 z-10 mt-1 w-36 rounded-xl border border-slate-200/60 bg-white py-1 shadow-cosmos-md">
                           <button
                             type="button"
                             className="block w-full px-3 py-2 text-left text-sm hover:bg-slate-50"

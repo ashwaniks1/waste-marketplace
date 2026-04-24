@@ -59,6 +59,9 @@ export function NotificationBell({ role }: { role: "customer" | "buyer" | "admin
   }
 
   function hrefFor(n: Notif) {
+    if (role === "customer" && n.listingId && n.conversationId) {
+      return `/customer/listings/${n.listingId}?c=${encodeURIComponent(n.conversationId)}`;
+    }
     if (n.conversationId) {
       if (role === "customer") return `/customer/messages?c=${encodeURIComponent(n.conversationId)}`;
       return `/conversations/${n.conversationId}`;
@@ -92,7 +95,7 @@ export function NotificationBell({ role }: { role: "customer" | "buyer" | "admin
         ) : null}
       </button>
       {open ? (
-        <div className="absolute right-0 z-50 mt-2 w-[min(100vw-2rem,22rem)] rounded-2xl border border-slate-200 bg-white py-2 shadow-xl">
+        <div className="absolute right-0 z-50 mt-2 w-[min(100vw-2rem,22rem)] rounded-2xl border border-slate-200/60 bg-white py-2 shadow-cosmos-md ring-1 ring-slate-200/40">
           <div className="flex items-center justify-between border-b border-slate-100 px-3 pb-2">
             <p className="text-sm font-semibold text-slate-900">Notifications</p>
             <Button type="button" variant="ghost" className="!min-h-8 px-2 text-xs" disabled={loading || unread === 0} onClick={markAll}>

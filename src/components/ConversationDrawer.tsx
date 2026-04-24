@@ -138,15 +138,15 @@ export function ConversationDrawer({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/30 backdrop-blur-sm" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/35 backdrop-blur-sm" onClick={onClose}>
       <div
-        className="flex h-full w-full max-w-xl flex-col bg-white shadow-2xl ring-1 ring-slate-200 sm:w-[28rem]"
+        className="flex h-full w-full max-w-xl flex-col bg-white shadow-cosmos-md ring-1 ring-slate-200/50 sm:w-[28rem] sm:rounded-l-3xl"
         onClick={(event) => event.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-label={`Conversation with ${title}`}
       >
-        <div className="border-b border-slate-200 bg-gradient-to-br from-white via-emerald-50/40 to-teal-50/60 px-5 py-4">
+        <div className="border-b border-slate-200/50 bg-cosmos-page-alt/90 px-5 py-4 sm:rounded-tl-3xl">
           <div className="flex items-start gap-3">
             <UserAvatar name={title} avatarUrl={avatarUrl} size="lg" />
             <div className="min-w-0 flex-1">
@@ -167,7 +167,7 @@ export function ConversationDrawer({
         <div className="flex-1 space-y-3 overflow-y-auto bg-slate-50/70 px-4 py-4">
           {loading && messages.length === 0 ? <p className="text-sm text-slate-500">Loading chat…</p> : null}
           {!loading && messages.length === 0 ? (
-            <div className="rounded-3xl border border-dashed border-slate-300 bg-white px-5 py-8 text-center">
+            <div className="rounded-3xl border border-dashed border-slate-200/80 bg-white px-5 py-8 text-center shadow-cosmos-sm">
               <p className="text-sm font-medium text-slate-900">Start the pickup conversation</p>
               <p className="mt-2 text-sm text-slate-600">
                 Share timing, entry instructions, or quick updates here without leaving the listing.
@@ -180,10 +180,10 @@ export function ConversationDrawer({
             return (
               <div key={message.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                 <div
-                  className={`max-w-[85%] rounded-[1.5rem] px-4 py-3 shadow-sm ${
+                  className={`max-w-[85%] rounded-[1.5rem] px-4 py-3 shadow-cosmos-sm ${
                     mine
                       ? "bg-gradient-to-br from-teal-600 to-emerald-600 text-white"
-                      : "border border-slate-200 bg-white text-slate-900"
+                      : "border border-slate-200/60 bg-white text-slate-900"
                   }`}
                 >
                   <p className={`text-[11px] font-semibold uppercase tracking-[0.18em] ${mine ? "text-white/70" : "text-slate-400"}`}>
@@ -200,12 +200,12 @@ export function ConversationDrawer({
           <div ref={bottomRef} />
         </div>
 
-        <form onSubmit={sendMessage} className="border-t border-slate-200 bg-white px-4 py-4">
+        <form onSubmit={sendMessage} className="border-t border-slate-200/50 bg-white px-4 py-4 sm:rounded-bl-3xl">
           {error ? <p className="mb-3 text-sm text-rose-600">{error}</p> : null}
           <div className="flex gap-2">
             <textarea
               rows={2}
-              className="min-h-[56px] flex-1 resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-200"
+              className="min-h-[56px] flex-1 resize-none rounded-2xl border border-slate-200/60 bg-cosmos-page-alt/30 px-4 py-3 text-sm text-slate-900 shadow-cosmos-sm outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
               placeholder="Type a message…"
               value={body}
               onChange={(event) => setBody(event.target.value)}

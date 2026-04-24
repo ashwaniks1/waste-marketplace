@@ -78,7 +78,7 @@ export function ReviewForm({
 
   if (statusLoading) {
     return (
-      <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="rounded-3xl border border-slate-200/50 bg-white p-5 shadow-cosmos-sm">
         <p className="text-sm text-slate-600">Checking review status…</p>
       </section>
     );
@@ -86,7 +86,7 @@ export function ReviewForm({
 
   if (existing) {
     return (
-      <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="rounded-3xl border border-slate-200/50 bg-white p-5 shadow-cosmos-sm">
         <p className="text-sm font-semibold text-slate-900">You already reviewed {toUserName}</p>
         <p className="mt-1 text-sm text-slate-600">
           You can leave one review per person, like Google. Update or remove it from their profile.
@@ -106,7 +106,7 @@ export function ReviewForm({
   }
 
   return (
-    <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+    <section className="rounded-3xl border border-slate-200/50 bg-white p-5 shadow-cosmos-sm">
       <div className="flex flex-col gap-2">
         <div className="flex flex-col gap-1">
           <p className="text-sm font-semibold text-slate-900">Review {toUserName}</p>

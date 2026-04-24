@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, createContext, useCallback, useContext, useMemo } from "react";
+import { Suspense, createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 type SellerWorkspaceContextValue = {
@@ -8,6 +8,13 @@ type SellerWorkspaceContextValue = {
   chatOpen: boolean;
   openChat: (conversationId: string) => void;
   closeChat: () => void;
+  /** Clear selected thread (removes ?c=) but keep the inbox window open. */
+  leaveThread: () => void;
+  /** Inbox surface: hidden = FAB only; open = full panel; minimized = slim bar. */
+  inboxSurface: "hidden" | "open" | "minimized";
+  openInbox: () => void;
+  minimizeInbox: () => void;
+  expandInbox: () => void;
 };
 
 const Ctx = createContext<SellerWorkspaceContextValue | null>(null);
@@ -17,6 +24,11 @@ const fallbackValue: SellerWorkspaceContextValue = {
   chatOpen: false,
   openChat: () => {},
   closeChat: () => {},
+  leaveThread: () => {},
+  inboxSurface: "hidden",
+  openInbox: () => {},
+  minimizeInbox: () => {},
+  expandInbox: () => {},
 };
 
 function InnerFromUrl({ children }: { children: React.ReactNode }) {
@@ -27,7 +39,24 @@ function InnerFromUrl({ children }: { children: React.ReactNode }) {
   const activeThreadId = searchParams.get("c");
   const chatOpen = Boolean(activeThreadId);
 
+  const [inboxSurface, setInboxSurface] = useState<"hidden" | "open" | "minimized">("hidden");
+
+  // Deep link with ?c= should show the window (keeps "minimized" if user had minimized with a thread open).
+  useEffect(() => {
+    if (searchParams.get("c")) {
+      setInboxSurface((prev) => (prev === "minimized" ? "minimized" : "open"));
+    }
+  }, [searchParams]);
+
+  const leaveThread = useCallback(() => {
+    const next = new URLSearchParams(searchParams.toString());
+    next.delete("c");
+    const q = next.toString();
+    router.replace(q ? `${pathname}?${q}` : pathname, { scroll: false });
+  }, [pathname, router, searchParams]);
+
   const closeChat = useCallback(() => {
+    setInboxSurface("hidden");
     const next = new URLSearchParams(searchParams.toString());
     next.delete("c");
     const q = next.toString();
@@ -36,6 +65,7 @@ function InnerFromUrl({ children }: { children: React.ReactNode }) {
 
   const openChat = useCallback(
     (conversationId: string) => {
+      setInboxSurface("open");
       const next = new URLSearchParams(searchParams.toString());
       next.set("c", conversationId);
       router.replace(`${pathname}?${next.toString()}`, { scroll: false });
@@ -43,14 +73,31 @@ function InnerFromUrl({ children }: { children: React.ReactNode }) {
     [pathname, router, searchParams],
   );
 
+  const openInbox = useCallback(() => {
+    setInboxSurface("open");
+  }, []);
+
+  const minimizeInbox = useCallback(() => {
+    setInboxSurface("minimized");
+  }, []);
+
+  const expandInbox = useCallback(() => {
+    setInboxSurface("open");
+  }, []);
+
   const value = useMemo(
     () => ({
       activeThreadId,
       chatOpen,
       openChat,
       closeChat,
+      leaveThread,
+      inboxSurface,
+      openInbox,
+      minimizeInbox,
+      expandInbox,
     }),
-    [activeThreadId, chatOpen, closeChat, openChat],
+    [activeThreadId, chatOpen, closeChat, leaveThread, openChat, inboxSurface, openInbox, minimizeInbox, expandInbox],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

@@ -31,7 +31,7 @@ function SettingsNavInner({
 
   return (
     <div className="mx-auto w-full max-w-5xl">
-      <div className="mb-6 flex flex-col gap-1 border-b border-slate-200/80 pb-4 sm:mb-8">
+      <div className="mb-6 flex flex-col gap-1 border-b border-slate-200/50 pb-4 sm:mb-8">
         <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">Settings</h1>
         <p className="text-sm text-slate-600">Manage your profile, preferences, and how we reach you.</p>
         <div className="mt-4 flex flex-wrap gap-2">
@@ -44,8 +44,8 @@ function SettingsNavInner({
                 onClick={() => setTab(t.id)}
                 className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
                   active
-                    ? "bg-slate-900 text-white shadow-sm"
-                    : "bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"
+                    ? "bg-slate-900 text-white shadow-cosmos-sm"
+                    : "bg-white text-slate-700 shadow-cosmos-sm ring-1 ring-slate-200/80 hover:bg-cosmos-page-alt/50"
                 }`}
               >
                 {t.label}
@@ -69,9 +69,9 @@ export function SettingsShell({
   return (
     <Suspense
       fallback={
-        <div className="mx-auto w-full max-w-5xl animate-pulse space-y-4 rounded-3xl bg-slate-100/80 p-8">
-          <div className="h-8 w-48 rounded-lg bg-slate-200" />
-          <div className="h-32 rounded-2xl bg-slate-200/80" />
+        <div className="mx-auto w-full max-w-5xl animate-pulse space-y-4 rounded-3xl border border-slate-200/40 bg-cosmos-page-alt/50 p-8 shadow-cosmos-sm">
+          <div className="h-8 w-48 rounded-lg bg-cosmos-page-alt" />
+          <div className="h-32 rounded-2xl bg-cosmos-page-alt/80" />
         </div>
       }
     >

@@ -50,7 +50,7 @@ export function UserMenu({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2 rounded-full border border-slate-200/90 bg-white py-1 pl-1 pr-2 shadow-sm transition hover:border-teal-200 hover:bg-slate-50/90 sm:pr-3"
+        className="flex items-center gap-2 rounded-full border border-slate-200/60 bg-white py-1 pl-1 pr-2 shadow-cosmos-sm transition hover:border-teal-200/80 hover:bg-cosmos-page-alt/50 sm:pr-3"
         aria-expanded={open}
         aria-haspopup="menu"
         aria-label="Account menu"
@@ -74,7 +74,7 @@ export function UserMenu({
 
       {open ? (
         <div
-          className="absolute right-0 z-50 mt-2 min-w-[12.5rem] overflow-hidden rounded-2xl border border-slate-200/90 bg-white py-1.5 shadow-lg shadow-slate-900/10 ring-1 ring-slate-100"
+          className="absolute right-0 z-50 mt-2 min-w-[12.5rem] overflow-hidden rounded-2xl border border-slate-200/60 bg-white py-1.5 shadow-cosmos-md ring-1 ring-slate-200/40"
           role="menu"
         >
           <p className="px-3 pb-2 pt-1 text-xs font-medium text-slate-500">Signed in as</p>

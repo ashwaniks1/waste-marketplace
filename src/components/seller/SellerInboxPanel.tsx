@@ -31,8 +31,8 @@ export function SellerInboxPanel() {
     <aside className="flex h-min flex-col overflow-hidden rounded-2xl border border-emerald-100/80 bg-white/90 shadow-sm ring-1 ring-emerald-50/50">
       <div className="border-b border-emerald-100/80 bg-gradient-to-r from-emerald-50/90 to-white px-4 py-3">
         <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-emerald-800">Communication</p>
-        <p className="text-sm font-semibold text-slate-900">Buyer threads</p>
-        <p className="mt-0.5 text-xs text-slate-500">Tap a thread to open the chat pop-up</p>
+        <p className="text-sm font-semibold text-slate-900">Inbox</p>
+        <p className="mt-0.5 text-xs text-slate-500">Tap a thread to open the chat</p>
       </div>
       <div className="max-h-[min(50vh,420px)] min-h-0 space-y-2 overflow-y-auto p-3">
         {loading ? (

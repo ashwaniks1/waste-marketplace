@@ -208,7 +208,7 @@ export default function SignupPage() {
 
   if (signedUp) {
     return (
-      <main className="min-h-dvh bg-slate-50 text-slate-900">
+      <main className="min-h-dvh bg-cosmos-page text-slate-900">
         <div className="mx-auto grid min-h-dvh max-w-6xl lg:grid-cols-2">
           <SignupBrandPanel />
           <div className="flex flex-col justify-center px-4 py-10 sm:px-8">
@@ -217,7 +217,7 @@ export default function SignupPage() {
                 ← Home
               </Link>
             </div>
-            <div className="mx-auto w-full max-w-md space-y-4 rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+            <div className="mx-auto w-full max-w-md space-y-4 rounded-3xl border border-slate-200/50 bg-white p-8 shadow-cosmos-md">
               <h1 className="text-2xl font-bold text-slate-900">Check your email</h1>
               <p className="text-sm leading-6 text-slate-600">
                 We sent a verification link to <span className="font-semibold text-slate-900">{pendingEmail}</span>.
@@ -245,7 +245,7 @@ export default function SignupPage() {
   const taxLabel = optionalTaxIdLabel(marketRegion);
 
   return (
-    <main className="min-h-dvh bg-slate-50 text-slate-900">
+    <main className="min-h-dvh bg-cosmos-page text-slate-900">
       <div className="mx-auto grid min-h-dvh max-w-6xl lg:grid-cols-2">
         <SignupBrandPanel />
 
@@ -276,7 +276,7 @@ export default function SignupPage() {
                       <span
                         className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
                           current
-                            ? "bg-teal-600 text-white shadow-sm"
+                            ? "bg-teal-600 text-white shadow-cosmos-sm"
                             : done
                               ? "bg-teal-100 text-teal-900"
                               : "bg-slate-200/80 text-slate-700"
@@ -294,7 +294,7 @@ export default function SignupPage() {
 
             <form
               onSubmit={step === 1 ? goStep2 : step === 2 ? goStep3 : onSubmit}
-              className="mt-6 space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+              className="mt-6 space-y-4 rounded-3xl border border-slate-200/50 bg-white p-6 shadow-cosmos-md"
             >
               {step === 1 ? (
                 <div>
@@ -318,7 +318,7 @@ export default function SignupPage() {
                           className={`flex w-full flex-col gap-3 rounded-2xl border-2 p-4 text-left transition duration-200 motion-safe:active:scale-[0.99] ${
                             active
                               ? "border-teal-500 bg-gradient-to-br from-teal-50 to-emerald-50 shadow-md ring-2 ring-teal-500/25"
-                              : "border-slate-200 bg-white hover:border-teal-300 hover:shadow-sm"
+                              : "border-slate-200 bg-white hover:border-teal-300 hover:shadow-cosmos-sm"
                           }`}
                         >
                           <span
@@ -534,7 +534,7 @@ export default function SignupPage() {
             )}
 
             {role === "driver" ? (
-              <div className="space-y-4 rounded-3xl border border-slate-200 bg-slate-50 p-4">
+              <div className="space-y-4 rounded-3xl border border-slate-200/50 bg-cosmos-page-alt/60 p-4 shadow-cosmos-sm">
                 <p className="text-sm font-semibold text-slate-900">Driver details</p>
                 <label className="block text-sm font-medium text-slate-700">
                   Vehicle type

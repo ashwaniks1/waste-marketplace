@@ -1,10 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "@/components/Button";
 import { useSellerWorkspace } from "@/components/seller/SellerWorkspaceContext";
+import { usePollWhileVisible } from "@/hooks/usePollWhileVisible";
+
+const MSG_POLL_MS = 16_000;
 
 type ConvMeta = {
   id: string;
@@ -55,16 +58,18 @@ export function SellerChatFloat() {
     })();
   }, [activeThreadId]);
 
+  const loadMessages = useCallback(async () => {
+    if (!activeThreadId) return;
+    const r = await fetch(`/api/conversations/${activeThreadId}/messages`, { cache: "no-store" });
+    if (r.ok) setMessages(await r.json());
+  }, [activeThreadId]);
+
   useEffect(() => {
     if (!activeThreadId) return;
-    async function load() {
-      const r = await fetch(`/api/conversations/${activeThreadId}/messages`);
-      if (r.ok) setMessages(await r.json());
-    }
-    void load();
-    const t = setInterval(load, 5000);
-    return () => clearInterval(t);
-  }, [activeThreadId]);
+    void loadMessages();
+  }, [activeThreadId, loadMessages]);
+
+  usePollWhileVisible(() => void loadMessages(), MSG_POLL_MS, Boolean(activeThreadId));
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -163,7 +168,8 @@ export function SellerChatFloat() {
         <form onSubmit={send} className="shrink-0 border-t border-slate-100 bg-white p-3">
           <div className="flex gap-2">
             <input
-              className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none ring-teal-500/0 transition focus:ring-2"
+              className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 !text-slate-900 placeholder:text-slate-400 outline-none ring-teal-500/0 transition focus:ring-2 focus:ring-teal-200"
+              style={{ color: "#0f172a" }}
               placeholder="Type a message…"
               value={body}
               onChange={(e) => setBody(e.target.value)}
