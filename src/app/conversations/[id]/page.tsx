@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { Button } from "@/components/Button";
@@ -22,6 +22,7 @@ type Msg = {
 };
 
 export default function ConversationPage() {
+  const router = useRouter();
   const { id } = useParams<{ id: string }>();
   const [meta, setMeta] = useState<ConvMeta | null>(null);
   const [messages, setMessages] = useState<Msg[]>([]);
@@ -58,6 +59,13 @@ export default function ConversationPage() {
     loadMeta();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- load on id only
   }, [id]);
+
+  useEffect(() => {
+    if (!meta || meId == null) return;
+    if (role === "customer" && meta.listing.userId === meId) {
+      router.replace(`/customer/messages?c=${encodeURIComponent(id)}`);
+    }
+  }, [id, meId, meta, role, router]);
 
   useEffect(() => {
     loadMessages();

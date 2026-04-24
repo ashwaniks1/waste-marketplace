@@ -392,7 +392,7 @@ export default function CustomerListingDetailPage() {
                   {conversations.map((c) => (
                     <li key={c.id}>
                       <Link
-                        href={`/conversations/${c.id}`}
+                        href={`/customer/messages?c=${encodeURIComponent(c.id)}`}
                         className="block rounded-xl border border-slate-200 bg-white px-4 py-3 text-teal-800 hover:border-teal-300"
                       >
                         Chat with {c.buyer.name}
@@ -466,7 +466,7 @@ export default function CustomerListingDetailPage() {
                     <p className="text-xs text-teal-800">Email: {row.acceptor.email}</p>
                   )}
                   {acceptorConv ? (
-                    <Link href={`/conversations/${acceptorConv.id}`}>
+                    <Link href={`/customer/messages?c=${encodeURIComponent(acceptorConv.id)}`}>
                       <Button variant="secondary" className="!min-h-10">
                         Open chat
                       </Button>

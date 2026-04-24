@@ -19,7 +19,7 @@ type ProfileData = {
 const customerNav = [
   { href: "/customer", label: "Home" },
   { href: "/customer/listings", label: "Listings" },
-  { href: "/conversations", label: "Messages" },
+  { href: "/customer/messages", label: "Messages" },
   { href: "/profile", label: "Profile" },
 ];
 
@@ -46,6 +46,9 @@ const driverNav = [
 const roleHomeHrefs = ["/buyer", "/driver", "/customer", "/admin"] as const;
 
 function navItemIsActive(pathname: string, href: string) {
+  if (href === "/customer/messages") {
+    return pathname === "/customer/messages" || pathname.startsWith("/conversations");
+  }
   if (href === "/conversations") {
     return pathname === "/conversations" || pathname.startsWith("/conversations/");
   }
@@ -257,7 +260,13 @@ export function AppShell({
 
       {showHeader ? <AppHeader title={title} backHref={backHref} role={role} /> : null}
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-4 sm:px-6 md:px-8 md:py-6">{children}</main>
+      <main
+        className={`mx-auto w-full flex-1 px-3 py-3 sm:px-4 sm:py-4 md:px-6 md:py-5 lg:px-8 ${
+          role === "customer" ? "max-w-[min(100rem,100%)]" : "max-w-6xl"
+        }`}
+      >
+        {children}
+      </main>
 
       {/* Mobile bottom nav */}
       {nav.length > 0 ? (

@@ -59,7 +59,10 @@ export function NotificationBell({ role }: { role: "customer" | "buyer" | "admin
   }
 
   function hrefFor(n: Notif) {
-    if (n.conversationId) return `/conversations/${n.conversationId}`;
+    if (n.conversationId) {
+      if (role === "customer") return `/customer/messages?c=${encodeURIComponent(n.conversationId)}`;
+      return `/conversations/${n.conversationId}`;
+    }
     if (n.listingId) {
       if (role === "customer") return `/customer/listings/${n.listingId}`;
       if (role === "driver") return `/driver/listings/${n.listingId}`;

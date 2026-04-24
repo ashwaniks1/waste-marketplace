@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { EmptyState } from "@/components/EmptyState";
@@ -23,6 +24,7 @@ type Row = {
 };
 
 export default function ConversationsListPage() {
+  const router = useRouter();
   const [rows, setRows] = useState<Row[]>([]);
   const [meId, setMeId] = useState<string | null>(null);
   const [role, setRole] = useState<"customer" | "buyer" | "admin" | "driver">("buyer");
@@ -36,12 +38,16 @@ export default function ConversationsListPage() {
         setMeId(meJson.profile.id);
         const r = meJson.profile.role;
         if (r === "admin" || r === "buyer" || r === "customer" || r === "driver") setRole(r);
+        if (r === "customer") {
+          router.replace("/customer/messages");
+          return;
+        }
       }
       const data = await list.json();
       if (list.ok) setRows(data);
       setLoading(false);
     })();
-  }, []);
+  }, [router]);
 
   return (
     <>
