@@ -8,6 +8,7 @@ import { Button } from "@/components/Button";
 import { EmptyState } from "@/components/EmptyState";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useLiveLocation } from "@/components/LocationProvider";
+import { detectMarketRegion, driverDistanceFilterOptions, formatDistanceFromMiles, type MarketRegion } from "@/lib/marketRegion";
 import { formatMoney } from "@/lib/money";
 import { WASTE_TYPE_OPTIONS } from "@/lib/waste-types";
 
@@ -36,46 +37,21 @@ type FeedRow = {
   createdAt: string;
 };
 
-type DriverJob = {
-  id: string;
-  status: string;
-  scheduledAt: string;
-  notes: string | null;
-  listing: {
-    id: string;
-    wasteType: string;
-    quantity: string;
-    address: string;
-    askingPrice: string;
-    currency: string;
-    status: string;
-    deliveryRequired: boolean;
-    pickupJobStatus: string;
-    driverCommissionAmount: unknown;
-    seller: { id: string; name: string; phone: string | null; avatarUrl?: string | null };
-    acceptor: { id: string; name: string; email: string; avatarUrl?: string | null } | null;
-  };
-};
-
-const MILE_FILTERS = [
-  { value: "", label: "Any distance" },
-  { value: "5", label: "Within 5 mi" },
-  { value: "10", label: "Within 10 mi" },
-  { value: "25", label: "Within 25 mi" },
-  { value: "50", label: "Within 50 mi" },
-];
-
 export default function DriverPage() {
   const location = useLiveLocation();
-  const [tab, setTab] = useState<"available" | "mine">("available");
+  const [region, setRegion] = useState<MarketRegion>("US");
   const [feed, setFeed] = useState<FeedRow[]>([]);
-  const [jobs, setJobs] = useState<DriverJob[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [busyId, setBusyId] = useState<string | null>(null);
   const [miles, setMiles] = useState("");
   const [wasteType, setWasteType] = useState("");
   const [sort, setSort] = useState<"nearest" | "payout" | "newest">("newest");
+
+  useEffect(() => {
+    setRegion(detectMarketRegion());
+  }, []);
+
+  const distanceOptions = useMemo(() => driverDistanceFilterOptions(region), [region]);
 
   const loadFeed = useCallback(async () => {
     const params = new URLSearchParams();
@@ -92,30 +68,17 @@ export default function DriverPage() {
     else setFeed(data);
   }, [miles, wasteType, sort, location.point]);
 
-  const loadJobs = useCallback(async () => {
-    const res = await fetch("/api/driver/jobs", { cache: "no-store" });
-    const data = await res.json();
-    if (!res.ok) setError(data.error ?? "Unable to load jobs");
-    else setJobs(data);
-  }, []);
-
   async function refresh() {
     setLoading(true);
     setError(null);
     try {
-      await Promise.all([loadFeed(), loadJobs()]);
+      await loadFeed();
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    void refresh();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- initial load only
-  }, []);
-
-  useEffect(() => {
-    if (tab !== "available") return;
     void (async () => {
       setLoading(true);
       try {
@@ -124,41 +87,22 @@ export default function DriverPage() {
         setLoading(false);
       }
     })();
-  }, [tab, miles, wasteType, sort, loadFeed]);
+  }, [miles, wasteType, sort, loadFeed]);
 
-  async function updateJobStatus(jobId: string, status: "in_transit" | "completed" | "cancelled") {
-    setBusyId(jobId);
-    setError(null);
-    try {
-      const res = await fetch(`/api/driver/jobs/${jobId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
-      });
-      const data = await res.json();
-      if (!res.ok) setError(data.error ?? "Unable to update job");
-      else {
-        setJobs((current) => current.map((job) => (job.id === jobId ? data : job)));
-        await loadFeed();
-      }
-    } catch {
-      setError("Unable to update job");
-    } finally {
-      setBusyId(null);
-    }
-  }
-
-  const wasteOptions = useMemo(() => [{ value: "", label: "All types" }, ...WASTE_TYPE_OPTIONS.map((o) => ({ value: o.value, label: o.label }))], []);
+  const wasteOptions = useMemo(
+    () => [{ value: "", label: "All types" }, ...WASTE_TYPE_OPTIONS.map((o) => ({ value: o.value, label: o.label }))],
+    [],
+  );
 
   return (
     <>
-      <AppHeader title="Driver" role="driver" />
+      <AppHeader title="Pickup board" role="driver" />
       <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
         <div className="mb-6 flex flex-col gap-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-lg font-semibold text-slate-900">Pickup board</p>
+            <p className="text-lg font-semibold text-slate-900">Open jobs</p>
             <p className="mt-1 text-sm text-slate-600">
-              Claim delivery jobs sellers posted with driver pickup. Distance filters use your live location.
+              Claim delivery jobs with driver pickup. Distance uses your live location when you allow it.
             </p>
           </div>
           <Button type="button" onClick={refresh} disabled={loading}>
@@ -168,7 +112,8 @@ export default function DriverPage() {
 
         {location.permission === "denied" ? (
           <p className="mb-4 rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            Location permission is off, so distance filters will be disabled. Enable location access in your browser settings.
+            Location is off, so “nearest” sort and distance labels are limited. Turn on location in your browser
+            settings to sort by distance and see how far each stop is.
           </p>
         ) : location.point ? (
           <div className="mb-6">
@@ -178,85 +123,62 @@ export default function DriverPage() {
           <p className="mb-4 text-sm text-slate-600">Requesting your location…</p>
         )}
 
-        <div className="mb-4 flex gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-1">
-          <button
-            type="button"
-            className={`flex-1 rounded-xl px-3 py-2 text-sm font-semibold transition ${
-              tab === "available" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"
-            }`}
-            onClick={() => setTab("available")}
-          >
-            Available
-          </button>
-          <button
-            type="button"
-            className={`flex-1 rounded-xl px-3 py-2 text-sm font-semibold transition ${
-              tab === "mine" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"
-            }`}
-            onClick={() => setTab("mine")}
-          >
-            My jobs
-          </button>
+        <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            {region === "IN" ? "Radius" : "Distance"}
+            <select
+              className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+              value={miles}
+              onChange={(e) => setMiles(e.target.value)}
+            >
+              {distanceOptions.map((o) => (
+                <option key={o.value || "any"} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Waste type
+            <select
+              className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+              value={wasteType}
+              onChange={(e) => setWasteType(e.target.value)}
+            >
+              {wasteOptions.map((o) => (
+                <option key={o.value || "all"} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Sort
+            <select
+              className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+              value={sort}
+              onChange={(e) => setSort(e.target.value as typeof sort)}
+            >
+              <option value="newest">Newest</option>
+              <option value="nearest">Nearest</option>
+              <option value="payout">Highest payout</option>
+            </select>
+          </label>
         </div>
-
-        {tab === "available" ? (
-          <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Distance
-              <select
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-                value={miles}
-                onChange={(e) => setMiles(e.target.value)}
-              >
-                {MILE_FILTERS.map((o) => (
-                  <option key={o.value || "any"} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Waste type
-              <select
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-                value={wasteType}
-                onChange={(e) => setWasteType(e.target.value)}
-              >
-                {wasteOptions.map((o) => (
-                  <option key={o.value || "all"} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Sort
-              <select
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-                value={sort}
-                onChange={(e) => setSort(e.target.value as typeof sort)}
-              >
-                <option value="newest">Newest</option>
-                <option value="nearest">Nearest</option>
-                <option value="payout">Highest payout</option>
-              </select>
-            </label>
-          </div>
-        ) : null}
 
         {error ? <p className="mb-4 rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-800">{error}</p> : null}
 
         {loading ? <p className="text-sm text-slate-600">Loading…</p> : null}
 
-        {!loading && tab === "available" && feed.length === 0 ? (
+        {!loading && feed.length === 0 ? (
           <EmptyState
             variant="pickups"
             title="No pickups in range"
-            description="Try widening the distance filter or check back when sellers post delivery jobs."
+            description="Try widening the distance filter, pick another material, or check back when sellers post delivery jobs."
           />
         ) : null}
 
-        {!loading && tab === "available" ? (
+        {!loading && feed.length > 0 ? (
           <div className="space-y-3">
             {feed.map((row) => {
               const label = WASTE_TYPE_OPTIONS.find((o) => o.value === row.wasteType)?.label ?? row.wasteType;
@@ -277,13 +199,9 @@ export default function DriverPage() {
                     <span className="rounded-full bg-emerald-50 px-3 py-1 font-semibold text-emerald-900">
                       Earn {formatMoney(row.estimatedDriverPayout, row.currency)}
                     </span>
-                    {row.distanceMiles != null ? (
-                      <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-700">
-                        {row.distanceMiles.toFixed(1)} mi away
-                      </span>
-                    ) : (
-                      <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-500">Distance n/a</span>
-                    )}
+                    <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-700">
+                      {formatDistanceFromMiles(row.distanceMiles, region)}
+                    </span>
                     <span className="text-slate-500">Seller: {row.seller.name}</span>
                   </div>
                   <div className="mt-4 flex flex-wrap gap-2">
@@ -292,73 +210,6 @@ export default function DriverPage() {
                         View job
                       </Button>
                     </Link>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        ) : null}
-
-        {!loading && tab === "mine" && jobs.length === 0 ? (
-          <EmptyState variant="pickups" title="No assigned jobs" description="Claim a pickup from the Available tab." />
-        ) : null}
-
-        {!loading && tab === "mine" ? (
-          <div className="space-y-4">
-            {jobs.map((job) => {
-              const payout =
-                job.listing.driverCommissionAmount != null
-                  ? formatMoney(Number(job.listing.driverCommissionAmount), job.listing.currency)
-                  : "—";
-              const label =
-                WASTE_TYPE_OPTIONS.find((o) => o.value === job.listing.wasteType)?.label ?? job.listing.wasteType;
-              return (
-                <div key={job.id} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                  <div className="flex flex-wrap items-center justify-between gap-4">
-                    <div>
-                      <p className="text-base font-semibold text-slate-900">{label}</p>
-                      <p className="mt-1 text-sm text-slate-600">{job.listing.quantity}</p>
-                    </div>
-                    <div className="rounded-2xl bg-slate-100 px-3 py-2 text-xs font-medium uppercase tracking-wide text-slate-700">
-                      {job.status.replace(/_/g, " ")}
-                    </div>
-                  </div>
-                  <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                    <div className="rounded-2xl bg-emerald-50/80 p-3">
-                      <p className="text-xs uppercase text-emerald-800">Your payout</p>
-                      <p className="mt-1 text-lg font-bold text-emerald-900">{payout}</p>
-                    </div>
-                    <div className="rounded-2xl bg-slate-50 p-3">
-                      <p className="text-xs uppercase text-slate-500">Pickup</p>
-                      <p className="mt-1 text-sm text-slate-700">{new Date(job.scheduledAt).toLocaleString()}</p>
-                    </div>
-                    <div className="rounded-2xl bg-slate-50 p-3">
-                      <p className="text-xs uppercase text-slate-500">Seller</p>
-                      <p className="mt-1 text-sm font-medium text-slate-900">{job.listing.seller.name}</p>
-                    </div>
-                  </div>
-                  <p className="mt-3 text-sm text-slate-600">{job.listing.address}</p>
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    <Link href={`/driver/listings/${job.listing.id}`}>
-                      <Button type="button" variant="secondary">
-                        Open listing
-                      </Button>
-                    </Link>
-                    {job.status === "scheduled" ? (
-                      <Button type="button" onClick={() => updateJobStatus(job.id, "in_transit")} disabled={busyId === job.id}>
-                        Start pickup
-                      </Button>
-                    ) : null}
-                    {job.status === "in_transit" ? (
-                      <Button type="button" onClick={() => updateJobStatus(job.id, "completed")} disabled={busyId === job.id}>
-                        Mark complete
-                      </Button>
-                    ) : null}
-                    {job.status !== "completed" ? (
-                      <Button type="button" variant="ghost" onClick={() => updateJobStatus(job.id, "cancelled")} disabled={busyId === job.id}>
-                        Cancel
-                      </Button>
-                    ) : null}
                   </div>
                 </div>
               );

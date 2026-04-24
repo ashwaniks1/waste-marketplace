@@ -19,12 +19,14 @@ type ProfileData = {
 const customerNav = [
   { href: "/customer", label: "Home" },
   { href: "/customer/listings", label: "Listings" },
+  { href: "/conversations", label: "Messages" },
   { href: "/profile", label: "Profile" },
 ];
 
 const buyerNav = [
   { href: "/buyer", label: "Browse" },
   { href: "/buyer/pickups", label: "Pickups" },
+  { href: "/conversations", label: "Messages" },
   { href: "/profile", label: "Profile" },
 ];
 
@@ -36,9 +38,22 @@ const adminNav = [
 ];
 
 const driverNav = [
-  { href: "/driver", label: "Home" },
+  { href: "/driver", label: "Board" },
+  { href: "/driver/jobs", label: "Jobs" },
   { href: "/profile", label: "Profile" },
 ];
+
+const roleHomeHrefs = ["/buyer", "/driver", "/customer", "/admin"] as const;
+
+function navItemIsActive(pathname: string, href: string) {
+  if (href === "/conversations") {
+    return pathname === "/conversations" || pathname.startsWith("/conversations/");
+  }
+  if ((roleHomeHrefs as readonly string[]).includes(href)) {
+    return pathname === href;
+  }
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
 
 export function AppShell({
   children,
@@ -56,6 +71,7 @@ export function AppShell({
   const pathname = usePathname();
   const router = useRouter();
   const [profile, setProfile] = useState<ProfileData | null>(null);
+  const [driverActiveJobCount, setDriverActiveJobCount] = useState(0);
   const nav =
     role === "buyer"
       ? buyerNav
@@ -102,6 +118,33 @@ export function AppShell({
     };
   }, []);
 
+  useEffect(() => {
+    if (role !== "driver") {
+      setDriverActiveJobCount(0);
+      return;
+    }
+    let cancelled = false;
+    async function loadJobs() {
+      try {
+        const res = await fetch("/api/driver/jobs", { cache: "no-store" });
+        const data = await res.json();
+        if (!res.ok || cancelled || !Array.isArray(data)) return;
+        const n = data.filter(
+          (j: { status: string }) => j.status === "scheduled" || j.status === "in_transit",
+        ).length;
+        setDriverActiveJobCount(n);
+      } catch {
+        if (!cancelled) setDriverActiveJobCount(0);
+      }
+    }
+    void loadJobs();
+    const t = window.setInterval(() => void loadJobs(), 60_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(t);
+    };
+  }, [role]);
+
   const initials = useMemo(() => {
     const source = profile?.name?.trim();
     if (!source) return role.slice(0, 1).toUpperCase();
@@ -121,16 +164,16 @@ export function AppShell({
   return (
     <LocationProvider>
       <SessionActivity />
-      <div className="flex min-h-dvh flex-col bg-gradient-to-b from-emerald-50/40 via-slate-50 to-slate-100">
+      <div className="flex min-h-dvh flex-col border-t-2 border-emerald-500/25 bg-gradient-to-b from-emerald-50/40 via-slate-50 to-slate-100">
       <header className="sticky top-0 z-30 border-b border-emerald-100/80 bg-white/85 backdrop-blur-xl">
         <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 sm:px-6 md:px-8">
           <Link href={homeHref} className="flex min-w-0 items-center gap-3">
-            <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-sm shadow-emerald-200">
-              ♻️
+            <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/95 text-sm font-bold text-white shadow-sm shadow-emerald-500/25">
+              W
             </span>
             <div className="min-w-0">
-              <p className="truncate text-[11px] font-semibold uppercase tracking-[0.34em] text-teal-700">
-                WasteMarket
+              <p className="truncate text-[11px] font-semibold uppercase tracking-[0.28em] text-emerald-800">
+                Waste Marketplace
               </p>
               <p className="truncate text-sm font-semibold text-slate-900">
                 {role === "admin" ? "Admin" : role === "buyer" ? "Buyer" : role === "driver" ? "Driver" : "Seller"}
@@ -139,21 +182,27 @@ export function AppShell({
           </Link>
 
           {desktopNav.length > 0 ? (
-            <nav className="ml-2 hidden items-center gap-1 rounded-full border border-slate-200 bg-slate-50/90 p-1 sm:flex">
+            <nav className="ml-2 hidden min-w-0 flex-1 items-center justify-center gap-0.5 rounded-full border border-slate-200 bg-slate-50/90 p-1 sm:flex md:justify-start">
               {desktopNav.map((item) => {
-                const active = pathname === item.href || pathname.startsWith(item.href + "/");
+                const active = navItemIsActive(pathname, item.href);
+                const showJobsBadge = item.href === "/driver/jobs" && driverActiveJobCount > 0;
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
                     aria-current={active ? "page" : undefined}
-                    className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                    className={`relative rounded-full px-3 py-2 text-sm font-medium transition md:px-4 ${
                       active
                         ? "bg-white text-slate-950 shadow-sm ring-1 ring-slate-200"
                         : "text-slate-600 hover:bg-white hover:text-slate-900"
                     }`}
                   >
                     {item.label}
+                    {showJobsBadge ? (
+                      <span className="absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold leading-none text-white">
+                        {driverActiveJobCount > 9 ? "9+" : driverActiveJobCount}
+                      </span>
+                    ) : null}
                   </Link>
                 );
               })}
@@ -214,20 +263,27 @@ export function AppShell({
       {nav.length > 0 ? (
         <nav className="sticky bottom-0 z-20 border-t border-slate-200/90 bg-white/95 px-2 py-2 backdrop-blur sm:hidden">
           <div className="mx-auto flex w-full max-w-md items-center gap-1 rounded-full border border-slate-200 bg-white/90 p-1 shadow-sm">
-          {nav.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              aria-current={pathname === item.href || pathname.startsWith(item.href + "/") ? "page" : undefined}
-              className={`flex flex-1 flex-col items-center rounded-full py-2 text-xs font-medium transition ${
-                pathname === item.href || pathname.startsWith(item.href + "/")
-                  ? "bg-emerald-50 text-teal-700"
-                  : "text-slate-500 hover:bg-slate-50"
-              }`}
-            >
-              {item.label}
-            </Link>
-          ))}
+          {nav.map((item) => {
+            const active = navItemIsActive(pathname, item.href);
+            const showJobsBadge = item.href === "/driver/jobs" && driverActiveJobCount > 0;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                aria-current={active ? "page" : undefined}
+                className={`relative flex flex-1 flex-col items-center rounded-full py-2 text-xs font-medium transition ${
+                  active ? "bg-emerald-50 text-teal-700" : "text-slate-500 hover:bg-slate-50"
+                }`}
+              >
+                {item.label}
+                {showJobsBadge ? (
+                  <span className="absolute right-1 top-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold leading-none text-white">
+                    {driverActiveJobCount > 9 ? "9+" : driverActiveJobCount}
+                  </span>
+                ) : null}
+              </Link>
+            );
+          })}
           </div>
         </nav>
       ) : null}

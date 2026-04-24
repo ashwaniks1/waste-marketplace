@@ -16,7 +16,7 @@ export function AppHeader({
       <div className="flex flex-wrap items-center gap-4">
         <div className="min-w-0 flex-1">
           <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
-            {role === "admin" ? "Admin" : role === "buyer" ? "Buyer" : role === "driver" ? "Driver" : "Customer"}
+            {role === "admin" ? "Admin" : role === "buyer" ? "Buyer" : role === "driver" ? "Driver" : "Seller"}
           </p>
           <div className="mt-1 flex items-center gap-3">
             {backHref ? (

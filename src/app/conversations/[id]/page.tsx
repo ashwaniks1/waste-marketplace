@@ -27,7 +27,7 @@ export default function ConversationPage() {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [body, setBody] = useState("");
   const [meId, setMeId] = useState<string | null>(null);
-  const [role, setRole] = useState<"customer" | "buyer" | "admin">("buyer");
+  const [role, setRole] = useState<"customer" | "buyer" | "admin" | "driver">("buyer");
   const bottomRef = useRef<HTMLDivElement>(null);
 
   async function loadMeta() {
@@ -47,9 +47,9 @@ export default function ConversationPage() {
       const m = await me.json();
       if (me.ok && m.profile) {
         setMeId(m.profile.id);
-        setRole(
-          m.profile.role === "admin" ? "admin" : m.profile.role === "buyer" ? "buyer" : "customer",
-        );
+        const r = m.profile.role;
+        if (r === "admin" || r === "buyer" || r === "customer" || r === "driver") setRole(r);
+        else setRole("customer");
       }
     })();
   }, []);
@@ -87,7 +87,7 @@ export default function ConversationPage() {
   if (!meta) {
     return (
       <>
-        <AppHeader title="Chat" backHref="/buyer" role={role} />
+        <AppHeader title="Chat" backHref="/conversations" role={role} />
         <p className="p-4 text-slate-600">Loading…</p>
       </>
     );

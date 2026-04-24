@@ -1,8 +1,8 @@
-import { CommissionKind, ListingStatus, PickupJobStatus, UserRole, WasteType } from "@prisma/client";
+import { CommissionKind, ListingStatus, PickupJobStatus, Prisma, UserRole, WasteType } from "@prisma/client";
 import { z } from "zod";
 import { requireAppUser } from "@/lib/auth";
 import { HttpError } from "@/lib/errors";
-import { handleRouteError, jsonOk } from "@/lib/http";
+import { handleRouteError, jsonError, jsonOk } from "@/lib/http";
 import { relistExpiredAcceptedListings } from "@/lib/pickup-window";
 import { prisma } from "@/lib/prisma";
 import { serializeListing } from "@/lib/serialize";
@@ -73,6 +73,12 @@ const createSchema = z.object({
     }
   });
 
+const buyerFeedQuery = z.object({
+  wasteType: z.nativeEnum(WasteType).optional(),
+  q: z.string().trim().max(200).optional(),
+  sort: z.enum(["newest", "price_asc", "price_desc"]).optional().default("newest"),
+});
+
 /** Listings list — scope depends on role (buyer: open feed + optional mine; customer: own; admin: all). */
 export async function GET(request: Request) {
   try {
@@ -99,9 +105,35 @@ export async function GET(request: Request) {
         });
         return jsonOk(rows.map(serializeListing));
       }
+      const parsed = buyerFeedQuery.safeParse({
+        wasteType: searchParams.get("wasteType") || undefined,
+        q: searchParams.get("q") || undefined,
+        sort: searchParams.get("sort") || undefined,
+      });
+      if (!parsed.success) {
+        return jsonError("Invalid filters", 400);
+      }
+      const { wasteType, q, sort } = parsed.data;
+      const where: Prisma.WasteListingWhereInput = {
+        status: { in: [ListingStatus.open, ListingStatus.reopened] },
+        ...(wasteType ? { wasteType } : {}),
+        ...(q
+          ? {
+              OR: [
+                { title: { contains: q, mode: "insensitive" } },
+                { address: { contains: q, mode: "insensitive" } },
+              ],
+            }
+          : {}),
+      };
+      let orderBy: Prisma.WasteListingOrderByWithRelationInput | Prisma.WasteListingOrderByWithRelationInput[] = {
+        createdAt: "desc",
+      };
+      if (sort === "price_asc") orderBy = { askingPrice: "asc" };
+      if (sort === "price_desc") orderBy = { askingPrice: "desc" };
       const rows = await prisma.wasteListing.findMany({
-        where: { status: { in: [ListingStatus.open, ListingStatus.reopened] } },
-        orderBy: { createdAt: "desc" },
+        where,
+        orderBy,
         include: listingInclude,
       });
       return jsonOk(rows.map(serializeListing));

@@ -8,12 +8,12 @@ export function LandingFooter() {
           <div>
             <p className="text-sm font-semibold text-white">Waste Marketplace</p>
             <p className="mt-2 max-w-md text-sm leading-relaxed text-gray-400">
-              Industrial materials exchange for procurement, revenue recovery, and governed logistics execution.
+              Connect local sellers, buyers, and drivers to move materials with less friction and clearer handoffs.
             </p>
           </div>
           <div className="flex flex-wrap gap-6 text-sm font-medium">
             <Link href="/login" className="text-gray-300 transition hover:text-white">
-              Login
+              Log in
             </Link>
             <Link href="/signup" className="text-gray-300 transition hover:text-white">
               Create account
@@ -27,7 +27,7 @@ export function LandingFooter() {
           </div>
         </div>
         <p className="mt-10 text-xs text-gray-500">
-          © {new Date().getFullYear()} Waste Marketplace. Enterprise features provisioned per MSA.
+          © {new Date().getFullYear()} Waste Marketplace. All rights reserved.
         </p>
       </div>
     </footer>

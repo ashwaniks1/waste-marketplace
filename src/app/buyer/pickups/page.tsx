@@ -42,8 +42,8 @@ export default function BuyerPickupsPage() {
           </div>
         </section>
         <section>
-          <h2 className="text-sm font-semibold text-slate-800">Completed (earnings placeholder)</h2>
-          <p className="text-xs text-slate-500">Pricing & earnings in Phase 2.</p>
+          <h2 className="text-sm font-semibold text-slate-800">Completed</h2>
+          <p className="text-xs text-slate-500">Listings you have already picked up.</p>
           {!loading && done.length === 0 ? (
             <EmptyState variant="generic" title="No completed pickups yet" description="Finished jobs will appear in this section." />
           ) : null}

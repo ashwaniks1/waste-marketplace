@@ -172,7 +172,7 @@ export function LandingExperience() {
           <p className="text-sm font-semibold uppercase tracking-[0.3em] text-emerald-400">Inside the app</p>
           <h2 className="mt-4 text-3xl font-semibold text-white sm:text-4xl">What you actually see after sign-in</h2>
           <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-slate-300">
-            Same data model for every role — tabs below mirror real screens: listings, offers, and pickup jobs.
+            Each role has screens built for the job: listings, offers, and pickup status stay aligned in one place.
           </p>
         </div>
 
@@ -297,7 +297,7 @@ export function LandingExperience() {
         </div>
       </section>
 
-      <section id="categories" className="mx-auto max-w-7xl px-4 pb-16 sm:px-6 lg:px-8 lg:pb-20">
+      <section id="marketplace" className="scroll-mt-28 mx-auto max-w-7xl px-4 pb-16 sm:px-6 lg:px-8 lg:pb-20">
         <div className="mb-10 text-center">
           <p className="text-sm font-semibold uppercase tracking-[0.3em] text-emerald-400">Categories</p>
           <h2 className="mt-4 text-3xl font-semibold text-white sm:text-4xl">Common materials on the marketplace</h2>
