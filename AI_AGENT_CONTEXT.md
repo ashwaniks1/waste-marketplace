@@ -747,6 +747,12 @@ Safest extension strategy:
 4. Update mobile Supabase callers and screen expectations.
 5. Run the relevant web and mobile validation commands.
 
+## Web: public marketing landing (unauthenticated)
+
+- **`src/app/page.tsx`** — If the visitor has no Supabase session (or no resolvable profile role), renders the **marketing landing**: hero (headline, subtext, dual CTAs, right-side illustration), “How it works” (3 cards), categories grid (6 cards), “Why choose us” (4 icon cards), dashboard **preview placeholder**, final CTA band. **Auth redirect logic is unchanged** for logged-in users (same `redirect()` paths as before).
+- **`src/components/MarketingNavbar.tsx`** / **`LandingFooter.tsx`** — Styling aligned to the landing (light surface, primary/secondary text); nav anchors: `#how-it-works`, `#categories`, `#why-us`, `#preview`.
+- **Design tokens** — Tailwind `theme.extend.colors.wm`: `primary` `#0E7C66`, `secondary` `#0A2540`, `surface` `#F8FAFC`, `card` `#FFFFFF`, `border` `#E2E8F0`, `cta` `#22C55E` (see `tailwind.config.ts`). CTA buttons on the landing use **`#22C55E`** for conversion emphasis.
+
 ---
 
 ## Web repo: idle session UX (cookie sessions)
@@ -775,4 +781,5 @@ These details apply to the **Next.js web app** in this repository and extend the
 
 ## Last Updated
 
+- **2026-04-23** — Redesigned unauthenticated **homepage** (`src/app/page.tsx`) for clearer hierarchy and CTAs; updated **`MarketingNavbar`** / **`LandingFooter`** and added Tailwind **`wm.*`** tokens (`tailwind.config.ts`). No change to auth redirect business logic.
 - **2026-04-23** — Merged `origin/main` into `cursor/e2e-listings-flow-0d63`: resolved `AI_AGENT_CONTEXT.md` (add/add) by keeping `main`’s cross-stack document and appending web idle-session + login behavior. Resolved `src/app/api/auth/login/route.ts` by combining **rate limiting** from `main` with **`ensureAppUserProfile`** + profile field sync + **`last_activity_at`** refresh from the feature branch.

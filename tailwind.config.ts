@@ -18,6 +18,15 @@ const config: Config = {
           light: "#6ee7b7",
           muted: "#d1fae5",
         },
+        /** Landing / marketing design system */
+        wm: {
+          primary: "#0E7C66",
+          secondary: "#0A2540",
+          surface: "#F8FAFC",
+          card: "#FFFFFF",
+          border: "#E2E8F0",
+          cta: "#22C55E",
+        },
       },
       boxShadow: {
         glass: "0 8px 32px rgba(15, 118, 110, 0.12)",
