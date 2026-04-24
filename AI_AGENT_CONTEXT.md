@@ -749,8 +749,11 @@ Safest extension strategy:
 
 ## Web: public marketing landing (unauthenticated)
 
-- **`src/app/page.tsx`** — If the visitor has no Supabase session (or no resolvable profile role), renders the **marketing landing**: hero (headline, subtext, dual CTAs, right-side illustration), “How it works” (3 cards), categories grid (6 cards), “Why choose us” (4 icon cards), dashboard **preview placeholder**, final CTA band. **Auth redirect logic is unchanged** for logged-in users (same `redirect()` paths as before).
-- **`src/components/MarketingNavbar.tsx`** / **`LandingFooter.tsx`** — Styling aligned to the landing (light surface, primary/secondary text); nav anchors: `#how-it-works`, `#categories`, `#why-us`, `#preview`.
+- **`src/app/page.tsx`** — If the visitor has no Supabase session (or no resolvable profile role), renders the **marketing landing**: enterprise hero, **Sell / Buy** anchor strips (`#sell`, `#buy`), **How it works**, embedded **Marketplace** (`LandingMarketplaceSection` — search, filters, category tabs; client-only mock rows), **Why choose us**, **Control tower previews** (`LandingDashboardPreviews` — Seller / Buyer / Driver tabs with representative UI; not live data), final CTA. **Auth redirect logic is unchanged** for logged-in users (same `redirect()` paths as before).
+- **`src/components/MarketingNavbar.tsx`** — Logo left; center nav: `#marketplace`, `#sell`, `#buy`, `#logistics`, `#how-it-works`; right: Login, Create account.
+- **`src/components/LandingFooter.tsx`** — Enterprise copy; links to login, signup, `#marketplace`, `#how-it-works`.
+- **`src/app/login/page.tsx`** — Two-column layout (desktop): left rail headline + illustration; right: role selector (UI only; routing unchanged), optional SSO links to Supabase OAuth (`google`, `azure`) when `NEXT_PUBLIC_SUPABASE_URL` is set, email/password form (same `/api/auth/login` + `/api/users/me` flow), forgot password + enterprise request `mailto:` links, `Suspense` for `useSearchParams`.
+- **`src/app/signup/page.tsx`** — Multi-step UI (role → company → user/credentials → capabilities); still submits the same **`signupFormSchema`** payload to **`POST /api/auth/signup`** (company + capability flags folded into `address` string within 500 chars). `Suspense` for `?role=` preselect from query.
 - **Design tokens** — Tailwind `theme.extend.colors.wm`: `primary` `#0E7C66`, `secondary` `#0A2540`, `surface` `#F8FAFC`, `card` `#FFFFFF`, `border` `#E2E8F0`, `cta` `#22C55E` (see `tailwind.config.ts`). CTA buttons on the landing use **`#22C55E`** for conversion emphasis.
 
 ---
@@ -781,5 +784,6 @@ These details apply to the **Next.js web app** in this repository and extend the
 
 ## Last Updated
 
+- **2026-04-23** — Enterprise **landing** refresh: single **Marketplace** section with tabs/filters (`src/components/landing/LandingMarketplaceSection.tsx`), **dashboard tab previews** (`LandingDashboardPreviews.tsx`), navbar/footer copy, **`login`** / **`signup`** layout (multi-step signup; SSO mailto fallbacks). No API contract changes for auth/signup payloads beyond folding optional company text into `address`.
 - **2026-04-23** — Redesigned unauthenticated **homepage** (`src/app/page.tsx`) for clearer hierarchy and CTAs; updated **`MarketingNavbar`** / **`LandingFooter`** and added Tailwind **`wm.*`** tokens (`tailwind.config.ts`). No change to auth redirect business logic.
 - **2026-04-23** — Merged `origin/main` into `cursor/e2e-listings-flow-0d63`: resolved `AI_AGENT_CONTEXT.md` (add/add) by keeping `main`’s cross-stack document and appending web idle-session + login behavior. Resolved `src/app/api/auth/login/route.ts` by combining **rate limiting** from `main` with **`ensureAppUserProfile`** + profile field sync + **`last_activity_at`** refresh from the feature branch.
