@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
-import { Button } from "@/components/Button";
+import { UserMenu } from "@/components/UserMenu";
 import { LocationProvider } from "@/components/LocationProvider";
 import { NotificationBell } from "@/components/NotificationBell";
 import { SessionActivity } from "@/components/SessionActivity";
@@ -20,27 +20,23 @@ const customerNav = [
   { href: "/customer", label: "Home" },
   { href: "/customer/listings", label: "Listings" },
   { href: "/customer/messages", label: "Messages" },
-  { href: "/profile", label: "Profile" },
 ];
 
 const buyerNav = [
   { href: "/buyer", label: "Browse" },
   { href: "/buyer/pickups", label: "Pickups" },
   { href: "/conversations", label: "Messages" },
-  { href: "/profile", label: "Profile" },
 ];
 
 const adminNav = [
   { href: "/admin", label: "Dashboard" },
   { href: "/admin/listings", label: "Listings" },
   { href: "/admin/users", label: "Users" },
-  { href: "/profile", label: "Profile" },
 ];
 
 const driverNav = [
   { href: "/driver", label: "Board" },
   { href: "/driver/jobs", label: "Jobs" },
-  { href: "/profile", label: "Profile" },
 ];
 
 const roleHomeHrefs = ["/buyer", "/driver", "/customer", "/admin"] as const;
@@ -85,8 +81,7 @@ export function AppShell({
       : role === "driver"
       ? driverNav
       : [];
-  const desktopNav = nav.filter((item) => item.href !== "/profile");
-  const profileLink = nav.find((item) => item.href === "/profile");
+  const desktopNav = nav;
   const homeHref =
     role === "buyer"
       ? "/buyer"
@@ -148,16 +143,6 @@ export function AppShell({
     };
   }, [role]);
 
-  const initials = useMemo(() => {
-    const source = profile?.name?.trim();
-    if (!source) return role.slice(0, 1).toUpperCase();
-    return source
-      .split(/\s+/)
-      .slice(0, 2)
-      .map((part) => part[0]?.toUpperCase() ?? "")
-      .join("");
-  }, [profile?.name, role]);
-
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
     router.push("/login");
@@ -167,15 +152,15 @@ export function AppShell({
   return (
     <LocationProvider>
       <SessionActivity />
-      <div className="flex min-h-dvh flex-col border-t-2 border-emerald-500/25 bg-gradient-to-b from-emerald-50/40 via-slate-50 to-slate-100">
-      <header className="sticky top-0 z-30 border-b border-emerald-100/80 bg-white/85 backdrop-blur-xl">
+      <div className="flex min-h-dvh flex-col border-t border-slate-200/70 bg-app-gradient">
+      <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
         <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 sm:px-6 md:px-8">
           <Link href={homeHref} className="flex min-w-0 items-center gap-3">
-            <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/95 text-sm font-bold text-white shadow-sm shadow-emerald-500/25">
+            <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-800 text-sm font-bold text-white shadow-sm shadow-slate-900/20">
               W
             </span>
             <div className="min-w-0">
-              <p className="truncate text-[11px] font-semibold uppercase tracking-[0.28em] text-emerald-800">
+              <p className="truncate text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-600">
                 Waste Marketplace
               </p>
               <p className="truncate text-sm font-semibold text-slate-900">
@@ -214,46 +199,7 @@ export function AppShell({
 
           <div className="ml-auto flex items-center gap-2">
             <NotificationBell role={role} />
-            {profileLink ? (
-              <Link
-                href={profileLink.href}
-                aria-current={pathname === profileLink.href ? "page" : undefined}
-                className={`hidden items-center gap-3 rounded-full border px-2.5 py-2 transition sm:flex ${
-                  pathname === profileLink.href
-                    ? "border-emerald-200 bg-emerald-50 text-emerald-950"
-                    : "border-slate-200 bg-white text-slate-700 hover:border-teal-200 hover:bg-teal-50/60"
-                }`}
-              >
-                {profile?.avatarUrl ? (
-                  <img
-                    src={profile.avatarUrl}
-                    alt={`${profile.name} avatar`}
-                    className="h-10 w-10 rounded-full object-cover ring-2 ring-white"
-                  />
-                ) : (
-                  <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 text-sm font-semibold text-white shadow-sm">
-                    {initials}
-                  </span>
-                )}
-                <span className="hidden min-w-0 text-left lg:block">
-                  <span className="block text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
-                    Profile
-                  </span>
-                  <span className="block max-w-[10rem] truncate text-sm font-semibold">
-                    {profile?.name ?? "My account"}
-                  </span>
-                </span>
-              </Link>
-            ) : null}
-
-            <Button
-              variant="ghost"
-              className="!min-h-10 rounded-full px-3 text-sm"
-              onClick={logout}
-              aria-label="Log out"
-            >
-              Log out
-            </Button>
+            <UserMenu profile={profile} onLogout={logout} />
           </div>
         </div>
       </header>

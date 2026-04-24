@@ -4,6 +4,8 @@ export function profileToClientDto(u: User) {
   return {
     id: u.id,
     name: u.name,
+    firstName: u.firstName ?? "",
+    lastName: u.lastName ?? "",
     email: u.email,
     phone: u.phone,
     address: u.address,

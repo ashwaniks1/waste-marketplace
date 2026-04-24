@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { ProfileForm } from "@/components/ProfileForm";
+import { NotificationSettingsPanel } from "@/components/settings/NotificationSettingsPanel";
+import { SettingsShell } from "@/components/settings/SettingsShell";
 
 const defaultRole: "customer" | "buyer" | "driver" | "admin" = "customer";
 
@@ -21,8 +23,11 @@ export default function ProfilePage() {
 
   return (
     <AppShell role={role} title="" showHeader={false}>
-      <div className="py-2">
-        <ProfileForm />
+      <div className="py-1 sm:py-2">
+        <SettingsShell
+          profilePanel={<ProfileForm />}
+          notificationsPanel={<NotificationSettingsPanel />}
+        />
       </div>
     </AppShell>
   );

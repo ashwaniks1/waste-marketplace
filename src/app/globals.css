@@ -3,10 +3,10 @@
 @tailwind utilities;
 
 :root {
-  --background: #f0fdf4;
+  --background: #f1f5f9;
   --foreground: #0f172a;
-  --eco-primary: #059669;
-  --eco-primary-dark: #047857;
+  --eco-primary: #0d9488;
+  --eco-primary-dark: #0f766e;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -20,6 +20,12 @@ body {
   color: var(--foreground);
   background: var(--background);
   min-height: 100dvh;
+}
+
+@layer utilities {
+  .bg-app-gradient {
+    background: linear-gradient(165deg, #e8edf3 0%, #f4f6f8 40%, #eef2f6 100%);
+  }
 }
 
 @layer utilities {
