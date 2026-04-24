@@ -1,33 +1,35 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/Button";
 import { HeroEcoBackground } from "@/components/HeroEcoBackground";
+import { MarketRegionToggle } from "@/components/MarketRegionToggle";
 import {
   detectMarketRegion,
   formatListingPrice,
   localityFilterLabel,
+  subscribeMarketRegion,
   type MarketRegion,
   weightUnitShort,
 } from "@/lib/marketRegion";
 
+/** Direct img URLs (avoid Next image optimizer / hotlink issues with Unsplash). */
 const HERO_SLIDES = [
   {
-    src: "https://images.unsplash.com/photo-1532996122724-eaa8d004a6ee?auto=format&fit=crop&w=1400&q=80",
+    src: "https://images.unsplash.com/photo-1532996122724-eaa8d004a6ee?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=85",
     alt: "Sorted recyclables and materials ready for resale",
   },
   {
-    src: "https://images.unsplash.com/photo-1581092160562-40aa8e3c57d6?auto=format&fit=crop&w=1400&q=80",
+    src: "https://images.unsplash.com/photo-1581092160562-40aa8e3c57d6?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=85",
     alt: "Industrial scrap and metal collection",
   },
   {
-    src: "https://images.unsplash.com/photo-1601584115197-04ecc0da31d7?auto=format&fit=crop&w=1400&q=80",
+    src: "https://images.unsplash.com/photo-1601584115197-04ecc0da31d7?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=85",
     alt: "Flatbed truck moving recovered materials",
   },
   {
-    src: "https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?auto=format&fit=crop&w=1400&q=80",
+    src: "https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=85",
     alt: "Hands sorting paper and cardboard for recycling",
   },
 ] as const;
@@ -35,22 +37,22 @@ const HERO_SLIDES = [
 const CATEGORY_MEDIA = [
   {
     title: "Plastic",
-    src: "https://images.unsplash.com/photo-1621451537084-482c4a6512b5?auto=format&fit=crop&w=800&q=80",
+    src: "https://images.unsplash.com/photo-1621451537084-482c4a6512b5?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=85",
     alt: "Baled plastic bottles",
   },
   {
     title: "Paper & cardboard",
-    src: "https://images.unsplash.com/photo-1503592146429-6c31f927b0c4?auto=format&fit=crop&w=800&q=80",
+    src: "https://images.unsplash.com/photo-1503592146429-6c31f927b0c4?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=85",
     alt: "Stacks of cardboard",
   },
   {
     title: "Metal",
-    src: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=800&q=80",
+    src: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=85",
     alt: "Scrap metal pile",
   },
   {
     title: "E-waste",
-    src: "https://images.unsplash.com/photo-1558346548-4438937b178f?auto=format&fit=crop&w=800&q=80",
+    src: "https://images.unsplash.com/photo-1558346548-4438937b178f?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=85",
     alt: "Old devices for recovery",
   },
 ] as const;
@@ -59,19 +61,19 @@ const HOW_STEPS = [
   {
     title: "List or browse",
     description: "Sellers post quantity and pickup window; buyers filter by material and distance.",
-    src: "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&w=900&q=80",
+    src: "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=85",
     alt: "Team reviewing listings on a laptop",
   },
   {
     title: "Offers & chat",
     description: "Compare offers, message in-app, and lock a price before anyone travels.",
-    src: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=900&q=80",
+    src: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=85",
     alt: "Two people coordinating a deal",
   },
   {
     title: "Pickup & proof",
     description: "Drivers claim routes, complete pickup, and everyone sees status through delivery.",
-    src: "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=900&q=80",
+    src: "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=85",
     alt: "Loading dock and logistics",
   },
 ] as const;
@@ -85,6 +87,7 @@ export function LandingExperience() {
 
   useEffect(() => {
     setRegion(detectMarketRegion());
+    return subscribeMarketRegion(setRegion);
   }, []);
 
   useEffect(() => {
@@ -105,9 +108,9 @@ export function LandingExperience() {
         <section className="relative mx-auto max-w-7xl px-4 pb-16 pt-12 sm:px-6 sm:pb-20 sm:pt-16 lg:px-8 lg:pt-24">
           <div className="flex flex-col gap-10 lg:grid lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:gap-14">
             <div className="max-w-2xl">
-              <p className="mb-4 inline-flex rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-sm font-semibold text-emerald-200">
-                {region === "IN" ? "India-ready marketplace" : "US-ready marketplace"}
-              </p>
+              <div className="mb-4">
+                <MarketRegionToggle variant="dark" label="Your region" />
+              </div>
               <h1 className="text-4xl font-semibold tracking-tight text-white sm:text-5xl lg:text-6xl">
                 Sell scrap and surplus, buy materials, book transport — locally.
               </h1>
@@ -135,13 +138,18 @@ export function LandingExperience() {
                   key={item.src}
                   className={`absolute inset-0 transition-opacity duration-700 ${i === slide ? "opacity-100" : "pointer-events-none opacity-0"}`}
                 >
-                  <Image
+                  {/* eslint-disable-next-line @next/next/no-img-element -- Unsplash: native img avoids optimizer/hotlink failures */}
+                  <img
                     src={item.src}
                     alt={item.alt}
-                    fill
-                    className="object-cover"
+                    className="absolute inset-0 h-full w-full object-cover"
+                    width={1920}
+                    height={1080}
                     sizes="(max-width: 1024px) 100vw, 45vw"
-                    priority={i === 0}
+                    loading={i === 0 ? "eager" : "lazy"}
+                    fetchPriority={i === 0 ? "high" : "low"}
+                    decoding="async"
+                    referrerPolicy="no-referrer"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/20 to-transparent" />
                 </div>
@@ -309,8 +317,16 @@ export function LandingExperience() {
               href="/signup"
               className="group overflow-hidden rounded-2xl border border-white/10 bg-slate-900/60 shadow-lg transition hover:border-emerald-500/40 hover:shadow-emerald-900/20"
             >
-              <div className="relative aspect-[4/3] w-full">
-                <Image src={c.src} alt={c.alt} fill className="object-cover transition duration-500 group-hover:scale-105" sizes="(max-width: 768px) 50vw, 25vw" />
+              <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-800">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={c.src}
+                  alt={c.alt}
+                  className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                  loading="lazy"
+                  decoding="async"
+                  referrerPolicy="no-referrer"
+                />
               </div>
               <p className="px-3 py-3 text-sm font-semibold text-white">{c.title}</p>
             </Link>
@@ -329,8 +345,16 @@ export function LandingExperience() {
         <div className="grid gap-8 lg:grid-cols-3">
           {HOW_STEPS.map((item) => (
             <div key={item.title} className="overflow-hidden rounded-3xl border border-white/10 bg-slate-900/80 shadow-lg">
-              <div className="relative aspect-[16/10] w-full">
-                <Image src={item.src} alt={item.alt} fill className="object-cover" sizes="(max-width: 1024px) 100vw, 33vw" />
+              <div className="relative aspect-[16/10] w-full overflow-hidden bg-slate-800">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={item.src}
+                  alt={item.alt}
+                  className="h-full w-full object-cover"
+                  loading="lazy"
+                  decoding="async"
+                  referrerPolicy="no-referrer"
+                />
               </div>
               <div className="p-6">
                 <p className="text-lg font-semibold text-white">{item.title}</p>

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { MarketRegionToggle } from "@/components/MarketRegionToggle";
 
 const navItems = [
   { href: "/#marketplace", label: "Marketplace" },
@@ -27,13 +28,16 @@ export function MarketingNavbar() {
           </div>
         </Link>
 
-        <nav className="hidden items-center gap-6 text-sm text-slate-200 lg:flex">
-          {navItems.map((item) => (
-            <a key={item.href} href={item.href} className="whitespace-nowrap transition hover:text-white">
-              {item.label}
-            </a>
-          ))}
-        </nav>
+        <div className="hidden items-center gap-4 lg:flex">
+          <nav className="flex items-center gap-6 text-sm text-slate-200">
+            {navItems.map((item) => (
+              <a key={item.href} href={item.href} className="whitespace-nowrap transition hover:text-white">
+                {item.label}
+              </a>
+            ))}
+          </nav>
+          <MarketRegionToggle variant="dark" label="Region" className="shrink-0" />
+        </div>
 
         <div className="hidden items-center gap-3 sm:flex">
           <Link
@@ -90,6 +94,9 @@ export function MarketingNavbar() {
             >
               Sign in
             </Link>
+            <div className="mt-4 border-t border-white/10 pt-4">
+              <MarketRegionToggle variant="dark" label="Region" />
+            </div>
           </div>
         </div>
       ) : null}

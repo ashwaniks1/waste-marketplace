@@ -139,6 +139,14 @@ export function LoginPageClient() {
 
         <div className="flex flex-col justify-center px-4 py-10 sm:px-8">
           <div className="mx-auto w-full max-w-md">
+            <div className="mb-4 flex justify-end lg:justify-start">
+              <Link
+                href="/"
+                className="text-sm font-semibold text-teal-700 transition hover:text-teal-900"
+              >
+                ← Home
+              </Link>
+            </div>
             <h2 className="text-center text-2xl font-bold text-slate-900 lg:text-left">Sign in</h2>
             <p className="mt-1 text-center text-sm text-slate-600 lg:text-left">Use Google or your email and password.</p>
 

@@ -1,7 +1,52 @@
 export type MarketRegion = "IN" | "US";
 
+const WM_REGION_KEY = "wm_market_region";
+
+const regionSubscribers = new Set<(r: MarketRegion) => void>();
+
+export function readStoredMarketRegion(): MarketRegion | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const v = window.localStorage.getItem(WM_REGION_KEY);
+    if (v === "IN" || v === "US") return v;
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+export function writeStoredMarketRegion(r: MarketRegion) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(WM_REGION_KEY, r);
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Persist region and notify all listeners (e.g. landing + navbar in sync). */
+export function setMarketRegionPreference(r: MarketRegion) {
+  writeStoredMarketRegion(r);
+  regionSubscribers.forEach((fn) => {
+    try {
+      fn(r);
+    } catch {
+      /* ignore */
+    }
+  });
+}
+
+export function subscribeMarketRegion(cb: (r: MarketRegion) => void) {
+  regionSubscribers.add(cb);
+  return () => {
+    regionSubscribers.delete(cb);
+  };
+}
+
 export function detectMarketRegion(): MarketRegion {
   if (typeof window === "undefined") return "US";
+  const stored = readStoredMarketRegion();
+  if (stored) return stored;
   const locale = (navigator.language || "").toLowerCase();
   if (locale.endsWith("-in") || locale === "hi" || locale.startsWith("hi-")) return "IN";
   try {

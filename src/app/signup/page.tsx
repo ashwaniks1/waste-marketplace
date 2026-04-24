@@ -212,6 +212,11 @@ export default function SignupPage() {
         <div className="mx-auto grid min-h-dvh max-w-6xl lg:grid-cols-2">
           <SignupBrandPanel />
           <div className="flex flex-col justify-center px-4 py-10 sm:px-8">
+            <div className="mx-auto mb-4 flex w-full max-w-md justify-end">
+              <Link href="/" className="text-sm font-semibold text-teal-700 transition hover:text-teal-900">
+                ← Home
+              </Link>
+            </div>
             <div className="mx-auto w-full max-w-md space-y-4 rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
               <h1 className="text-2xl font-bold text-slate-900">Check your email</h1>
               <p className="text-sm leading-6 text-slate-600">
@@ -246,6 +251,11 @@ export default function SignupPage() {
 
         <div className="flex flex-col justify-center px-4 py-10 sm:px-8">
           <div className="mx-auto w-full max-w-md">
+            <div className="mb-4 flex justify-end lg:justify-start">
+              <Link href="/" className="text-sm font-semibold text-teal-700 transition hover:text-teal-900">
+                ← Home
+              </Link>
+            </div>
             <h1 className="text-center text-2xl font-bold text-slate-900 lg:text-left">Create account</h1>
             <p className="mt-1 text-center text-sm text-slate-600 lg:text-left">
               Three quick steps. Business and tax fields on the last step are optional.

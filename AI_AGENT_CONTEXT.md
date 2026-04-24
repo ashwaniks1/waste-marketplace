@@ -346,7 +346,7 @@ General notes:
 
 | Route | Method | Purpose | Request shape | Response shape |
 | --- | --- | --- | --- | --- |
-| `/api/auth/signup` | `POST` | Create auth user + app profile | `{ firstName, lastName, email, password, confirmPassword, phone, address, role, vehicleType?, licenseNumber?, availability? }` | `{ id, email, role }` |
+| `/api/auth/signup` | `POST` | Create auth user + app profile | `{ firstName, lastName, email, password, confirmPassword, phone?, address?, role, marketRegion? ('IN' \| 'US'), vehicleType?, licenseNumber?, availability?, gstNumber?, ein? }` | `{ id, email, role }` |
 | `/api/auth/login` | `POST` | Password login and set Supabase SSR cookies | `{ email, password }` | `{ ok: true }` |
 | `/api/auth/logout` | `POST` | Sign out current session | none | `{ ok: true }` |
 | `/api/auth/resend-verification` | `POST` | Resend verification email | `{ email }` | `{ ok: true }` |
@@ -367,7 +367,7 @@ General notes:
 
 | Route | Method | Purpose | Request shape | Response shape |
 | --- | --- | --- | --- | --- |
-| `/api/listings` | `GET` | Role-scoped listings list; buyer supports `?scope=mine` | query `scope?` | `Listing[]` |
+| `/api/listings` | `GET` | Role-scoped listings list; **buyer** open feed supports `?wasteType=`, `?q=` (title/address), `?sort=` (`newest` \| `price_asc` \| `price_desc`); buyer `?scope=mine` for accepted listings | query `scope?`, `wasteType?`, `q?`, `sort?` | `Listing[]` |
 | `/api/listings` | `POST` | Create seller listing | `{ title, wasteType, quantity, description?, images[], address, askingPrice, currency?, deliveryAvailable?, deliveryFee?, latitude?, longitude?, deliveryRequired?, pickupZip?, commissionKind?, driverCommissionPercent?, driverPayoutFixed? }` | `Listing` |
 | `/api/listings/:id` | `GET` | Read single listing if viewer can access it | none | `Listing` plus accepted-offer info and optional `handoffPin` |
 | `/api/listings/:id` | `PATCH` | Edit listing | partial listing fields | updated `Listing` |
@@ -391,6 +391,7 @@ General notes:
 | `/api/listings/:id/comments` | `POST` | Seller comment or buyer comment on open listing | `{ body }` | `Comment` |
 | `/api/listings/:id/conversations` | `GET` | Seller/admin fetches threads; buyer fetches own | none | `Conversation[]` |
 | `/api/listings/:id/conversations` | `POST` | Buyer opens or reuses private thread | none | `Conversation` |
+| `/api/conversations` | `GET` | List conversations where user is buyer or listing seller; buyers and customers only (others get `[]`) | none | `Conversation[]` (includes listing, buyer, latest message) |
 | `/api/conversations/:id` | `GET` | Conversation metadata | none | `Conversation` |
 | `/api/conversations/:id/messages` | `GET` | Fetch chat history | none | `Message[]` |
 | `/api/conversations/:id/messages` | `POST` | Send chat message | `{ body }` | `Message` |
@@ -720,6 +721,8 @@ maestro test maestro/smoke.yaml
   - `src/lib/validation.ts`
   - `src/lib/listing-visibility.ts`
   - `src/lib/commission.ts`
+  - `src/lib/marketRegion.ts` (US/IN marketing + client defaults)
+  - `src/components/marketing/LandingExperience.tsx` (unauthenticated home content)
   - `src/proxy.ts`
 - For mobile context, inspect:
   - `../waste-marketplace-ios/README.md`
@@ -749,12 +752,14 @@ Safest extension strategy:
 
 ## Web: public marketing landing (unauthenticated)
 
-- **`src/app/page.tsx`** — If the visitor has no Supabase session (or no resolvable profile role), renders the **marketing landing**: enterprise hero, **Sell / Buy** anchor strips (`#sell`, `#buy`), **How it works**, embedded **Marketplace** (`LandingMarketplaceSection` — search, filters, category tabs; client-only mock rows), **Why choose us**, **Control tower previews** (`LandingDashboardPreviews` — Seller / Buyer / Driver tabs with representative UI; not live data), final CTA. **Auth redirect logic is unchanged** for logged-in users (same `redirect()` paths as before).
-- **`src/components/MarketingNavbar.tsx`** — Logo left; center nav: `#marketplace`, `#sell`, `#buy`, `#logistics`, `#how-it-works`; right: Login, Create account.
-- **`src/components/LandingFooter.tsx`** — Enterprise copy; links to login, signup, `#marketplace`, `#how-it-works`.
-- **`src/app/login/page.tsx`** — Two-column layout (desktop): left rail headline + illustration; right: role selector (UI only; routing unchanged), optional SSO links to Supabase OAuth (`google`, `azure`) when `NEXT_PUBLIC_SUPABASE_URL` is set, email/password form (same `/api/auth/login` + `/api/users/me` flow), forgot password + enterprise request `mailto:` links, `Suspense` for `useSearchParams`.
-- **`src/app/signup/page.tsx`** — Multi-step UI (role → company → user/credentials → capabilities); still submits the same **`signupFormSchema`** payload to **`POST /api/auth/signup`** (company + capability flags folded into `address` string within 500 chars). `Suspense` for `?role=` preselect from query.
-- **Design tokens** — Tailwind `theme.extend.colors.wm`: `primary` `#0E7C66`, `secondary` `#0A2540`, `surface` `#F8FAFC`, `card` `#FFFFFF`, `border` `#E2E8F0`, `cta` `#22C55E` (see `tailwind.config.ts`). CTA buttons on the landing use **`#22C55E`** for conversion emphasis.
+- **`src/app/page.tsx`** — If the visitor has no Supabase session (or no resolvable profile role), the shell is **`MarketingNavbar` → `LandingExperience` → `LandingFooter`**. Logged-in visitors still `redirect()` to the role home (`/buyer`, `/customer`, `/driver`, `/admin`) as in code. The homepage does **not** mount `src/components/landing/LandingMarketplaceSection.tsx` (that file exists in the repo but is unused from this route at present).
+- **`src/components/marketing/LandingExperience.tsx`** — Client marketing page: hero (slideshow and supporting imagery via **native `<img>`** + Unsplash URLs, `referrerPolicy="no-referrer"`), **material / category** content, how-it-works, features, testimonials, and **`#dashboard-preview`**. Example prices and “similar listing” copy follow **`marketRegion` (`IN` \| `US`)**; users switch regions with **`MarketRegionToggle`**. (There is no separate “US-ready marketplace” / “India-ready” pill above the hero; region is explicit via the toggle.)
+- **`src/lib/marketRegion.ts` + `MarketRegionToggle`** — `localStorage` key **`wm_market_region`**, `readStoredMarketRegion` / `setMarketRegionPreference` / `subscribeMarketRegion`, and **`detectMarketRegion()`** (stored value, else India timezones, else `navigator.language` / `Intl` locale for a US/IN guess). The toggle is in the hero and in **`MarketingNavbar`** (desktop and mobile). Signup, driver copy, and similar surfaces may read the same helper; `users.country_code` from the profile is the server-side complement for logged-in users.
+- **`src/components/MarketingNavbar.tsx`** — Sticky header: `/#marketplace`, `/#sell-waste`, `/#buy-materials`, `/#transport`, `/#how-it-works`; **Login** / **Create account**; **region toggle** beside auth on desktop, same in the mobile menu.
+- **`src/components/LandingFooter.tsx`** — Links to login, signup, `#marketplace`, `#how-it-works` (and related anchors as implemented).
+- **`src/app/login/page.tsx` + `LoginPageClient.tsx`** — `Suspense` border for `useSearchParams` (e.g. OAuth error query). Two-column layout: left gradient + **`AIAuthIllustration`**, right column **“← Home”** to `/`, Google OAuth when configured, email/password, **POST `/api/auth/login`** then **`/api/users/me`** for role-based redirect.
+- **`src/app/signup/page.tsx`** — Client-only multi-step signup (`Role` → `Account` → `Optional` profile) posting to **`POST /api/auth/signup`** (Zod `signupFormSchema`); **“← Home”** on the main flow and on post-submit email verification. **Step 3** uses **`detectMarketRegion()`** for the default `marketRegion`; payload includes **tax IDs** when required for the region/role. No `Suspense` wrapper (the page is `"use client"` end-to-end).
+- **Design tokens** — Tailwind `theme.extend.colors.wm`: `primary` `#0E7C66`, `secondary` `#0A2540`, `surface` `#F8FAFC`, `card` `#FFFFFF`, `border` `#E2E8F0`, `cta` `#22C55E` (see `tailwind.config.ts`). Marketing CTAs use the **`wm` / emerald** stack consistent with the signed-in app shell.
 
 ---
 
@@ -784,6 +789,7 @@ These details apply to the **Next.js web app** in this repository and extend the
 
 ## Last Updated
 
+- **2026-04-23** — **Unauthenticated home** is **`LandingExperience`** + **US/India** `marketRegion` (`wm_market_region`, `src/lib/marketRegion.ts`, `MarketRegionToggle` in hero and navbar), hero/category/how-it-works images via **`<img>`** + Unsplash. **`MarketingNavbar`** anchors: `/#marketplace`, `/#sell-waste`, `/#buy-materials`, `/#transport`, `/#how-it-works`. **Login / signup** include **Home → `/`**. **API table** updated: **`GET /api/conversations`**, buyer **`GET /api/listings`** query params, **`POST /api/auth/signup`** body (`marketRegion`, `gstNumber` / `ein`, etc.). Doc previously described **`LandingMarketplaceSection`** on `/`; that does not match the current `page.tsx` (the component file may still exist under `src/components/landing/`).
 - **2026-04-23** — Enterprise **landing** refresh: single **Marketplace** section with tabs/filters (`src/components/landing/LandingMarketplaceSection.tsx`), **dashboard tab previews** (`LandingDashboardPreviews.tsx`), navbar/footer copy, **`login`** / **`signup`** layout (multi-step signup; SSO mailto fallbacks). No API contract changes for auth/signup payloads beyond folding optional company text into `address`.
 - **2026-04-23** — Redesigned unauthenticated **homepage** (`src/app/page.tsx`) for clearer hierarchy and CTAs; updated **`MarketingNavbar`** / **`LandingFooter`** and added Tailwind **`wm.*`** tokens (`tailwind.config.ts`). No change to auth redirect business logic.
 - **2026-04-23** — Merged `origin/main` into `cursor/e2e-listings-flow-0d63`: resolved `AI_AGENT_CONTEXT.md` (add/add) by keeping `main`’s cross-stack document and appending web idle-session + login behavior. Resolved `src/app/api/auth/login/route.ts` by combining **rate limiting** from `main` with **`ensureAppUserProfile`** + profile field sync + **`last_activity_at`** refresh from the feature branch.
