@@ -133,7 +133,7 @@ export function AppShell({
                 WasteMarket
               </p>
               <p className="truncate text-sm font-semibold text-slate-900">
-                {role === "admin" ? "Operations hub" : role === "buyer" ? "Buyer workspace" : role === "driver" ? "Driver board" : "Seller workspace"}
+                {role === "admin" ? "Admin" : role === "buyer" ? "Buyer" : role === "driver" ? "Driver" : "Seller"}
               </p>
             </div>
           </Link>

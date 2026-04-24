@@ -1,6 +1,7 @@
 import { Prisma, type User, type UserRole } from "@prisma/client";
 import type { User as SupabaseAuthUser } from "@supabase/supabase-js";
 import { getRoleFromSupabaseUser } from "@/lib/auth";
+import { currencyForCountry, normalizeCountryCode } from "@/lib/currency";
 import { HttpError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
 import { namesFromAuthMetadata } from "@/lib/userProfileFromAuth";
@@ -22,7 +23,16 @@ export async function ensureAppUserProfile(authUser: SupabaseAuthUser): Promise<
   const nameFromMeta = typeof meta.name === "string" ? meta.name : "";
   const emailLocal = email.split("@")[0] ?? "Member";
   const { firstName, lastName, displayName } = namesFromAuthMetadata(meta, nameFromMeta, emailLocal);
-  const role = (getRoleFromSupabaseUser(authUser) ?? "buyer") as UserRole;
+  const role = (getRoleFromSupabaseUser(authUser) ?? "customer") as UserRole;
+
+  const metaCountryRaw =
+    typeof meta.country_code === "string"
+      ? meta.country_code
+      : typeof meta.country === "string"
+        ? meta.country
+        : "";
+  const metaCountry = normalizeCountryCode(metaCountryRaw);
+  const currency = metaCountry ? currencyForCountry(metaCountry) : "USD";
 
   try {
     const user = await prisma.user.create({
@@ -33,7 +43,10 @@ export async function ensureAppUserProfile(authUser: SupabaseAuthUser): Promise<
         firstName,
         lastName,
         role,
-        currency: "USD",
+        phone: typeof meta.phone === "string" ? meta.phone.trim() || null : null,
+        address: typeof meta.address === "string" ? meta.address.trim() || null : null,
+        currency,
+        ...(metaCountry ? { countryCode: metaCountry } : {}),
       },
     });
     return { user, created: true };

@@ -19,15 +19,29 @@ export const personNameSchema = z
   .regex(/^[\p{L}\s'.-]+$/u, "Use letters, spaces, apostrophes, periods, or hyphens only")
   .refine((s) => /\p{L}/u.test(s), { message: "Include at least one letter" });
 
-const phoneDigits = z.string().trim().refine(
-  (v) => v.replace(/\D/g, "").length >= 10,
-  "Phone must include at least 10 digits",
-);
-
 export const loginFormSchema = z.object({
   email: emailSchema,
   password: z.string().min(1, "Password is required"),
 });
+
+/** Step 2 of signup — identity + password only. */
+export const signupAccountBasicsSchema = z
+  .object({
+    firstName: personNameSchema,
+    lastName: personNameSchema,
+    email: emailSchema,
+    password: passwordSchema,
+    confirmPassword: z.string().min(1, "Confirm your password"),
+  })
+  .superRefine((data, ctx) => {
+    if (data.password !== data.confirmPassword) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["confirmPassword"],
+        message: "Passwords do not match",
+      });
+    }
+  });
 
 export const signupFormSchema = z
   .object({
@@ -36,12 +50,16 @@ export const signupFormSchema = z
     email: emailSchema,
     password: passwordSchema,
     confirmPassword: z.string().min(1, "Confirm your password"),
-    phone: phoneDigits,
-    address: z.string().trim().min(1, "Address is required").max(500),
+    /** Optional at signup — can be added later in profile. */
+    phone: z.string().trim().max(40).optional(),
+    address: z.string().trim().max(500).optional(),
     role: z.enum(["customer", "buyer", "driver"]),
     vehicleType: z.string().optional(),
     licenseNumber: z.string().optional(),
     availability: z.string().optional(),
+    gstNumber: z.string().trim().max(32).optional(),
+    ein: z.string().trim().max(20).optional(),
+    marketRegion: z.enum(["IN", "US"]).default("US"),
   })
   .superRefine((data, ctx) => {
     if (data.password !== data.confirmPassword) {
@@ -49,6 +67,14 @@ export const signupFormSchema = z
         code: z.ZodIssueCode.custom,
         path: ["confirmPassword"],
         message: "Passwords do not match",
+      });
+    }
+    const phoneDigits = (data.phone ?? "").replace(/\D/g, "");
+    if (data.phone && data.phone.trim().length > 0 && phoneDigits.length < 10) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["phone"],
+        message: "Phone must include at least 10 digits",
       });
     }
     if (data.role !== "driver") return;

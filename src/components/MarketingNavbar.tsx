@@ -1,55 +1,98 @@
-import Link from "next/link";
+"use client";
 
-const nav = [
-  { href: "#marketplace", label: "Marketplace" },
-  { href: "#sell", label: "Sell Waste" },
-  { href: "#buy", label: "Buy Materials" },
-  { href: "#logistics", label: "Logistics" },
-  { href: "#how-it-works", label: "How it works" },
-] as const;
+import Link from "next/link";
+import { useState } from "react";
+
+const navItems = [
+  { href: "/", label: "Marketplace" },
+  { href: "/#sell-waste", label: "Sell waste" },
+  { href: "/#buy-materials", label: "Buy materials" },
+  { href: "/#transport", label: "Transport" },
+  { href: "/#how-it-works", label: "How it works" },
+];
 
 export function MarketingNavbar() {
-  return (
-    <header className="sticky top-0 z-40 border-b border-wm-border bg-wm-card/95 backdrop-blur-md">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6">
-        <div className="flex flex-wrap items-center justify-between gap-3 py-3 sm:py-4">
-          <Link href="/" className="flex shrink-0 items-center gap-3 text-wm-secondary">
-            <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-wm-primary text-lg font-bold text-white shadow-sm">
-              W
-            </span>
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold tracking-wide text-wm-primary">Waste Marketplace</p>
-              <p className="truncate text-xs text-gray-600">Industrial materials exchange</p>
-            </div>
-          </Link>
+  const [open, setOpen] = useState(false);
 
-          <nav
-            className="order-3 flex w-full basis-full flex-wrap items-center justify-center gap-x-4 gap-y-2 text-sm font-medium text-gray-600 md:order-2 md:flex-1 md:basis-auto md:gap-x-6"
-            aria-label="Primary"
+  return (
+    <header className="sticky top-0 z-40 border-b border-white/80 bg-slate-950/95 backdrop-blur-xl">
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
+        <Link href="/" className="flex min-w-0 items-center gap-3 text-white" onClick={() => setOpen(false)}>
+          <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/90 text-lg font-bold shadow-lg shadow-emerald-500/20">
+            W
+          </span>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold tracking-[0.18em] text-emerald-200">Waste Marketplace</p>
+            <p className="truncate text-xs text-slate-300">Recycle, resell, reuse</p>
+          </div>
+        </Link>
+
+        <nav className="hidden items-center gap-6 text-sm text-slate-200 lg:flex">
+          {navItems.map((item) => (
+            <a key={item.href} href={item.href} className="whitespace-nowrap transition hover:text-white">
+              {item.label}
+            </a>
+          ))}
+        </nav>
+
+        <div className="hidden items-center gap-3 sm:flex">
+          <Link
+            href="/login"
+            className="rounded-full border border-white/10 bg-white/10 px-4 py-2 text-sm text-slate-100 transition hover:bg-white/15"
           >
-            {nav.map((item) => (
-              <a key={item.href} href={item.href} className="whitespace-nowrap transition hover:text-wm-secondary">
+            Sign in
+          </Link>
+          <Link
+            href="/signup"
+            className="rounded-full bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-emerald-500/20 transition hover:bg-emerald-400"
+          >
+            Create account
+          </Link>
+        </div>
+
+        <div className="flex items-center gap-2 sm:hidden">
+          <Link
+            href="/signup"
+            className="rounded-full bg-emerald-500 px-3 py-2 text-xs font-semibold text-white shadow-md shadow-emerald-500/30"
+          >
+            Join
+          </Link>
+          <button
+            type="button"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 text-white"
+            aria-expanded={open}
+            aria-controls="mobile-nav"
+            onClick={() => setOpen((v) => !v)}
+          >
+            <span className="sr-only">Menu</span>
+            <span className="text-lg leading-none">{open ? "×" : "≡"}</span>
+          </button>
+        </div>
+      </div>
+
+      {open ? (
+        <div id="mobile-nav" className="border-t border-white/10 px-4 py-4 lg:hidden">
+          <div className="flex flex-col gap-1">
+            {navItems.map((item) => (
+              <a
+                key={item.href}
+                href={item.href}
+                className="rounded-xl px-3 py-2.5 text-sm text-slate-100 hover:bg-white/10"
+                onClick={() => setOpen(false)}
+              >
                 {item.label}
               </a>
             ))}
-          </nav>
-
-          <div className="order-2 flex shrink-0 items-center gap-2 sm:gap-3 md:order-3">
             <Link
               href="/login"
-              className="rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-wm-secondary transition hover:bg-gray-50"
+              className="mt-2 rounded-xl border border-white/15 px-3 py-2.5 text-center text-sm text-slate-100"
+              onClick={() => setOpen(false)}
             >
-              Login
-            </Link>
-            <Link
-              href="/signup"
-              className="rounded-xl bg-[#22C55E] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-95"
-            >
-              Create account
+              Sign in
             </Link>
           </div>
         </div>
-      </div>
+      ) : null}
     </header>
   );
 }

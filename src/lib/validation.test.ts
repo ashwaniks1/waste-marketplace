@@ -4,6 +4,7 @@ import {
   loginFormSchema,
   mapCoordinatesSchema,
   passwordSchema,
+  signupAccountBasicsSchema,
   signupFormSchema,
 } from "./validation";
 
@@ -32,8 +33,33 @@ describe("loginFormSchema", () => {
   });
 });
 
+describe("signupAccountBasicsSchema", () => {
+  it("accepts matching passwords", () => {
+    const r = signupAccountBasicsSchema.safeParse({
+      firstName: "Jane",
+      lastName: "Doe",
+      email: "jane@example.com",
+      password: "Secure1A",
+      confirmPassword: "Secure1A",
+    });
+    expect(r.success).toBe(true);
+  });
+});
+
 describe("signupFormSchema", () => {
-  it("accepts buyer without driver fields", () => {
+  it("accepts buyer without phone or address", () => {
+    const r = signupFormSchema.safeParse({
+      firstName: "Jane",
+      lastName: "Doe",
+      email: "jane@example.com",
+      password: "Secure1A",
+      confirmPassword: "Secure1A",
+      role: "buyer",
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it("accepts buyer with phone and address", () => {
     const r = signupFormSchema.safeParse({
       firstName: "Jane",
       lastName: "Doe",
@@ -47,6 +73,19 @@ describe("signupFormSchema", () => {
     expect(r.success).toBe(true);
   });
 
+  it("rejects phone that is too short when provided", () => {
+    const r = signupFormSchema.safeParse({
+      firstName: "Jane",
+      lastName: "Doe",
+      email: "jane@example.com",
+      password: "Secure1A",
+      confirmPassword: "Secure1A",
+      phone: "123",
+      role: "buyer",
+    });
+    expect(r.success).toBe(false);
+  });
+
   it("rejects mismatched confirm password", () => {
     const r = signupFormSchema.safeParse({
       firstName: "Jane",
@@ -54,11 +93,24 @@ describe("signupFormSchema", () => {
       email: "jane@example.com",
       password: "Secure1A",
       confirmPassword: "Other1A",
-      phone: "5551234567",
-      address: "123 Main St",
       role: "buyer",
     });
     expect(r.success).toBe(false);
+  });
+
+  it("accepts driver with vehicle details and no phone", () => {
+    const r = signupFormSchema.safeParse({
+      firstName: "Jane",
+      lastName: "Doe",
+      email: "jane@example.com",
+      password: "Secure1A",
+      confirmPassword: "Secure1A",
+      role: "driver",
+      vehicleType: "Cargo van",
+      licenseNumber: "D1234567",
+      availability: "Weekdays",
+    });
+    expect(r.success).toBe(true);
   });
 
   it("rejects driver missing vehicle details", () => {
@@ -68,8 +120,6 @@ describe("signupFormSchema", () => {
       email: "jane@example.com",
       password: "Secure1A",
       confirmPassword: "Secure1A",
-      phone: "5551234567",
-      address: "123 Main St",
       role: "driver",
       vehicleType: "",
       licenseNumber: "",

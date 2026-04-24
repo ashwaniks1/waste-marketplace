@@ -2,6 +2,7 @@ import { Prisma, UserRole } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { handleRouteError, jsonError, jsonOk } from "@/lib/http";
 import { rateLimitCombinedResponse } from "@/lib/rateLimitHttp";
+import { currencyForCountry } from "@/lib/currency";
 import { signupFormSchema } from "@/lib/validation";
 import { createServiceSupabase } from "@/lib/supabase/service";
 
@@ -25,6 +26,10 @@ export async function POST(request: Request) {
     const emailConfirm = !requireEmailVerification;
 
     const displayName = `${body.firstName.trim()} ${body.lastName.trim()}`.trim();
+    const countryCode = body.marketRegion === "IN" ? "IN" : "US";
+    const currency = currencyForCountry(countryCode);
+    const phoneTrim = body.phone?.trim() ?? "";
+    const addressTrim = body.address?.trim() ?? "";
 
     const { data, error } = await service.auth.admin.createUser({
       email: body.email.trim(),
@@ -34,7 +39,11 @@ export async function POST(request: Request) {
         first_name: body.firstName.trim(),
         last_name: body.lastName.trim(),
         name: displayName,
-        phone: body.phone,
+        phone: phoneTrim || undefined,
+        address: addressTrim || undefined,
+        country_code: countryCode,
+        gst_number: body.gstNumber?.trim() || undefined,
+        ein: body.ein?.trim() || undefined,
         vehicleType: body.vehicleType,
         licenseNumber: body.licenseNumber,
         availability: body.availability,
@@ -60,9 +69,11 @@ export async function POST(request: Request) {
           name: displayName,
           firstName: body.firstName.trim(),
           lastName: body.lastName.trim(),
-          phone: body.phone.trim() || null,
+          phone: phoneTrim || null,
           role: finalRole,
-          address: body.address.trim() || null,
+          address: addressTrim || null,
+          countryCode,
+          currency,
           vehicleType: body.vehicleType?.trim() || null,
           licenseNumber: body.licenseNumber?.trim() || null,
           availability: body.availability?.trim() || null,
@@ -72,9 +83,11 @@ export async function POST(request: Request) {
           name: displayName,
           firstName: body.firstName.trim(),
           lastName: body.lastName.trim(),
-          phone: body.phone.trim() || null,
+          phone: phoneTrim || null,
           role: finalRole,
-          address: body.address.trim() || null,
+          address: addressTrim || null,
+          countryCode,
+          currency,
           vehicleType: body.vehicleType?.trim() || null,
           licenseNumber: body.licenseNumber?.trim() || null,
           availability: body.availability?.trim() || null,
