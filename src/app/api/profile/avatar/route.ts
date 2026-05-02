@@ -1,10 +1,10 @@
 import { requireAppUser } from "@/lib/auth";
 import { handleRouteError, jsonError, jsonOk } from "@/lib/http";
+import { detectSafeImage } from "@/lib/imageUpload";
 import { createServiceSupabase } from "@/lib/supabase/service";
 
 const MAX_BYTES = 3 * 1024 * 1024;
 const BUCKET = "avatars";
-const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 export async function POST(request: Request) {
   try {
@@ -14,17 +14,16 @@ export async function POST(request: Request) {
 
     if (!file || !(file instanceof File)) return jsonError("Missing file", 400);
     if (file.size > MAX_BYTES) return jsonError("Image must be 3 MB or smaller.", 400);
-    if (file.type && !allowedTypes.has(file.type)) {
-      return jsonError("Please upload a JPG, PNG, or WEBP image.", 400);
-    }
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    const extension = file.name.split(".").pop()?.toLowerCase() || "png";
-    const path = `avatars/${me.id}-${Date.now()}.${extension}`;
+    const image = detectSafeImage(buffer);
+    if (!image) return jsonError("Please upload a JPG, PNG, or WEBP image.", 400);
+
+    const path = `avatars/${me.id}-${Date.now()}.${image.extension}`;
     const service = createServiceSupabase();
 
     const { error } = await service.storage.from(BUCKET).upload(path, buffer, {
-      contentType: file.type || "application/octet-stream",
+      contentType: image.contentType,
       upsert: true,
     });
 

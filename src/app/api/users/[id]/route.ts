@@ -116,7 +116,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
           avatarUrl: user.avatarUrl,
           email: null,
           phone: null,
-          address: user.address,
+          address: null,
         };
 
     return jsonOk({

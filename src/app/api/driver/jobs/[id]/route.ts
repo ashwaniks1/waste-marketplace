@@ -9,6 +9,7 @@ import { prisma } from "@/lib/prisma";
 const patchSchema = z.object({
   status: z.nativeEnum(TransportStatus).optional(),
   notes: z.string().optional(),
+  pin: z.string().trim().optional(),
 });
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -22,6 +23,8 @@ async function requireDriverJob(id: string, me: { id: string; role: UserRole }) 
           id: true,
           status: true,
           userId: true,
+          acceptedById: true,
+          deliveryRequired: true,
         },
       },
     },
@@ -78,6 +81,98 @@ export async function PATCH(request: Request, ctx: Ctx) {
     const job = await requireDriverJob(id, me);
     if (!job) return jsonError("Not found", 404);
 
+    if (parsed.status === TransportStatus.completed) {
+      if (job.status !== TransportStatus.in_transit) {
+        return jsonError("Job must be in transit before completion", 409);
+      }
+      const pin = parsed.pin?.trim();
+      if (job.listing.deliveryRequired && !pin) {
+        return jsonError("Buyer handoff PIN is required to complete this delivery", 400);
+      }
+
+      const result = await prisma.$transaction(async (tx) => {
+        const secret = await tx.deliveryHandoffSecret.findUnique({
+          where: { listingId: job.listing.id },
+        });
+        if (job.listing.deliveryRequired && (!secret || secret.consumedAt != null || secret.pin !== pin)) {
+          return { error: "bad_pin" as const };
+        }
+
+        const updatedJob = await tx.transportJob.update({
+          where: { id },
+          data: {
+            status: TransportStatus.completed,
+            completedAt: new Date(),
+            ...(parsed.notes !== undefined ? { notes: parsed.notes.trim() || null } : {}),
+          },
+          include: {
+            listing: {
+              select: {
+                id: true,
+                wasteType: true,
+                quantity: true,
+                address: true,
+                askingPrice: true,
+                currency: true,
+                status: true,
+                seller: { select: { id: true, name: true, phone: true } },
+                acceptor: { select: { id: true, name: true, email: true } },
+              },
+            },
+          },
+        });
+
+        await tx.deliveryHandoffSecret.updateMany({
+          where: { listingId: job.listing.id, consumedAt: null },
+          data: { consumedAt: new Date() },
+        });
+
+        const listingRow = await tx.wasteListing.update({
+          where: { id: job.listing.id },
+          data: {
+            status: ListingStatus.completed,
+            pickupJobStatus: PickupJobStatus.completed,
+            deliveryPrivacyLocked: true,
+          },
+          select: { id: true, userId: true, acceptedById: true },
+        });
+
+        return { updatedJob, listingRow };
+      });
+
+      if ("error" in result) {
+        return jsonError("Invalid or expired buyer handoff PIN", 403);
+      }
+
+      const notifs: { userId: string; type: string; title: string; body?: string; listingId?: string }[] = [
+        {
+          userId: result.listingRow.userId,
+          type: "pickup_completed",
+          title: "Pickup completed",
+          body: "The driver completed delivery with the buyer handoff PIN.",
+          listingId: result.listingRow.id,
+        },
+      ];
+      if (result.listingRow.acceptedById) {
+        notifs.push({
+          userId: result.listingRow.acceptedById,
+          type: "pickup_completed",
+          title: "Pickup completed",
+          body: "Your order pickup was completed by the driver.",
+          listingId: result.listingRow.id,
+        });
+      }
+      await notifyUsers(notifs);
+
+      return jsonOk({
+        ...result.updatedJob,
+        listing: {
+          ...result.updatedJob.listing,
+          askingPrice: result.updatedJob.listing.askingPrice?.toString(),
+        },
+      });
+    }
+
     const updateData: { status?: TransportStatus; notes?: string | null } = {};
     if (parsed.status !== undefined) updateData.status = parsed.status;
     if (parsed.notes !== undefined) updateData.notes = parsed.notes.trim() || null;
@@ -101,36 +196,6 @@ export async function PATCH(request: Request, ctx: Ctx) {
         },
       },
     });
-
-    if (parsed.status === TransportStatus.completed && job.listing.status === ListingStatus.accepted) {
-      const listingRow = await prisma.wasteListing.update({
-        where: { id: job.listing.id },
-        data: {
-          status: ListingStatus.completed,
-          pickupJobStatus: PickupJobStatus.completed,
-        },
-        select: { id: true, userId: true, acceptedById: true },
-      });
-      const notifs: { userId: string; type: string; title: string; body?: string; listingId?: string }[] = [
-        {
-          userId: listingRow.userId,
-          type: "pickup_completed",
-          title: "Pickup completed",
-          body: "The driver marked your delivery as completed.",
-          listingId: listingRow.id,
-        },
-      ];
-      if (listingRow.acceptedById) {
-        notifs.push({
-          userId: listingRow.acceptedById,
-          type: "pickup_completed",
-          title: "Pickup completed",
-          body: "Your order pickup was completed by the driver.",
-          listingId: listingRow.id,
-        });
-      }
-      await notifyUsers(notifs);
-    }
 
     return jsonOk({
       ...updatedJob,

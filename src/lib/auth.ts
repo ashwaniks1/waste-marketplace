@@ -51,7 +51,14 @@ export async function getSupabaseUserFromRoute(request: Request): Promise<Supaba
 }
 
 export async function getAppUserForAuthUser(authUser: SupabaseUser): Promise<AppUser | null> {
-  return prisma.user.findUnique({ where: { id: authUser.id } });
+  const user = await prisma.user.findUnique({ where: { id: authUser.id } });
+  return user ? withEffectiveAuthRole(user, authUser) : null;
+}
+
+export function withEffectiveAuthRole(appUser: AppUser, authUser: SupabaseUser): AppUser {
+  const metadataRole = getRoleFromSupabaseUser(authUser);
+  if (!metadataRole || appUser.role === metadataRole) return appUser;
+  return { ...appUser, role: metadataRole };
 }
 
 /** Full app profile from Prisma (source of truth for listings joins). */
@@ -135,7 +142,8 @@ export async function requireAppUser(options: RequireAppUserOptions = {}): Promi
     });
   }
 
-  return prisma.user.findUniqueOrThrow({ where: { id: u.id } });
+  const fresh = await prisma.user.findUniqueOrThrow({ where: { id: u.id } });
+  return withEffectiveAuthRole(fresh, authUser);
 }
 
 export async function getSessionStateForUser(user: { lastActivityAt: Date | null }) {

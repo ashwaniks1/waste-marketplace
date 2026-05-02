@@ -33,6 +33,7 @@ export function DriverMyJobsContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [pins, setPins] = useState<Record<string, string>>({});
 
   const loadJobs = useCallback(async () => {
     const res = await fetch("/api/driver/jobs", { cache: "no-store" });
@@ -60,10 +61,11 @@ export function DriverMyJobsContent() {
     setBusyId(jobId);
     setError(null);
     try {
+      const pin = status === "completed" ? pins[jobId]?.trim() : undefined;
       const res = await fetch(`/api/driver/jobs/${jobId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ status, ...(pin ? { pin } : {}) }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -144,13 +146,28 @@ export function DriverMyJobsContent() {
                     </Button>
                   ) : null}
                   {job.status === "in_transit" ? (
-                    <Button
-                      type="button"
-                      onClick={() => updateJobStatus(job.id, "completed")}
-                      disabled={busyId === job.id}
-                    >
-                      Mark complete
-                    </Button>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <input
+                        value={pins[job.id] ?? ""}
+                        onChange={(event) =>
+                          setPins((current) => ({
+                            ...current,
+                            [job.id]: event.target.value.replace(/\D/g, "").slice(0, 6),
+                          }))
+                        }
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
+                        placeholder="Buyer PIN"
+                        className="h-10 w-32 rounded-xl border border-slate-300 px-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                      />
+                      <Button
+                        type="button"
+                        onClick={() => updateJobStatus(job.id, "completed")}
+                        disabled={busyId === job.id || (pins[job.id]?.trim().length ?? 0) < 6}
+                      >
+                        Mark complete
+                      </Button>
+                    </div>
                   ) : null}
                   {job.status !== "completed" ? (
                     <Button

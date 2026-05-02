@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { requireAppUser } from "@/lib/auth";
 import { handleRouteError, jsonError, jsonOk } from "@/lib/http";
+import { rateLimitCombinedResponse } from "@/lib/rateLimitHttp";
 
 const bodySchema = z.object({
   latitude: z.number().min(-90).max(90),
@@ -12,7 +13,10 @@ const bodySchema = z.object({
  */
 export async function POST(request: Request) {
   try {
-    await requireAppUser();
+    const me = await requireAppUser();
+    const limited = rateLimitCombinedResponse(request, "maps-reverse-geocode", 20, 60_000, me.id);
+    if (limited) return limited;
+
     const key = process.env.GOOGLE_MAPS_SERVER_KEY;
     if (!key) {
       return jsonError("Geocoding is not configured on the server", 503);

@@ -1,4 +1,4 @@
-import { getSupabaseUserFromRoute } from "@/lib/auth";
+import { getSupabaseUserFromRoute, withEffectiveAuthRole } from "@/lib/auth";
 import { currencyForCountry, normalizeCountryCode } from "@/lib/currency";
 import { ensureAppUserProfile } from "@/lib/ensureAppUserProfile";
 import { handleRouteError, jsonError, jsonOk } from "@/lib/http";
@@ -28,13 +28,15 @@ export async function POST(request: Request) {
     const meta = (authUser.user_metadata ?? {}) as Record<string, unknown>;
     const metaCountryRaw = typeof meta.country_code === "string" ? meta.country_code : typeof meta.country === "string" ? meta.country : "";
     const metaCountry = normalizeCountryCode(metaCountryRaw);
-    const user =
+    const user = withEffectiveAuthRole(
       ensured.countryCode || !metaCountry
         ? ensured
         : await prisma.user.update({
             where: { id: ensured.id },
             data: { countryCode: metaCountry, currency: currencyForCountry(metaCountry) },
-          });
+          }),
+      authUser,
+    );
 
     const reviewSummary = await prisma.review.aggregate({
       _avg: { score: true },

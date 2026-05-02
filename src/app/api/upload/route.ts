@@ -1,5 +1,6 @@
 import { requireAppUser } from "@/lib/auth";
 import { handleRouteError, jsonError, jsonOk } from "@/lib/http";
+import { detectSafeImage } from "@/lib/imageUpload";
 import { createServiceSupabase } from "@/lib/supabase/service";
 
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -21,13 +22,16 @@ export async function POST(request: Request) {
     if (file.size > MAX_BYTES) return jsonError("File too large (max 5MB)", 400);
 
     const buf = Buffer.from(await file.arrayBuffer());
-    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-    const path = `${me.id}/${Date.now()}-${safeName}`;
+    const image = detectSafeImage(buf);
+    if (!image) return jsonError("Please upload a JPG, PNG, or WEBP image.", 400);
+
+    const basename = file.name.replace(/\.[^.]+$/, "").replace(/[^a-zA-Z0-9._-]/g, "_") || "listing";
+    const path = `${me.id}/${Date.now()}-${basename}.${image.extension}`;
 
     const bucket = storageBucket();
     const service = createServiceSupabase();
     const { error } = await service.storage.from(bucket).upload(path, buf, {
-      contentType: file.type || "application/octet-stream",
+      contentType: image.contentType,
       upsert: false,
     });
     if (error) {

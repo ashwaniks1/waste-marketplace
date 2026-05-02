@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { getSupabaseUserFromRoute } from "@/lib/auth";
+import { getSupabaseUserFromRoute, withEffectiveAuthRole } from "@/lib/auth";
 import { currencyForCountry, normalizeCountryCode } from "@/lib/currency";
 import { ensureAppUserProfile } from "@/lib/ensureAppUserProfile";
 import { handleRouteError, jsonError, jsonOk } from "@/lib/http";
@@ -37,6 +37,7 @@ export async function GET(request: Request) {
       user = await prisma.user.findUnique({ where: { id: authUser.id } });
     }
     if (!user) return jsonError("Profile not available", 404);
+    user = withEffectiveAuthRole(user, authUser);
 
     const reviewSummary = await prisma.review.aggregate({
       _avg: { score: true },
@@ -97,7 +98,7 @@ export async function PATCH(request: Request) {
       nextLast = parts.length > 1 ? parts.slice(1).join(" ") : "";
     }
 
-    const user = await prisma.user.update({
+    const user = withEffectiveAuthRole(await prisma.user.update({
       where: { id: authUser.id },
       data: {
         name: nextName,
@@ -110,7 +111,7 @@ export async function PATCH(request: Request) {
         ...(body.countryCode !== undefined ? { countryCode: normalizedCountry } : {}),
         ...(nextCurrency !== undefined ? { currency: nextCurrency } : {}),
       },
-    });
+    }), authUser);
 
     return jsonOk({
       profile: profileToClientDto(user),
