@@ -1,6 +1,6 @@
 # Security Audit Report
 
-Date: 2026-05-02  
+Date: 2026-05-02
 Scope: Next.js web app/API, Prisma data access, Supabase Storage, Supabase RLS migrations, edge function, and dependency audit for this repository.
 
 Implementation status: primary remediations were implemented on 2026-05-02. The remaining known item is the moderate PostCSS advisory bundled through Next, which should be resolved through a safe Next upgrade rather than `npm audit fix --force`.
@@ -15,7 +15,7 @@ Fix the critical role-escalation issue first, then close the driver completion b
 
 ### 1. Authenticated users can likely escalate their own app role through Supabase RLS
 
-Severity: Critical  
+Severity: Critical
 Affected files:
 
 - `prisma/migrations/20260418103000_rls_fix_profiles_locations/migration.sql:19`
@@ -56,7 +56,7 @@ Recommended fix:
 
 ### 2. Driver web route can complete deliveries without the buyer handoff PIN
 
-Severity: High  
+Severity: High
 Affected file: `src/app/api/driver/jobs/[id]/route.ts:71`
 
 Evidence:
@@ -88,7 +88,7 @@ Recommended fix:
 
 ### 3. Listing uploads use service role and do not validate image content
 
-Severity: High  
+Severity: High
 Affected files:
 
 - `src/app/api/upload/route.ts:15`
@@ -122,7 +122,7 @@ Recommended fix:
 
 ### 4. Public user profile API exposes non-self addresses
 
-Severity: Medium  
+Severity: Medium
 Affected file: `src/app/api/users/[id]/route.ts:110`
 
 Evidence:
@@ -153,7 +153,7 @@ Recommended fix:
 
 ### 5. Unauthenticated resend-verification route uses admin invite flow and leaks provider errors
 
-Severity: Medium  
+Severity: Medium
 Affected file: `src/app/api/auth/resend-verification/route.ts:10`
 
 Evidence:
@@ -179,7 +179,7 @@ Recommended fix:
 
 ### 6. Rate limiting is in-memory and not production-robust
 
-Severity: Medium  
+Severity: Medium
 Affected files:
 
 - `src/lib/rateLimit.ts:1`
@@ -201,7 +201,7 @@ Recommended fix:
 
 ### 7. Geocoding endpoints can burn server-side Google quota
 
-Severity: Medium  
+Severity: Medium
 Affected files:
 
 - `src/app/api/maps/geocode/route.ts:14`
@@ -223,7 +223,7 @@ Recommended fix:
 
 ### 8. Missing security headers/CSP in Next config
 
-Severity: Medium  
+Severity: Medium
 Affected file: `next.config.ts:3`
 
 Evidence:
@@ -248,7 +248,7 @@ Recommended fix:
 
 ### 9. `npm audit` reports vulnerable PostCSS bundled through Next
 
-Severity: Moderate  
+Severity: Moderate
 Command: `npm audit --audit-level=moderate`
 
 Result:
