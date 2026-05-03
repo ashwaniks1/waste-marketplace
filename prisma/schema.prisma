@@ -5,9 +5,9 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "postgresql"
+  // Use a migrate-safe URL (e.g. Supabase session/direct :5432). Transaction pooler (:6543) can break DDL.
+  url = env("DATABASE_URL")
 }
 
 enum UserRole {

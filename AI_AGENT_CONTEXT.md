@@ -526,8 +526,7 @@ Where new code should go:
 
 | Variable | Purpose | Required |
 | --- | --- | --- |
-| `DATABASE_URL` | Prisma runtime connection | Yes |
-| `DIRECT_URL` | Prisma migrate/direct connection | Yes |
+| `DATABASE_URL` | Prisma (runtime + migrations; use session/direct or 5432 for migrate if pooler breaks DDL) | Yes |
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL | Yes |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon/publishable key | Yes |
 | `SUPABASE_SERVICE_ROLE_KEY` | Service-role access for signup, uploads, fallback user lookup | Yes for most server features |

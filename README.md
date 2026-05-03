@@ -42,8 +42,7 @@ flowchart LR
 
 2. **Environment** — copy `.env.example` to `.env` and fill values from the Supabase dashboard.
 
-   - Use the **pooler** connection string for `DATABASE_URL` (add `?pgbouncer=true` when required).
-   - Use the **direct** (session) URL for `DIRECT_URL` so `prisma migrate` works.
+   - Set **`DATABASE_URL`** to your Postgres URL. Prefer Supabase **session** mode or **direct** (port **5432**) so `prisma migrate deploy` runs reliably. If the app uses the **transaction** pooler (port **6543**) in production, run migrations in CI with `DATABASE_URL` temporarily set to the session/direct string for that step.
 
 3. **Database** — after pulling Phase 2, apply the new migration (adds `asking_price`, offers, comments, chat):
 
