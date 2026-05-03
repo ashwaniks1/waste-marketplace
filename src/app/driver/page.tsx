@@ -1,25 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { Button } from "@/components/Button";
 import { EmptyState } from "@/components/EmptyState";
+import { LiveMap } from "@/components/LiveMap";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useLiveLocation } from "@/components/LocationProvider";
 import { detectMarketRegion, driverDistanceFilterOptions, formatDistanceFromMiles, type MarketRegion } from "@/lib/marketRegion";
 import { formatMoney } from "@/lib/money";
 import { WASTE_TYPE_OPTIONS } from "@/lib/waste-types";
-
-const LiveMap = dynamic(() => import("@/components/LiveMap").then((m) => m.LiveMap), {
-  ssr: false,
-  loading: () => (
-    <div className="h-64 overflow-hidden rounded-3xl border border-slate-200/50 bg-white shadow-cosmos-md">
-      <div className="flex h-full items-center justify-center text-sm text-slate-600">Loading map…</div>
-    </div>
-  ),
-});
 
 type FeedRow = {
   id: string;
@@ -97,18 +88,37 @@ export default function DriverPage() {
   return (
     <>
       <AppHeader title="Pickup board" role="driver" />
-      <div className="grid min-h-0 grid-cols-1 gap-4 px-4 py-6 sm:px-6 lg:grid-cols-12 lg:gap-6">
-        <aside className="min-h-0 space-y-4 lg:col-span-4">
-          <div className="flex flex-col gap-4 rounded-3xl border border-slate-200/50 bg-white p-5 shadow-cosmos-md sm:flex-row sm:items-center sm:justify-between lg:flex-col lg:items-start">
+      <div className="space-y-5 pt-1">
+        <section className="overflow-hidden rounded-3xl border border-slate-200/50 bg-white p-6 shadow-cosmos-md sm:p-8">
+          <span className="inline-flex rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-emerald-700">
+            Driver workspace
+          </span>
+          <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <p className="text-lg font-semibold text-slate-900">Open jobs</p>
-              <p className="mt-1 text-sm text-slate-600">
-                Claim delivery jobs with driver pickup. Distance uses your live location when you allow it.
+              <h1 className="max-w-3xl text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">
+                Claim buyer-released pickups without losing your route context.
+              </h1>
+              <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">
+                Accepted marketplace deliveries appear after the buyer requests driver pickup. Filter by material, distance,
+                and payout, then open the job record to claim it.
               </p>
             </div>
-            <Button type="button" onClick={refresh} disabled={loading}>
-              Refresh
+            <Button type="button" onClick={refresh} disabled={loading} className="h-12 rounded-2xl px-6 shadow-cosmos-sm">
+              Refresh board
             </Button>
+          </div>
+        </section>
+
+      <div className="grid min-h-0 grid-cols-1 gap-4 lg:grid-cols-12 lg:gap-6">
+        <aside className="min-h-0 space-y-4 lg:col-span-4">
+          <div className="flex flex-col gap-4 rounded-3xl border border-slate-200/50 bg-white p-5 shadow-cosmos-sm sm:flex-row sm:items-center sm:justify-between lg:flex-col lg:items-start">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">Filters</p>
+              <p className="mt-2 text-lg font-semibold text-slate-900">Available jobs</p>
+              <p className="mt-1 text-sm text-slate-600">
+                Distance uses your live location when you allow it.
+              </p>
+            </div>
           </div>
 
           {location.permission === "denied" ? (
@@ -128,7 +138,7 @@ export default function DriverPage() {
             <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
               {region === "IN" ? "Radius" : "Distance"}
               <select
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
                 value={miles}
                 onChange={(e) => setMiles(e.target.value)}
               >
@@ -142,7 +152,7 @@ export default function DriverPage() {
             <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
               Waste type
               <select
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
                 value={wasteType}
                 onChange={(e) => setWasteType(e.target.value)}
               >
@@ -156,7 +166,7 @@ export default function DriverPage() {
             <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
               Sort
               <select
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
                 value={sort}
                 onChange={(e) => setSort(e.target.value as typeof sort)}
               >
@@ -192,7 +202,7 @@ export default function DriverPage() {
               return (
                 <div
                   key={row.id}
-                  className="rounded-3xl border border-slate-200/50 bg-white p-5 shadow-cosmos-sm transition hover:shadow-cosmos-md"
+                  className="rounded-3xl border border-slate-200/50 bg-white p-5 shadow-cosmos-sm transition hover:border-teal-200/80 hover:shadow-cosmos-md"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
@@ -224,6 +234,7 @@ export default function DriverPage() {
           </div>
         ) : null}
         </section>
+      </div>
       </div>
     </>
   );

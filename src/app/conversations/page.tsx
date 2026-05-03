@@ -52,7 +52,19 @@ export default function ConversationsListPage() {
   return (
     <>
       <AppHeader title="Messages" role={role} />
-      <div className="mx-auto max-w-2xl space-y-3 pt-1">
+      <div className="mx-auto max-w-4xl space-y-5 pt-1">
+        <section className="overflow-hidden rounded-3xl border border-slate-200/50 bg-white p-6 shadow-cosmos-md sm:p-8">
+          <span className="inline-flex rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-emerald-700">
+            Inbox
+          </span>
+          <h1 className="mt-4 max-w-3xl text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">
+            Keep listing conversations in one focused workspace.
+          </h1>
+          <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">
+            Open a thread to continue the same chat view sellers use while coordinating offers, pickup timing, and handoff details.
+          </p>
+        </section>
+
         {loading ? (
           <p className="text-sm text-slate-600">Loading…</p>
         ) : rows.length === 0 ? (

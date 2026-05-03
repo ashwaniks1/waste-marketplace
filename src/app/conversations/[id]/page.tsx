@@ -10,7 +10,7 @@ type ConvMeta = {
   id: string;
   listingId: string;
   buyerId: string;
-  listing: { id: string; wasteType: string; status: string; userId: string };
+  listing: { id: string; wasteType: string; status: string; userId: string; seller: { id: string; name: string } };
   buyer: { id: string; name: string; email: string };
 };
 
@@ -110,38 +110,60 @@ export default function ConversationPage() {
       : meta.listing.userId === meId
         ? `/customer/listings/${meta.listing.id}?c=${encodeURIComponent(String(id))}`
         : `/listing/${meta.listing.id}`;
-  const title = `Chat · ${meta.buyer.name}`;
+  const imSeller = meta.listing.userId === meId;
+  const otherName = imSeller ? meta.buyer.name : meta.listing.seller.name;
+  const title = `Chat · ${otherName}`;
 
   return (
     <>
       <AppHeader title={title} backHref={backHref} role={role} />
-      <div className="mx-auto flex max-w-3xl flex-col px-4 pb-28 pt-4 sm:px-6">
-        <div className="min-h-[50vh] flex-1 space-y-3 rounded-3xl border border-slate-200/50 bg-white p-4 shadow-cosmos-md">
-          {messages.map((m) => (
-            <div
-              key={m.id}
-              className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm ${
-                m.sender.id === meId ? "ml-auto bg-teal-600 text-white" : "bg-slate-100 text-slate-900"
-              }`}
-            >
-              <p className="text-xs opacity-80">{m.sender.name}</p>
-              <p>{m.body}</p>
+      <div className="mx-auto flex max-w-4xl flex-col pb-28 pt-1 sm:pb-6">
+        <div className="flex min-h-[58vh] flex-1 flex-col overflow-hidden rounded-3xl border border-slate-200/50 bg-white shadow-cosmos-md">
+          <div className="shrink-0 border-b border-slate-200/50 bg-cosmos-page-alt/80 px-4 py-3">
+            <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-teal-700/90">Private chat</p>
+            <p className="mt-0.5 truncate text-base font-bold text-slate-900">{otherName}</p>
+            <Link href={backHref} className="mt-1 inline-flex text-xs font-semibold text-teal-700 hover:text-teal-900">
+              View listing
+            </Link>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto bg-cosmos-page-alt/30 px-3 py-3 sm:px-4">
+            <div className="space-y-2.5 pb-1">
+              {messages.map((m) => {
+                const mine = m.sender.id === meId;
+                return (
+                  <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
+                    <div
+                      className={`max-w-[90%] rounded-2xl px-3.5 py-2.5 text-sm shadow-sm ${
+                        mine
+                          ? "bg-gradient-to-br from-teal-600 to-emerald-600 text-white"
+                          : "border border-slate-200 bg-white text-slate-900"
+                      }`}
+                    >
+                      <p className={`text-[10px] font-semibold uppercase tracking-[0.16em] ${mine ? "text-white/80" : "text-slate-400"}`}>
+                        {m.sender.name}
+                      </p>
+                      <p className="mt-0.5 leading-6 text-inherit">{m.body}</p>
+                    </div>
+                  </div>
+                );
+              })}
+              <div ref={bottomRef} />
             </div>
-          ))}
-          <div ref={bottomRef} />
+          </div>
         </div>
         <form
           onSubmit={send}
           className="fixed bottom-0 left-0 right-0 border-t border-slate-200 bg-white/95 p-3 backdrop-blur sm:relative sm:mt-4 sm:border-0 sm:bg-transparent sm:p-0"
         >
           <div className="mx-auto flex max-w-3xl gap-2">
-            <input
-              className="flex-1 rounded-xl border border-slate-200 px-3 py-3 text-sm"
+            <textarea
+              rows={2}
+              className="min-h-[52px] flex-1 resize-none rounded-2xl border border-slate-200/60 bg-cosmos-page-alt/25 px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 shadow-cosmos-sm outline-none transition focus:border-teal-500/80 focus:ring-2 focus:ring-teal-100"
               placeholder="Type a message…"
               value={body}
               onChange={(e) => setBody(e.target.value)}
             />
-            <Button type="submit" className="shrink-0">
+            <Button type="submit" className="h-fit shrink-0 self-end rounded-2xl px-4 py-2.5 shadow-cosmos-sm" disabled={!body.trim()}>
               Send
             </Button>
           </div>

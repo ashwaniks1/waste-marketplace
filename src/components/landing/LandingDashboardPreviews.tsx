@@ -130,7 +130,7 @@ export function LandingDashboardPreviews() {
                     <div>
                       <p className="text-sm font-semibold text-wm-secondary">Live map surface</p>
                       <p className="mt-2 text-xs text-gray-600">
-                        After sign-in, route-ready tiles and geofenced pickup nodes render here (Leaflet / OSM).
+                        After sign-in, route-ready tiles and Google Maps pickup previews render here.
                       </p>
                     </div>
                   </div>

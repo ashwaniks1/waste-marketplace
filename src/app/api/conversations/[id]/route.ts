@@ -13,7 +13,13 @@ export async function GET(_request: Request, ctx: Ctx) {
       where: { id },
       include: {
         listing: {
-          select: { id: true, wasteType: true, status: true, userId: true },
+          select: {
+            id: true,
+            wasteType: true,
+            status: true,
+            userId: true,
+            seller: { select: { id: true, name: true } },
+          },
         },
         buyer: { select: { id: true, name: true, email: true } },
       },

@@ -190,7 +190,7 @@ export default function BuyerListingDetailPage() {
   const icon = WASTE_TYPE_OPTIONS.find((o) => o.value === row?.wasteType)?.icon;
   const iAmAcceptor = Boolean(meId && row?.acceptor?.id === meId);
   const myPending = offers.find((o) => o.status === "pending");
-  const marketplaceDelivery = Boolean(row?.deliveryRequired ?? row?.deliveryAvailable);
+  const marketplaceDelivery = Boolean(row?.deliveryRequired || row?.deliveryAvailable);
   const needsBuyerDeliveryRelease =
     Boolean(row && row.status === "accepted" && marketplaceDelivery && !row.buyerDeliveryConfirmed);
 
@@ -233,12 +233,12 @@ export default function BuyerListingDetailPage() {
                   ) : null}
                   {needsBuyerDeliveryRelease ? (
                     <div className="mt-3 rounded-2xl border border-sky-200 bg-sky-50/90 p-3 dark:border-sky-900/50 dark:bg-sky-950/40">
-                      <p className="text-sm font-semibold text-sky-950 dark:text-sky-100">Release pickup to drivers</p>
+                      <p className="text-sm font-semibold text-sky-950 dark:text-sky-100">Request marketplace delivery</p>
                       <p className="mt-1 text-xs text-sky-900/90 dark:text-sky-100/80">
-                        Drivers only see this job after you confirm you are ready for marketplace pickup (for example once pickup details are agreed in chat).
+                        Drivers only see this job after you confirm you are ready for marketplace pickup. We will publish it to the driver board and generate your handoff PIN.
                       </p>
                       <Button className="mt-3 w-full sm:w-auto" disabled={busy} onClick={() => void confirmMarketplaceDelivery()}>
-                        I’m ready — show drivers this pickup
+                        Request driver delivery
                       </Button>
                     </div>
                   ) : null}

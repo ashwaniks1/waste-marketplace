@@ -563,7 +563,7 @@ export default function CustomerListingDetailPage() {
                       </div>
                     ) : null}
 
-                    {(row.deliveryRequired ?? row.deliveryAvailable) && !row.buyerDeliveryConfirmed ? (
+                    {(row.deliveryRequired || row.deliveryAvailable) && !row.buyerDeliveryConfirmed ? (
                       <div className="rounded-[1.4rem] border border-slate-200 bg-slate-50/80 p-4">
                         <p className="text-sm font-semibold text-slate-900">Waiting on buyer release</p>
                         <p className="mt-1 text-sm leading-6 text-slate-600">

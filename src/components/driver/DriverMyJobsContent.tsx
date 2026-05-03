@@ -81,8 +81,24 @@ export function DriverMyJobsContent() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
-      {error ? <p className="mb-4 rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-800">{error}</p> : null}
+    <div className="space-y-5 pt-1">
+      <section className="overflow-hidden rounded-3xl border border-slate-200/50 bg-white p-6 shadow-cosmos-md sm:p-8">
+        <span className="inline-flex rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-emerald-700">
+          Assigned work
+        </span>
+        <h1 className="mt-4 max-w-3xl text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">
+          Manage every claimed pickup from one route board.
+        </h1>
+        <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">
+          Start the run, enter the buyer handoff PIN at completion, and keep cancelled or completed work visible for review.
+        </p>
+      </section>
+
+      {error ? (
+        <p className="rounded-3xl border border-rose-200/60 bg-rose-50/90 px-4 py-3 text-sm text-rose-800 shadow-cosmos-sm">
+          {error}
+        </p>
+      ) : null}
       {loading ? <p className="text-sm text-slate-600">Loading…</p> : null}
 
       {!loading && jobs.length === 0 ? (
@@ -105,13 +121,16 @@ export function DriverMyJobsContent() {
             const label =
               WASTE_TYPE_OPTIONS.find((o) => o.value === job.listing.wasteType)?.label ?? job.listing.wasteType;
             return (
-              <div key={job.id} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div
+                key={job.id}
+                className="rounded-3xl border border-slate-200/50 bg-white p-6 shadow-cosmos-sm transition hover:border-teal-200/80 hover:shadow-cosmos-md"
+              >
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div>
                     <p className="text-base font-semibold text-slate-900">{label}</p>
                     <p className="mt-1 text-sm text-slate-600">{job.listing.quantity}</p>
                   </div>
-                  <div className="rounded-2xl bg-slate-100 px-3 py-2 text-xs font-medium uppercase tracking-wide text-slate-700">
+                  <div className="rounded-2xl bg-cosmos-page-alt px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-700">
                     {job.status.replace(/_/g, " ")}
                   </div>
                 </div>
@@ -120,11 +139,11 @@ export function DriverMyJobsContent() {
                     <p className="text-xs uppercase text-emerald-800">Your payout</p>
                     <p className="mt-1 text-lg font-bold text-emerald-900">{payout}</p>
                   </div>
-                  <div className="rounded-2xl bg-slate-50 p-3">
+                  <div className="rounded-2xl bg-cosmos-page-alt/70 p-3">
                     <p className="text-xs uppercase text-slate-500">Pickup</p>
                     <p className="mt-1 text-sm text-slate-700">{new Date(job.scheduledAt).toLocaleString()}</p>
                   </div>
-                  <div className="rounded-2xl bg-slate-50 p-3">
+                  <div className="rounded-2xl bg-cosmos-page-alt/70 p-3">
                     <p className="text-xs uppercase text-slate-500">Seller</p>
                     <p className="mt-1 text-sm font-medium text-slate-900">{job.listing.seller.name}</p>
                   </div>
@@ -158,7 +177,7 @@ export function DriverMyJobsContent() {
                         inputMode="numeric"
                         autoComplete="one-time-code"
                         placeholder="Buyer PIN"
-                        className="h-10 w-32 rounded-xl border border-slate-300 px-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                        className="h-10 w-32 rounded-xl border border-slate-200 px-3 text-sm text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
                       />
                       <Button
                         type="button"

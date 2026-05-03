@@ -7,6 +7,7 @@ export function canViewListing(
     status: ListingStatus;
     acceptedById: string | null;
     deliveryRequired: boolean;
+    buyerDeliveryConfirmed: boolean;
     pickupJobStatus: PickupJobStatus;
     assignedDriverId: string | null;
   },
@@ -21,8 +22,9 @@ export function canViewListing(
     if (row.assignedDriverId === me.id) return true;
     if (
       row.deliveryRequired &&
+      row.buyerDeliveryConfirmed &&
       row.pickupJobStatus === PickupJobStatus.available &&
-      (row.status === ListingStatus.open || row.status === ListingStatus.accepted)
+      row.status === ListingStatus.accepted
     ) {
       return true;
     }

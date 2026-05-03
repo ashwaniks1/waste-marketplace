@@ -58,9 +58,10 @@ export async function GET(request: Request) {
     const listings = await prisma.wasteListing.findMany({
       where: {
         deliveryRequired: true,
+        buyerDeliveryConfirmed: true,
         pickupJobStatus: PickupJobStatus.available,
         assignedDriverId: null,
-        status: { in: [ListingStatus.open, ListingStatus.reopened, ListingStatus.accepted] },
+        status: ListingStatus.accepted,
         ...(q.wasteType ? { wasteType: q.wasteType } : {}),
       },
       orderBy: { createdAt: "desc" },

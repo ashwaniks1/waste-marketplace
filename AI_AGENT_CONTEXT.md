@@ -705,6 +705,7 @@ maestro test maestro/smoke.yaml
   - mobile relies on PIN-gated RPC completion
   - web driver job PATCH can mark a job completed directly
 - Web listing creation marks some delivery listings as available earlier than the SQL/mobile flow intends; driver claim is still gated later by `buyerDeliveryConfirmed`.
+- Buyer delivery release now supports accepted listings where the seller offered delivery but `delivery_required` was not already true: confirming marketplace delivery sets `delivery_required`, `buyer_delivery_confirmed`, makes the pickup available to drivers, and refreshes the handoff PIN.
 - Transactions/payment flows are not implemented even though a `transactions` table exists.
 - Admin UI is mostly read-only.
 - Web chat and notification UX still rely on polling in several places.
@@ -806,6 +807,7 @@ These details apply to the **Next.js web app** in this repository and extend the
 ## Last Updated
 
 - **2026-05-03** — Added metadata-table RLS migration for Supabase linter finding on `public._prisma_migrations` plus manual owner-required SQL for `public.spatial_ref_sys`. Marketplace app-table RLS policies for listings/offers/jobs are unchanged; PostGIS SRID metadata should remain readable when the manual SQL is applied.
+- **2026-05-03** — Updated buyer marketplace delivery release so accepted delivery-offered listings can be converted into driver pickup jobs, aligned driver feed visibility to buyer-released accepted jobs, replaced the driver live map Leaflet/OSM preview with Google Maps embed, and refreshed driver/chat UI panels to match the seller workspace style.
 - **2026-05-02** — Implemented security audit remediations: direct `public.users` role mutation hardening, app-metadata effective role overlay, PIN-gated driver completion on web and RPC, upload magic-byte validation, non-self profile address redaction, map/resend rate limits, and baseline security headers.
 - **2026-04-24** — Replaced Unsplash and external Unpkg Leaflet marker URLs: **`public/wm-assets/marketing/*.webp`**, **`src/lib/marketing-assets.ts`**, **`next/image`** on the landing; map markers from **`public/leaflet/`** (copies of Leaflet 1.9.4 stock icons). `next.config` no longer whitelists `images.unsplash.com`.
 - **2026-04-23** — **Unauthenticated home** is **`LandingExperience`** + **US/India** `marketRegion` (`wm_market_region`, `src/lib/marketRegion.ts`, `MarketRegionToggle` in hero and navbar), marketing art as **self-hosted WebP** + **`marketing-assets.ts`**. **`MarketingNavbar`** anchors: `/#marketplace`, `/#sell-waste`, `/#buy-materials`, `/#transport`, `/#how-it-works`. **Login / signup** include **Home → `/`**. **API table** updated: **`GET /api/conversations`**, buyer **`GET /api/listings`** query params, **`POST /api/auth/signup`** body (`marketRegion`, `gstNumber` / `ein`, etc.). Doc previously described **`LandingMarketplaceSection`** on `/`; that does not match the current `page.tsx` (the component file may still exist under `src/components/landing/`).

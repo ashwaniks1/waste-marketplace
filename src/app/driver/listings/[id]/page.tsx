@@ -89,9 +89,25 @@ export default function DriverListingDetailPage() {
   return (
     <>
       <AppHeader title="Pickup details" backHref="/driver" role="driver" />
-      <div className="space-y-4 px-4 pb-8 pt-4">
-        {error ? <p className="text-sm text-rose-600">{error}</p> : null}
-        <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="space-y-5 pb-8 pt-1">
+        <section className="overflow-hidden rounded-3xl border border-slate-200/50 bg-white p-6 shadow-cosmos-md sm:p-8">
+          <span className="inline-flex rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-emerald-700">
+            Driver job record
+          </span>
+          <h1 className="mt-4 max-w-3xl text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">
+            Review the accepted pickup before you claim the route.
+          </h1>
+          <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">
+            The buyer has released this marketplace delivery to drivers. Claiming locks the job to your account.
+          </p>
+        </section>
+
+        {error ? (
+          <p className="rounded-3xl border border-rose-200/60 bg-rose-50/90 px-4 py-3 text-sm text-rose-800 shadow-cosmos-sm">
+            {error}
+          </p>
+        ) : null}
+        <div className="rounded-3xl border border-slate-200/50 bg-white p-5 shadow-cosmos-md">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <p className="text-lg font-semibold text-slate-900">{wasteLabel}</p>
@@ -101,14 +117,14 @@ export default function DriverListingDetailPage() {
           </div>
           <p className="mt-3 text-sm text-slate-700">{row.address}</p>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <div className="rounded-2xl bg-slate-50 p-3">
+            <div className="rounded-2xl bg-cosmos-page-alt/70 p-3">
               <p className="text-xs uppercase tracking-wider text-slate-500">Seller</p>
               <Link href={`/profile/${row.seller.id}`} className="mt-1 font-medium text-teal-700 underline">
                 {row.seller.name}
               </Link>
             </div>
             {row.acceptor ? (
-              <div className="rounded-2xl bg-slate-50 p-3">
+              <div className="rounded-2xl bg-cosmos-page-alt/70 p-3">
                 <p className="text-xs uppercase tracking-wider text-slate-500">Buyer</p>
                 <Link href={`/profile/${row.acceptor.id}`} className="mt-1 font-medium text-teal-700 underline">
                   {row.acceptor.name}
