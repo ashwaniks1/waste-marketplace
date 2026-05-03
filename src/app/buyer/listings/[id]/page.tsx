@@ -212,7 +212,7 @@ export default function BuyerListingDetailPage() {
   return (
     <>
       <AppHeader title="Listing detail" backHref="/buyer" role="buyer" />
-      <div className="space-y-5 pb-8 pt-1 lg:min-h-[calc(100dvh-5.5rem)]">
+      <div className="space-y-4 pb-8 pt-1 lg:min-h-[calc(100dvh-5.5rem)]">
         {error ? (
           <p className="rounded-3xl border border-rose-200/60 bg-rose-50/90 px-4 py-3 text-sm text-rose-800 shadow-cosmos-sm">
             {error}
@@ -222,204 +222,188 @@ export default function BuyerListingDetailPage() {
           <p className="text-sm text-slate-600">Loading…</p>
         ) : (
           <>
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-              <div className="flex items-center gap-3">
-                <span className="text-4xl">{icon}</span>
-                <div>
-                  <p className="text-xl font-semibold capitalize text-slate-900">
-                    {row.wasteType.replace(/_/g, " ").toLowerCase()}
-                  </p>
-                  <p className="text-slate-600">{row.quantity}</p>
-                  <p className="mt-1 text-lg font-semibold text-teal-800">
-                    Asking {formatMoney(row.askingPrice, row.currency)}
-                  </p>
-                  {row.deliveryAvailable ? (
-                    <p className="mt-1 text-sm text-slate-600">
-                      Delivery fee: {formatMoney(row.deliveryFee ?? 0, row.currency)}
-                    </p>
-                  ) : null}
+            <section className="rounded-3xl border border-slate-200/50 bg-white p-5 shadow-cosmos-md sm:p-6">
+              <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                <div className="flex min-w-0 items-start gap-3">
+                  <span className="text-4xl" aria-hidden>{icon}</span>
+                  <div className="min-w-0">
+                    <span className="inline-flex rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-emerald-700">
+                      Buyer record
+                    </span>
+                    <h1 className="mt-3 text-2xl font-semibold capitalize tracking-tight text-slate-950 sm:text-3xl">
+                      {row.wasteType.replace(/_/g, " ").toLowerCase()}
+                    </h1>
+                    <p className="mt-1 text-sm text-slate-600">{row.quantity} · {row.address}</p>
+                    <div className="mt-3 flex flex-wrap gap-2 text-sm">
+                      <span className="rounded-full bg-teal-50 px-3 py-1 font-semibold text-teal-900">
+                        Asking {formatMoney(row.askingPrice, row.currency)}
+                      </span>
+                      {row.deliveryAvailable ? (
+                        <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-700">
+                          Delivery {formatMoney(row.deliveryFee ?? 0, row.currency)}
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+                <StatusBadge status={row.status} />
+              </div>
+            </section>
+
+            <div className="grid min-h-0 grid-cols-1 gap-4 lg:grid-cols-12 lg:gap-6">
+              <aside className="space-y-4 lg:col-span-3">
+                <section className="rounded-3xl border border-slate-200/50 bg-white p-5 shadow-cosmos-md">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Summary</p>
+                  {row.description ? (
+                    <p className="mt-3 text-sm leading-6 text-slate-600">{row.description}</p>
+                  ) : (
+                    <p className="mt-3 text-sm leading-6 text-slate-600">No description provided.</p>
+                  )}
                   {row.status === "accepted" && row.acceptedOfferAmount ? (
-                    <p className="mt-1 text-sm text-teal-800">
+                    <p className="mt-4 rounded-2xl bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-900">
                       Seller accepted {formatMoney(row.acceptedOfferAmount, row.acceptedOfferCurrency ?? row.currency)}
                     </p>
                   ) : null}
                   {row.status === "accepted" && row.pickupDeadlineAt ? (
-                    <div className="mt-3 rounded-2xl border border-teal-100 bg-teal-50/80 p-3">
+                    <div className="mt-4 rounded-2xl border border-teal-100 bg-teal-50/80 p-3">
                       <p className="text-sm font-semibold text-teal-900">Pickup deadline</p>
                       <p className="mt-1 text-sm text-slate-700">{new Date(row.pickupDeadlineAt).toLocaleString()}</p>
                       <p className="text-sm text-teal-800">{formatDeadline(row.pickupDeadlineAt)}</p>
                     </div>
                   ) : null}
-                  {needsBuyerDeliveryRelease ? (
-                    <div className="mt-3 rounded-2xl border border-sky-200 bg-sky-50/90 p-3 dark:border-sky-900/50 dark:bg-sky-950/40">
-                      <p className="text-sm font-semibold text-sky-950 dark:text-sky-100">Request marketplace delivery</p>
-                      <p className="mt-1 text-xs text-sky-900/90 dark:text-sky-100/80">
-                        Drivers only see this job after you confirm you are ready for marketplace pickup. We will publish it to the driver board and generate your handoff PIN.
-                      </p>
-                      <Button className="mt-3 w-full sm:w-auto" disabled={busy} onClick={() => void confirmMarketplaceDelivery()}>
-                        Request driver delivery
-                      </Button>
-                    </div>
-                  ) : null}
-                  {showHandoffPin ? (
-                    <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50/90 p-3 dark:border-amber-900/50 dark:bg-amber-950/40">
-                      <p className="text-sm font-semibold text-amber-950 dark:text-amber-100">Delivery PIN</p>
-                      <p className="mt-1 text-xs text-amber-900/90 dark:text-amber-100/80">
-                        Give this code to your driver when they arrive. It stays valid until you regenerate it.
-                      </p>
-                      <p className="mt-2 text-center font-mono text-2xl font-black tracking-widest text-amber-950 dark:text-amber-50">
-                        {row.handoffPin}
-                      </p>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        className="mt-3 w-full"
-                        disabled={busy}
-                        onClick={() => void regenerateHandoffPin()}
-                      >
-                        Regenerate PIN
-                      </Button>
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-              <StatusBadge status={row.status} />
-            </div>
-            <p className="text-sm text-slate-700">{row.address}</p>
-            {row.description ? <p className="text-sm text-slate-600">{row.description}</p> : null}
+                </section>
 
-            {row.images?.length ? <ImageGallery images={row.images} /> : null}
-
-            {row.status === "accepted" && row.assignedDriver ? (
-              <BuyerDriverLiveMap listingId={row.id} driverName={row.assignedDriver.name} />
-            ) : null}
-
-            <div className="rounded-3xl border border-slate-200/50 bg-white p-5 shadow-cosmos-md">
-              <p className="text-sm font-semibold text-slate-900">Seller</p>
-              <p className="text-sm text-slate-700">
-                <Link href={`/profile/${row.seller.id}`} className="font-medium text-teal-700 underline">
-                  {row.seller.name}
-                </Link>
-              </p>
-              {row.seller.phone ? (
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <a href={`tel:${row.seller.phone}`}>
-                    <Button variant="secondary" className="!min-h-10">
-                      Call
-                    </Button>
-                  </a>
-                  <a
-                    href={`https://wa.me/${row.seller.phone.replace(/\D/g, "")}`}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    <Button variant="secondary" className="!min-h-10">
-                      WhatsApp
-                    </Button>
-                  </a>
-                </div>
-              ) : (
-                <p className="mt-1 text-xs text-slate-600">Email: {row.seller.email}</p>
-              )}
-              <Button variant="secondary" className="mt-3 w-full sm:w-auto" disabled={busy} onClick={openChat}>
-                Message seller (private chat)
-              </Button>
-            </div>
-
-            {listingIsOpenForMarketplaceActions(row.status) ? (
-              <section className="rounded-2xl border border-teal-100 bg-teal-50/50 p-4">
-                <h2 className="font-semibold text-teal-950">Make an offer</h2>
-                <p className="text-sm text-teal-900/80">You can offer below or above the asking price.</p>
-                <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end">
-                  <label className="flex-1 text-sm">
-                    Your offer ({row.currency})
-                    <input
-                      type="number"
-                      min={0.01}
-                      step="0.01"
-                      className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2"
-                      value={offerAmount}
-                      onChange={(e) => setOfferAmount(e.target.value)}
-                    />
-                  </label>
-                  <Button
-                    className="w-full sm:w-auto"
-                    disabled={busy}
-                    onClick={() => submitOffer(Number(offerAmount))}
-                  >
-                    Submit offer
+                <section className="rounded-3xl border border-slate-200/50 bg-white p-5 shadow-cosmos-md">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Seller</p>
+                  <Link href={`/profile/${row.seller.id}`} className="mt-2 inline-flex font-semibold text-teal-700 underline decoration-teal-200 underline-offset-4">
+                    {row.seller.name}
+                  </Link>
+                  <p className="mt-1 text-xs text-slate-600">{row.seller.phone ? row.seller.phone : row.seller.email}</p>
+                  <Button variant="secondary" className="mt-4 w-full" disabled={busy} onClick={openChat}>
+                    Message seller
                   </Button>
-                </div>
-                <Button
-                  variant="ghost"
-                  className="mt-2 w-full sm:w-auto"
-                  disabled={busy}
-                  onClick={() => submitOffer(Number(row.askingPrice))}
-                >
-                  Offer asking price
-                </Button>
-                {myPending ? (
-                  <p className="mt-3 text-sm text-slate-700">
-                    Pending offer: {formatMoney(myPending.amount, row.currency)}{" "}
-                    <button
-                      type="button"
-                      className="text-rose-600 underline"
-                      onClick={() => withdrawOffer(myPending.id)}
-                    >
-                      Withdraw
-                    </button>
-                  </p>
+                </section>
+              </aside>
+
+              <main className="min-h-0 space-y-4 lg:col-span-6">
+                {row.images?.length ? (
+                  <section className="rounded-3xl border border-slate-200/50 bg-white p-3 shadow-cosmos-md">
+                    <ImageGallery images={row.images} className="sm:grid-cols-1 xl:grid-cols-2" />
+                  </section>
                 ) : null}
-              </section>
-            ) : null}
 
-            {row.status === "accepted" && iAmAcceptor ? (
-              <Button className="w-full sm:max-w-xs" disabled={busy} onClick={() => submitComplete()}>
-                Mark pickup completed
-              </Button>
-            ) : null}
+                {listingIsOpenForMarketplaceActions(row.status) ? (
+                  <section className="rounded-3xl border border-teal-100 bg-white p-5 shadow-cosmos-md">
+                    <h2 className="font-semibold text-teal-950">Make an offer</h2>
+                    <p className="text-sm text-teal-900/80">Offer below or above the asking price.</p>
+                    <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end">
+                      <label className="flex-1 text-sm font-medium text-slate-800">
+                        Your offer ({row.currency})
+                        <input
+                          type="number"
+                          min={0.01}
+                          step="0.01"
+                          className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-slate-900 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
+                          value={offerAmount}
+                          onChange={(e) => setOfferAmount(e.target.value)}
+                        />
+                      </label>
+                      <Button className="w-full sm:w-auto" disabled={busy} onClick={() => submitOffer(Number(offerAmount))}>
+                        Submit offer
+                      </Button>
+                    </div>
+                    <div className="mt-3 flex flex-wrap items-center gap-3">
+                      <Button variant="ghost" disabled={busy} onClick={() => submitOffer(Number(row.askingPrice))}>
+                        Offer asking price
+                      </Button>
+                      {myPending ? (
+                        <p className="text-sm text-slate-700">
+                          Pending: {formatMoney(myPending.amount, row.currency)}{" "}
+                          <button type="button" className="text-rose-600 underline" onClick={() => withdrawOffer(myPending.id)}>
+                            Withdraw
+                          </button>
+                        </p>
+                      ) : null}
+                    </div>
+                  </section>
+                ) : null}
 
-            {row.status === "completed" && row.acceptor ? (
-              <ReviewForm listingId={row.id} toUserId={row.seller.id} toUserName={row.seller.name} onSubmitted={() => load()} />
-            ) : null}
-            {row.status === "completed" && row.assignedDriver ? (
-              <ReviewForm
-                listingId={row.id}
-                toUserId={row.assignedDriver.id}
-                toUserName={row.assignedDriver.name}
-                onSubmitted={() => load()}
-              />
-            ) : null}
+                <section className="rounded-3xl border border-slate-200/50 bg-white p-5 shadow-cosmos-md">
+                  <h2 className="font-semibold text-slate-900">Comments</h2>
+                  <ul className="mt-3 max-h-56 space-y-3 overflow-y-auto">
+                    {comments.map((c) => (
+                      <li key={c.id} className="border-b border-slate-100 pb-2 text-sm last:border-0">
+                        <span className="font-medium text-slate-800">{c.user.name}</span>
+                        <span className="text-xs text-slate-500"> · {c.user.role}</span>
+                        <p className="text-slate-700">{c.body}</p>
+                      </li>
+                    ))}
+                  </ul>
+                  {listingIsOpenForMarketplaceActions(row.status) ? (
+                    <form onSubmit={postComment} className="mt-3 flex flex-col gap-2 sm:flex-row">
+                      <input
+                        className="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
+                        placeholder="Ask a question publicly…"
+                        value={commentBody}
+                        onChange={(e) => setCommentBody(e.target.value)}
+                      />
+                      <Button type="submit" disabled={busy}>Post</Button>
+                    </form>
+                  ) : null}
+                </section>
+              </main>
 
-            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <h2 className="font-semibold text-slate-900">Comments</h2>
-              <ul className="mt-3 max-h-64 space-y-3 overflow-y-auto">
-                {comments.map((c) => (
-                  <li key={c.id} className="border-b border-slate-100 pb-2 text-sm last:border-0">
-                    <span className="font-medium text-slate-800">{c.user.name}</span>
-                    <span className="text-xs text-slate-500"> · {c.user.role}</span>
-                    <p className="text-slate-700">{c.body}</p>
-                  </li>
-                ))}
-              </ul>
-              {listingIsOpenForMarketplaceActions(row.status) ? (
-                <form onSubmit={postComment} className="mt-3 flex flex-col gap-2 sm:flex-row">
-                  <input
-                    className="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm"
-                    placeholder="Ask a question publicly…"
-                    value={commentBody}
-                    onChange={(e) => setCommentBody(e.target.value)}
-                  />
-                  <Button type="submit" disabled={busy}>
-                    Post
+              <aside className="space-y-4 lg:col-span-3">
+                {needsBuyerDeliveryRelease ? (
+                  <section className="rounded-3xl border border-sky-200 bg-sky-50/90 p-5 shadow-cosmos-md">
+                    <p className="text-sm font-semibold text-sky-950">Request driver delivery</p>
+                    <p className="mt-1 text-xs leading-5 text-sky-900/90">
+                      Publish this accepted pickup to drivers. Your PIN appears after delivery is requested.
+                    </p>
+                    <Button className="mt-3 w-full" disabled={busy} onClick={() => void confirmMarketplaceDelivery()}>
+                      Request driver delivery
+                    </Button>
+                  </section>
+                ) : null}
+
+                {showHandoffPin ? (
+                  <section className="rounded-3xl border border-amber-200 bg-amber-50/90 p-5 shadow-cosmos-md">
+                    <p className="text-sm font-semibold text-amber-950">Delivery PIN</p>
+                    <p className="mt-1 text-xs leading-5 text-amber-900/90">Valid until you regenerate it.</p>
+                    <p className="mt-4 text-center font-mono text-3xl font-black tracking-widest text-amber-950">
+                      {row.handoffPin}
+                    </p>
+                    <Button type="button" variant="secondary" className="mt-4 w-full" disabled={busy} onClick={() => void regenerateHandoffPin()}>
+                      Regenerate PIN
+                    </Button>
+                  </section>
+                ) : null}
+
+                {row.status === "accepted" && row.assignedDriver ? (
+                  <BuyerDriverLiveMap listingId={row.id} driverName={row.assignedDriver.name} />
+                ) : (
+                  <section className="rounded-3xl border border-slate-200/50 bg-white p-5 shadow-cosmos-md">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Driver</p>
+                    <p className="mt-2 text-sm leading-6 text-slate-600">
+                      Tracking appears here once a driver claims the delivery and shares location.
+                    </p>
+                  </section>
+                )}
+
+                {row.status === "accepted" && iAmAcceptor ? (
+                  <Button className="w-full" disabled={busy} onClick={() => submitComplete()}>
+                    Mark pickup completed
                   </Button>
-                </form>
-              ) : null}
-            </section>
+                ) : null}
 
-            <Link href="/buyer" className="block text-center text-sm text-teal-700">
-              Back to listings
-            </Link>
+                {row.status === "completed" && row.acceptor ? (
+                  <ReviewForm listingId={row.id} toUserId={row.seller.id} toUserName={row.seller.name} onSubmitted={() => load()} />
+                ) : null}
+                {row.status === "completed" && row.assignedDriver ? (
+                  <ReviewForm listingId={row.id} toUserId={row.assignedDriver.id} toUserName={row.assignedDriver.name} onSubmitted={() => load()} />
+                ) : null}
+              </aside>
+            </div>
           </>
         )}
       </div>
