@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/Button";
 import { EmptyState } from "@/components/EmptyState";
+import { useLiveLocation } from "@/components/LocationProvider";
 import { formatMoney } from "@/lib/money";
 import { WASTE_TYPE_OPTIONS } from "@/lib/waste-types";
 
@@ -29,11 +30,13 @@ type DriverJob = {
 };
 
 export function DriverMyJobsContent() {
+  const location = useLiveLocation();
   const [jobs, setJobs] = useState<DriverJob[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [pins, setPins] = useState<Record<string, string>>({});
+  const lastShareRef = useRef<Record<string, number>>({});
 
   const loadJobs = useCallback(async () => {
     const res = await fetch("/api/driver/jobs", { cache: "no-store" });
@@ -56,6 +59,34 @@ export function DriverMyJobsContent() {
       }
     })();
   }, [loadJobs]);
+
+  const locationShareListingIds = useMemo(
+    () =>
+      jobs
+        .filter((job) => job.status === "scheduled" || job.status === "in_transit")
+        .map((job) => job.listing.id),
+    [jobs],
+  );
+
+  useEffect(() => {
+    if (!location.point || locationShareListingIds.length === 0) return;
+    const now = Date.now();
+    for (const listingId of locationShareListingIds) {
+      const lastSharedAt = lastShareRef.current[listingId] ?? 0;
+      if (now - lastSharedAt < 12_000) continue;
+      lastShareRef.current[listingId] = now;
+      void fetch(`/api/driver/listings/${listingId}/location`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          latitude: location.point.lat,
+          longitude: location.point.lng,
+        }),
+      }).catch(() => {
+        lastShareRef.current[listingId] = 0;
+      });
+    }
+  }, [location.point, locationShareListingIds]);
 
   async function updateJobStatus(jobId: string, status: "in_transit" | "completed" | "cancelled") {
     setBusyId(jobId);
@@ -100,6 +131,13 @@ export function DriverMyJobsContent() {
         </p>
       ) : null}
       {loading ? <p className="text-sm text-slate-600">Loading…</p> : null}
+      {locationShareListingIds.length > 0 ? (
+        <p className="rounded-3xl border border-slate-200/50 bg-white px-4 py-3 text-sm text-slate-600 shadow-cosmos-sm">
+          {location.point
+            ? "Live location is shared with buyers on your active jobs."
+            : "Allow browser location so buyers can track assigned delivery jobs."}
+        </p>
+      ) : null}
 
       {!loading && jobs.length === 0 ? (
         <EmptyState

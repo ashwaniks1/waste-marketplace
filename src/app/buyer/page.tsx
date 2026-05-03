@@ -50,11 +50,11 @@ export default function BuyerHomePage() {
   const wasteOptions = [{ value: "", label: "All materials" }, ...WASTE_TYPE_OPTIONS.map((o) => ({ value: o.value, label: o.label }))];
 
   return (
-    <div className="pb-8">
+    <div className="pb-8 lg:min-h-[calc(100dvh-5.5rem)]">
       <AppHeader title="Available near you" role="buyer" />
 
       <div className="grid min-h-0 grid-cols-1 gap-4 lg:grid-cols-12 lg:gap-6">
-        <aside className="min-h-0 space-y-4 lg:col-span-4">
+        <aside className="min-h-0 space-y-4 lg:col-span-3">
           <section className="overflow-hidden rounded-3xl border border-slate-200/50 bg-white p-6 shadow-cosmos-md sm:p-8">
             <span className="inline-flex rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-emerald-700">
               Buyer workspace
@@ -118,7 +118,7 @@ export default function BuyerHomePage() {
           </div>
         </aside>
 
-        <section className="min-h-0 space-y-3 lg:col-span-8">
+        <section className="min-h-0 space-y-3 lg:col-span-6">
           {loading ? (
             <div className="space-y-3" aria-busy="true" aria-label="Loading listings">
               <div className="h-36 animate-pulse rounded-3xl bg-cosmos-page-alt" />
@@ -139,6 +139,23 @@ export default function BuyerHomePage() {
           ) : null}
           {!loading ? rows.map((l) => <ListingCard key={l.id} listing={l} href={`/listing/${l.id}`} />) : null}
         </section>
+
+        <aside className="hidden min-h-0 space-y-4 lg:col-span-3 lg:block">
+          <section className="rounded-3xl border border-slate-200/50 bg-white p-5 shadow-cosmos-md">
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Workspace</p>
+            <h2 className="mt-2 text-base font-bold text-slate-900">Your buying flow</h2>
+            <div className="mt-4 space-y-3 text-sm leading-6 text-slate-600">
+              <p>Open a listing in the center, make an offer, and keep seller chat in the floating messages panel.</p>
+              <p>Accepted pickups move to your pickup workspace where delivery release, driver tracking, and the handoff PIN live.</p>
+            </div>
+          </section>
+
+          <section className="rounded-3xl border border-slate-200/50 bg-white p-5 shadow-cosmos-md">
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Results</p>
+            <p className="mt-2 text-3xl font-semibold text-slate-950">{rows.length}</p>
+            <p className="mt-1 text-sm text-slate-600">Listings match your current filters.</p>
+          </section>
+        </aside>
       </div>
     </div>
   );

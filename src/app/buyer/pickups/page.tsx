@@ -24,8 +24,18 @@ export default function BuyerPickupsPage() {
   return (
     <>
       <AppHeader title="My pickups" backHref="/buyer" role="buyer" />
-      <div className="space-y-6 px-4 pt-4">
-        <section>
+      <div className="grid min-h-0 grid-cols-1 gap-4 pt-1 lg:min-h-[calc(100dvh-5.5rem)] lg:grid-cols-12 lg:gap-6">
+        <aside className="space-y-4 lg:col-span-3">
+          <section className="rounded-3xl border border-slate-200/50 bg-white p-5 shadow-cosmos-md">
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Pickups</p>
+            <h1 className="mt-2 text-xl font-semibold text-slate-950">Track accepted purchases</h1>
+            <p className="mt-3 text-sm leading-6 text-slate-600">
+              Open an active pickup to request driver delivery, view driver tracking, or manage the handoff PIN.
+            </p>
+          </section>
+        </aside>
+
+        <section className="space-y-4 lg:col-span-6">
           <h2 className="text-sm font-semibold text-slate-800">In progress</h2>
           {loading ? (
             <div className="mt-2 space-y-3" aria-busy="true" aria-label="Loading pickups">
@@ -41,7 +51,8 @@ export default function BuyerPickupsPage() {
             ))}
           </div>
         </section>
-        <section>
+        <aside className="space-y-4 lg:col-span-3">
+        <section className="rounded-3xl border border-slate-200/50 bg-white p-5 shadow-cosmos-md">
           <h2 className="text-sm font-semibold text-slate-800">Completed</h2>
           <p className="text-xs text-slate-500">Listings you have already picked up.</p>
           {!loading && done.length === 0 ? (
@@ -53,6 +64,7 @@ export default function BuyerPickupsPage() {
             ))}
           </div>
         </section>
+        </aside>
       </div>
     </>
   );

@@ -97,6 +97,7 @@ export async function GET(_request: Request, ctx: Ctx) {
     const acceptedOffer = row.offers?.[0];
     let handoffPin: string | null = null;
     if (
+      row.buyerDeliveryConfirmed &&
       me.role !== UserRole.driver &&
       (row.acceptedById === me.id || row.userId === me.id)
     ) {

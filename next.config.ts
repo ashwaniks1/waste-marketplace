@@ -11,6 +11,7 @@ const nextConfig: NextConfig = {
       "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https://*.supabase.co https://*.tile.openstreetmap.org",
+      "frame-src 'self' https://www.google.com https://maps.google.com",
       "font-src 'self' data:",
       "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://maps.googleapis.com https://*.ingest.sentry.io",
       "worker-src 'self' blob:",

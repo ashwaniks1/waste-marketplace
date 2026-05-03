@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
+import { BuyerDriverLiveMap } from "@/components/BuyerDriverLiveMap";
 import { Button } from "@/components/Button";
 import { ConversationDrawer } from "@/components/ConversationDrawer";
 import { ImageGallery } from "@/components/ImageGallery";
@@ -187,18 +188,36 @@ export default function BuyerListingDetailPage() {
     }
   }
 
+  async function regenerateHandoffPin() {
+    setBusy(true);
+    const res = await fetch(`/api/listings/${id}/handoff-pin/regenerate`, { method: "POST" });
+    const data = await res.json();
+    setBusy(false);
+    if (!res.ok) {
+      setError(data.error ?? "Could not regenerate PIN");
+      return;
+    }
+    setRow((current) => (current ? { ...current, handoffPin: data.handoffPin } : current));
+    setError(null);
+  }
+
   const icon = WASTE_TYPE_OPTIONS.find((o) => o.value === row?.wasteType)?.icon;
   const iAmAcceptor = Boolean(meId && row?.acceptor?.id === meId);
   const myPending = offers.find((o) => o.status === "pending");
   const marketplaceDelivery = Boolean(row?.deliveryRequired || row?.deliveryAvailable);
   const needsBuyerDeliveryRelease =
     Boolean(row && row.status === "accepted" && marketplaceDelivery && !row.buyerDeliveryConfirmed);
+  const showHandoffPin = Boolean(row?.status === "accepted" && row.buyerDeliveryConfirmed && row.handoffPin);
 
   return (
     <>
       <AppHeader title="Listing detail" backHref="/buyer" role="buyer" />
-      <div className="space-y-6 pb-8 pt-4">
-        {error ? <p className="text-sm text-rose-600">{error}</p> : null}
+      <div className="space-y-5 pb-8 pt-1 lg:min-h-[calc(100dvh-5.5rem)]">
+        {error ? (
+          <p className="rounded-3xl border border-rose-200/60 bg-rose-50/90 px-4 py-3 text-sm text-rose-800 shadow-cosmos-sm">
+            {error}
+          </p>
+        ) : null}
         {!row ? (
           <p className="text-sm text-slate-600">Loading…</p>
         ) : (
@@ -242,15 +261,24 @@ export default function BuyerListingDetailPage() {
                       </Button>
                     </div>
                   ) : null}
-                  {row.status === "accepted" && marketplaceDelivery && row.handoffPin ? (
+                  {showHandoffPin ? (
                     <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50/90 p-3 dark:border-amber-900/50 dark:bg-amber-950/40">
                       <p className="text-sm font-semibold text-amber-950 dark:text-amber-100">Delivery PIN</p>
                       <p className="mt-1 text-xs text-amber-900/90 dark:text-amber-100/80">
-                        Give this code to your driver when they arrive so they can mark delivery complete in the app.
+                        Give this code to your driver when they arrive. It stays valid until you regenerate it.
                       </p>
                       <p className="mt-2 text-center font-mono text-2xl font-black tracking-widest text-amber-950 dark:text-amber-50">
                         {row.handoffPin}
                       </p>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className="mt-3 w-full"
+                        disabled={busy}
+                        onClick={() => void regenerateHandoffPin()}
+                      >
+                        Regenerate PIN
+                      </Button>
                     </div>
                   ) : null}
                 </div>
@@ -262,7 +290,11 @@ export default function BuyerListingDetailPage() {
 
             {row.images?.length ? <ImageGallery images={row.images} /> : null}
 
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            {row.status === "accepted" && row.assignedDriver ? (
+              <BuyerDriverLiveMap listingId={row.id} driverName={row.assignedDriver.name} />
+            ) : null}
+
+            <div className="rounded-3xl border border-slate-200/50 bg-white p-5 shadow-cosmos-md">
               <p className="text-sm font-semibold text-slate-900">Seller</p>
               <p className="text-sm text-slate-700">
                 <Link href={`/profile/${row.seller.id}`} className="font-medium text-teal-700 underline">

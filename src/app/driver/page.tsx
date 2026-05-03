@@ -88,7 +88,7 @@ export default function DriverPage() {
   return (
     <>
       <AppHeader title="Pickup board" role="driver" />
-      <div className="space-y-5 pt-1">
+      <div className="space-y-5 pt-1 lg:min-h-[calc(100dvh-5.5rem)]">
         <section className="overflow-hidden rounded-3xl border border-slate-200/50 bg-white p-6 shadow-cosmos-md sm:p-8">
           <span className="inline-flex rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-emerald-700">
             Driver workspace
@@ -110,7 +110,7 @@ export default function DriverPage() {
         </section>
 
       <div className="grid min-h-0 grid-cols-1 gap-4 lg:grid-cols-12 lg:gap-6">
-        <aside className="min-h-0 space-y-4 lg:col-span-4">
+        <aside className="min-h-0 space-y-4 lg:col-span-3">
           <div className="flex flex-col gap-4 rounded-3xl border border-slate-200/50 bg-white p-5 shadow-cosmos-sm sm:flex-row sm:items-center sm:justify-between lg:flex-col lg:items-start">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">Filters</p>
@@ -120,19 +120,6 @@ export default function DriverPage() {
               </p>
             </div>
           </div>
-
-          {location.permission === "denied" ? (
-            <p className="rounded-3xl border border-amber-200/60 bg-amber-50/90 px-4 py-3 text-sm text-amber-900 shadow-cosmos-sm">
-              Location is off, so “nearest” sort and distance labels are limited. Turn on location in your browser
-              settings to sort by distance and see how far each stop is.
-            </p>
-          ) : location.point ? (
-            <div>
-              <LiveMap center={location.point} heightClassName="h-64" />
-            </div>
-          ) : (
-            <p className="text-sm text-slate-600">Requesting your location…</p>
-          )}
 
           <div className="grid gap-3 rounded-3xl border border-slate-200/50 bg-white p-4 shadow-cosmos-sm">
             <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -178,7 +165,7 @@ export default function DriverPage() {
           </div>
         </aside>
 
-        <section className="min-h-0 space-y-3 lg:col-span-8">
+        <section className="min-h-0 space-y-3 lg:col-span-6">
           {error ? (
             <p className="rounded-3xl border border-rose-200/60 bg-rose-50/90 px-4 py-3 text-sm text-rose-800 shadow-cosmos-sm">
               {error}
@@ -234,6 +221,29 @@ export default function DriverPage() {
           </div>
         ) : null}
         </section>
+
+        <aside className="min-h-0 space-y-4 lg:col-span-3">
+          {location.permission === "denied" ? (
+            <p className="rounded-3xl border border-amber-200/60 bg-amber-50/90 px-4 py-3 text-sm text-amber-900 shadow-cosmos-sm">
+              Location is off, so “nearest” sort and distance labels are limited. Turn on location in your browser
+              settings to sort by distance and share location on assigned jobs.
+            </p>
+          ) : location.point ? (
+            <LiveMap center={location.point} heightClassName="h-64 lg:h-72" label="Your live driver location" />
+          ) : (
+            <p className="rounded-3xl border border-slate-200/50 bg-white px-4 py-3 text-sm text-slate-600 shadow-cosmos-sm">
+              Requesting your location…
+            </p>
+          )}
+
+          <section className="rounded-3xl border border-slate-200/50 bg-white p-5 shadow-cosmos-md">
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Route console</p>
+            <h2 className="mt-2 text-base font-bold text-slate-900">Claim, start, complete</h2>
+            <p className="mt-3 text-sm leading-6 text-slate-600">
+              Jobs in the center are already buyer-released. Once you claim one, your Jobs tab can share live location and collect the buyer PIN.
+            </p>
+          </section>
+        </aside>
       </div>
       </div>
     </>
