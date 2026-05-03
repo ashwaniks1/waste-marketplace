@@ -36,3 +36,6 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
+
+# Nested working copy if the project is also opened from a subfolder
+/waste-marketplace/
