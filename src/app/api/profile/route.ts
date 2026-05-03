@@ -6,6 +6,7 @@ import { handleRouteError, jsonError, jsonOk } from "@/lib/http";
 import { prisma } from "@/lib/prisma";
 import { profileToClientDto } from "@/lib/profileDto";
 import { rateLimitCombinedResponse } from "@/lib/rateLimitHttp";
+import { createServiceSupabase } from "@/lib/supabase/service";
 
 const updateProfileSchema = z.object({
   name: z.string().trim().min(1).max(200).optional(),
@@ -73,7 +74,11 @@ export async function PATCH(request: Request) {
 
     const body = updateProfileSchema.parse(await request.json());
 
-    const existing = await prisma.user.findUnique({ where: { id: authUser.id } });
+    let existing = await prisma.user.findUnique({ where: { id: authUser.id } });
+    if (!existing) {
+      await ensureAppUserProfile(authUser);
+      existing = await prisma.user.findUnique({ where: { id: authUser.id } });
+    }
     if (!existing) return jsonError("Profile not found", 404);
 
     const normalizedCountry = normalizeCountryCode(body.countryCode);
@@ -113,8 +118,29 @@ export async function PATCH(request: Request) {
       },
     }), authUser);
 
+    const profile = profileToClientDto(user);
+
+    try {
+      const supabase = createServiceSupabase();
+      await supabase.auth.admin.updateUserById(authUser.id, {
+        user_metadata: {
+          ...authUser.user_metadata,
+          name: profile.name,
+          firstName: profile.firstName,
+          lastName: profile.lastName,
+          phone: profile.phone,
+          address: profile.address,
+          avatarUrl: profile.avatarUrl,
+          zipCode: profile.zipCode,
+          countryCode: profile.countryCode,
+        },
+      });
+    } catch {
+      // Prisma `public.users` is the app source of truth; Auth metadata sync is best-effort.
+    }
+
     return jsonOk({
-      profile: profileToClientDto(user),
+      profile,
       avatarColumnAvailable: true,
     });
   } catch (e) {

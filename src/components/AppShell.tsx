@@ -9,6 +9,7 @@ import { UserMenu } from "@/components/UserMenu";
 import { LocationProvider } from "@/components/LocationProvider";
 import { NotificationBell } from "@/components/NotificationBell";
 import { SessionActivity } from "@/components/SessionActivity";
+import { BuyerDriverInboxFloat } from "@/components/BuyerDriverInboxFloat";
 
 type Role = "customer" | "buyer" | "admin" | "driver";
 
@@ -71,6 +72,7 @@ export function AppShell({
   const pathname = usePathname();
   const router = useRouter();
   const [profile, setProfile] = useState<ProfileData | null>(null);
+  const [inboxOpen, setInboxOpen] = useState(false);
   const [driverActiveJobCount, setDriverActiveJobCount] = useState(0);
   const nav =
     role === "buyer"
@@ -112,8 +114,19 @@ export function AppShell({
     }
 
     loadProfile();
+    function onProfileUpdated(event: Event) {
+      const detail = (event as CustomEvent<ProfileData>).detail;
+      if (detail?.name) {
+        setProfile({
+          name: detail.name,
+          avatarUrl: detail.avatarUrl ?? null,
+        });
+      }
+    }
+    window.addEventListener("wm:profile-updated", onProfileUpdated);
     return () => {
       cancelled = true;
+      window.removeEventListener("wm:profile-updated", onProfileUpdated);
     };
   }, []);
 
@@ -218,20 +231,24 @@ export function AppShell({
         {role === "customer" ? <div className="flex min-h-0 flex-1 flex-col lg:h-full">{children}</div> : children}
       </main>
 
-      {(role === "buyer" || role === "driver") ? (
-        <Link
-          href="/conversations"
-          className="fixed bottom-5 right-5 z-40 inline-flex h-14 w-14 items-center justify-center rounded-full bg-slate-900 text-white shadow-lg shadow-slate-900/25 transition hover:scale-105 hover:bg-slate-800 focus-visible:outline focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2"
-          aria-label="Open messages"
-        >
-          <svg className="h-7 w-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
-            <path
-              d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10z"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </Link>
+      {role === "buyer" || role === "driver" ? (
+        <>
+          <button
+            type="button"
+            onClick={() => setInboxOpen(true)}
+            className="fixed bottom-5 right-5 z-40 inline-flex h-14 w-14 items-center justify-center rounded-full bg-slate-900 text-white shadow-lg shadow-slate-900/25 transition hover:scale-105 hover:bg-slate-800 focus-visible:outline focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2"
+            aria-label="Open messages"
+          >
+            <svg className="h-7 w-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+              <path
+                d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10z"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+          <BuyerDriverInboxFloat open={inboxOpen} onClose={() => setInboxOpen(false)} />
+        </>
       ) : null}
 
       {/* Mobile bottom nav */}

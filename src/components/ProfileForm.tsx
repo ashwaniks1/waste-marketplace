@@ -241,6 +241,7 @@ export function ProfileForm() {
       };
       setProfile(next);
       hydrateFromProfile(next);
+      window.dispatchEvent(new CustomEvent("wm:profile-updated", { detail: next }));
       setError(null);
       setIsEditing(false);
       if (data.avatarColumnAvailable === false) {

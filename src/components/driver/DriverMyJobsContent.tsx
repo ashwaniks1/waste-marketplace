@@ -29,9 +29,23 @@ type DriverJob = {
   };
 };
 
+type AvailableJob = {
+  id: string;
+  wasteType: string;
+  quantity: string;
+  address: string;
+  currency: string;
+  estimatedDriverPayout: number | null;
+  seller?: { name: string };
+};
+
+type JobFilter = "active" | "available" | "completed" | "all";
+
 export function DriverMyJobsContent() {
   const location = useLiveLocation();
   const [jobs, setJobs] = useState<DriverJob[]>([]);
+  const [availableJobs, setAvailableJobs] = useState<AvailableJob[]>([]);
+  const [filter, setFilter] = useState<JobFilter>("active");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -39,13 +53,18 @@ export function DriverMyJobsContent() {
   const lastShareRef = useRef<Record<string, number>>({});
 
   const loadJobs = useCallback(async () => {
-    const res = await fetch("/api/driver/jobs", { cache: "no-store" });
-    const data = await res.json();
-    if (!res.ok) {
-      setError(data.error ?? "Unable to load jobs");
+    const [jobsResponse, feedResponse] = await Promise.all([
+      fetch("/api/driver/jobs", { cache: "no-store" }),
+      fetch("/api/driver/feed", { cache: "no-store" }),
+    ]);
+    const jobsData = await jobsResponse.json();
+    const feedData = await feedResponse.json().catch(() => []);
+    if (!jobsResponse.ok) {
+      setError(jobsData.error ?? "Unable to load jobs");
       return;
     }
-    setJobs(data);
+    setJobs(jobsData);
+    if (feedResponse.ok && Array.isArray(feedData)) setAvailableJobs(feedData);
   }, []);
 
   useEffect(() => {
@@ -111,6 +130,28 @@ export function DriverMyJobsContent() {
     }
   }
 
+  const activeJobs = useMemo(
+    () => jobs.filter((job) => job.status === "scheduled" || job.status === "in_transit"),
+    [jobs],
+  );
+  const completedJobs = useMemo(() => jobs.filter((job) => job.status === "completed"), [jobs]);
+  const displayedJobs = useMemo(() => {
+    if (filter === "active") return activeJobs;
+    if (filter === "completed") return completedJobs;
+    if (filter === "available") return [];
+    return jobs;
+  }, [activeJobs, completedJobs, filter, jobs]);
+  const currency = jobs[0]?.listing.currency ?? availableJobs[0]?.currency ?? "USD";
+  const completedEarnings = completedJobs.reduce((sum, job) => sum + Number(job.listing.driverCommissionAmount ?? 0), 0);
+  const activeEarnings = activeJobs.reduce((sum, job) => sum + Number(job.listing.driverCommissionAmount ?? 0), 0);
+  const availableEarnings = availableJobs.reduce((sum, job) => sum + Number(job.estimatedDriverPayout ?? 0), 0);
+  const filterOptions: { id: JobFilter; label: string; count: number }[] = [
+    { id: "active", label: "Active", count: activeJobs.length },
+    { id: "available", label: "Available", count: availableJobs.length },
+    { id: "completed", label: "Completed", count: completedJobs.length },
+    { id: "all", label: "All", count: jobs.length },
+  ];
+
   return (
     <div className="space-y-5 pt-1">
       <section className="overflow-hidden rounded-3xl border border-slate-200/50 bg-white p-6 shadow-cosmos-md sm:p-8">
@@ -123,6 +164,53 @@ export function DriverMyJobsContent() {
         <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">
           Start the run, enter the buyer handoff PIN at completion, and keep cancelled or completed work visible for review.
         </p>
+      </section>
+
+      <section className="grid gap-3 md:grid-cols-4">
+        <div className="rounded-3xl border border-emerald-100 bg-emerald-50/80 p-4 shadow-cosmos-sm">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-700">Earned</p>
+          <p className="mt-2 text-2xl font-bold text-emerald-950">{formatMoney(completedEarnings, currency)}</p>
+          <p className="mt-1 text-xs text-emerald-800">{completedJobs.length} completed pickup{completedJobs.length === 1 ? "" : "s"}</p>
+        </div>
+        <div className="rounded-3xl border border-sky-100 bg-sky-50/80 p-4 shadow-cosmos-sm">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-sky-700">Active route</p>
+          <p className="mt-2 text-2xl font-bold text-sky-950">{formatMoney(activeEarnings, currency)}</p>
+          <p className="mt-1 text-xs text-sky-800">{activeJobs.length} job{activeJobs.length === 1 ? "" : "s"} in motion</p>
+        </div>
+        <div className="rounded-3xl border border-amber-100 bg-amber-50/80 p-4 shadow-cosmos-sm">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-700">Open board</p>
+          <p className="mt-2 text-2xl font-bold text-amber-950">{formatMoney(availableEarnings, currency)}</p>
+          <p className="mt-1 text-xs text-amber-800">{availableJobs.length} available listing{availableJobs.length === 1 ? "" : "s"}</p>
+        </div>
+        <div className="rounded-3xl border border-slate-200/70 bg-white p-4 shadow-cosmos-sm">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Completion rate</p>
+          <p className="mt-2 text-2xl font-bold text-slate-950">
+            {jobs.length > 0 ? `${Math.round((completedJobs.length / jobs.length) * 100)}%` : "0%"}
+          </p>
+          <p className="mt-1 text-xs text-slate-600">Across claimed pickups</p>
+        </div>
+      </section>
+
+      <section className="rounded-3xl border border-slate-200/50 bg-white p-2 shadow-cosmos-sm">
+        <div className="flex flex-wrap gap-1">
+          {filterOptions.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              onClick={() => setFilter(option.id)}
+              className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                filter === option.id
+                  ? "bg-slate-950 text-white shadow-cosmos-sm"
+                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"
+              }`}
+            >
+              {option.label}
+              <span className={`ml-2 rounded-full px-2 py-0.5 text-xs ${filter === option.id ? "bg-white/15" : "bg-slate-100"}`}>
+                {option.count}
+              </span>
+            </button>
+          ))}
+        </div>
       </section>
 
       {error ? (
@@ -139,19 +227,55 @@ export function DriverMyJobsContent() {
         </p>
       ) : null}
 
-      {!loading && jobs.length === 0 ? (
+      {!loading && filter !== "available" && displayedJobs.length === 0 ? (
         <EmptyState
           variant="pickups"
-          title="No assigned jobs"
-          description="Claim a delivery job from the pickup board when you are ready to run."
+          title={filter === "completed" ? "No completed pickups yet" : "No assigned jobs"}
+          description={filter === "completed" ? "Completed deliveries will show here with your final payout." : "Claim a delivery job from the pickup board when you are ready to run."}
           actionLabel="Open pickup board"
           actionHref="/driver"
         />
       ) : null}
 
-      {!loading && jobs.length > 0 ? (
+      {!loading && filter === "available" ? (
+        availableJobs.length === 0 ? (
+          <EmptyState
+            variant="pickups"
+            title="No available listings"
+            description="Released buyer deliveries appear here when they are ready for driver pickup."
+            actionLabel="Refresh board"
+            actionHref="/driver"
+          />
+        ) : (
+          <div className="space-y-4">
+            {availableJobs.map((job) => {
+              const payout = job.estimatedDriverPayout != null ? formatMoney(Number(job.estimatedDriverPayout), job.currency) : "—";
+              const label = WASTE_TYPE_OPTIONS.find((o) => o.value === job.wasteType)?.label ?? job.wasteType;
+              return (
+                <div key={job.id} className="rounded-3xl border border-slate-200/50 bg-white p-6 shadow-cosmos-sm transition hover:border-teal-200/80 hover:shadow-cosmos-md">
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                      <p className="text-base font-semibold text-slate-900">{label}</p>
+                      <p className="mt-1 text-sm text-slate-600">{job.quantity}</p>
+                    </div>
+                    <div className="rounded-2xl bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-900">{payout}</div>
+                  </div>
+                  <p className="mt-3 text-sm text-slate-600">{job.address}</p>
+                  <div className="mt-4">
+                    <Link href={`/driver/listings/${job.id}`}>
+                      <Button type="button">Review and claim</Button>
+                    </Link>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )
+      ) : null}
+
+      {!loading && filter !== "available" && displayedJobs.length > 0 ? (
         <div className="space-y-4">
-          {jobs.map((job) => {
+          {displayedJobs.map((job) => {
             const payout =
               job.listing.driverCommissionAmount != null
                 ? formatMoney(Number(job.listing.driverCommissionAmount), job.listing.currency)

@@ -128,6 +128,8 @@ Third-party services:
   - filter by distance, waste type, or payout
   - claim pickup
   - get transport job
+  - filter assigned work by active, available, completed, or all
+  - review earnings summary for completed, active, and available pickup payouts
   - share live location
   - update transport status
   - complete with buyer PIN in mobile RPC flow
@@ -238,6 +240,8 @@ Third-party services:
   - idle timeout enforcement
 - `src/lib/ensureAppUserProfile.ts`
   - repairs or creates `public.users` rows
+- `src/components/BuyerDriverInboxFloat.tsx`
+  - buyer/driver floating chat panel launched from the app shell instead of full-page navigation
 - `src/lib/listing-visibility.ts`
   - read-access rules by role
 - `src/lib/pickup-window.ts`
@@ -365,7 +369,7 @@ General notes:
 | `/api/users/me` | `GET` | Return auth user + Prisma profile; supports cookie or bearer auth | none | `{ role, auth: { id, email }, profile }` |
 | `/api/users/:id` | `GET` | Public-ish user profile, review summary, recent reviews, open listings | none | `{ profile, reviewSummary, reviews, openListings, viewerId }` |
 | `/api/profile` | `GET` | Load current profile; supports cookie or bearer auth | none | `{ profile, avatarColumnAvailable, reviewSummary }` |
-| `/api/profile` | `PATCH` | Update current profile | `{ name, phone?, address?, avatarUrl?, zipCode?, countryCode? }` | `{ profile, avatarColumnAvailable }` |
+| `/api/profile` | `PATCH` | Update current profile; heals a missing `public.users` row before update and best-effort syncs safe display fields to Supabase Auth `user_metadata` | `{ name?, firstName?, lastName?, phone?, address?, avatarUrl?, zipCode?, countryCode? }` | `{ profile, avatarColumnAvailable }` |
 | `/api/profile/avatar` | `POST` | Upload avatar image to storage | multipart `file` | `{ url, path }` |
 
 ### Listings
@@ -809,6 +813,7 @@ These details apply to the **Next.js web app** in this repository and extend the
 
 ## Last Updated
 
+- **2026-05-03** — Fixed buyer profile update freshness by healing missing app profile rows, keeping app-shell profile state in sync after save, and best-effort syncing safe display fields into Supabase Auth metadata. Buyer/driver message FAB now opens a bottom-right floating inbox instead of navigating full-screen. Driver jobs now include active/available/completed/all filters plus Uber-style earnings summary cards.
 - **2026-05-03** — Added metadata-table RLS migration for Supabase linter finding on `public._prisma_migrations` plus manual owner-required SQL for `public.spatial_ref_sys`. Marketplace app-table RLS policies for listings/offers/jobs are unchanged; PostGIS SRID metadata should remain readable when the manual SQL is applied.
 - **2026-05-03** — Updated buyer marketplace delivery release so accepted delivery-offered listings can be converted into driver pickup jobs, aligned driver feed visibility to buyer-released accepted jobs, replaced the driver live map Leaflet/OSM preview with Google Maps embed, and refreshed driver/chat UI panels to match the seller workspace style.
 - **2026-05-03** — Hid buyer delivery PINs until delivery is requested, added buyer PIN regeneration, added web driver live-location upserts and buyer realtime tracking map, and expanded buyer/driver pages toward 3-column workspace layouts.
