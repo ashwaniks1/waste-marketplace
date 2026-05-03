@@ -156,7 +156,7 @@ export default function SignupPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(typeof data.error === "string" ? data.error : "Signup failed");
+        setError("We couldn’t create your account right now. Review your details and try again.");
         return;
       }
 
@@ -173,7 +173,7 @@ export default function SignupPage() {
       });
       if (!loginRes.ok) {
         setError(
-          "Account created. If email confirmation is enabled in Supabase, confirm your email then sign in.",
+          "Account created. Check your email for a verification link, then sign in.",
         );
         return;
       }
@@ -183,8 +183,8 @@ export default function SignupPage() {
       else if (role === "driver") router.push("/driver");
       else router.push("/customer");
       router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
+    } catch {
+      setError("We couldn’t create your account right now. Try again in a moment.");
     } finally {
       setLoading(false);
     }

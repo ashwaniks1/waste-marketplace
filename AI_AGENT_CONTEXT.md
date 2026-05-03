@@ -153,12 +153,14 @@ Third-party services:
 ### Background Jobs / Automation
 
 - No queue worker or cron service in repo
+- `public.domain_events` is an append-only outbox for marketplace lifecycle events; triggers write listing, offer, transport job, notification, and review events for future queue/push/webhook/analytics consumers
 - SQL triggers handle:
   - seller notification on new pending offer
   - peer notification on new chat message
   - `conversations.updated_at` bump on new message
   - sync from `users` to `user_public_profiles`
   - profile row creation from `auth.users`
+  - append-only domain events for listing/offer/delivery/notification/review state changes
 - Web code also emits notifications for:
   - accepted offers
   - driver claim
@@ -169,12 +171,15 @@ Third-party services:
 - Mobile chat message subscription via Supabase Realtime
 - Mobile notification subscription via Supabase Realtime
 - Mobile live driver location subscription via Supabase Realtime
-- Web chat and notification UI mostly poll instead of subscribing
+- Web notification bell subscribes to user-scoped notification inserts/updates and refreshes through the existing REST loader
+- Web chat surfaces subscribe to `messages` / `conversations` changes and refresh through participant APIs so encrypted message bodies stay server-decrypted
+- Web driver active-job badge subscribes to `transport_jobs` changes and refreshes through `/api/driver/jobs`
+- Web buyer live driver map subscribes to `listing_live_locations` with a REST fallback
 
 ### Notifications
 
 - Stored in `public.notifications`
-- Web notification bell polls REST endpoints
+- Web notification bell does an initial REST load and then listens for Supabase Realtime inserts/updates for the signed-in user
 - Mobile notifications screen listens for realtime inserts
 - Mobile also schedules local device notifications from incoming DB events
 
@@ -256,7 +261,8 @@ Third-party services:
 
 ### External Integrations
 
-- Google Geocoding through `POST /api/maps/geocode`
+- Google Geocoding through `POST /api/maps/geocode`; geocode responses now include structured location objects in addition to legacy coordinates/formatted address.
+- Normalized geo locations through `public.geo_locations`; listing/profile APIs can use structured pickup/profile locations while legacy `address` / `latitude` / `longitude` fields remain during rollout.
 - Sentry server error capture if DSN is configured
 - Supabase edge function `admin-orphan-users`
 - OpenStreetMap tiles on web maps
@@ -280,6 +286,9 @@ Third-party services:
 | `notifications` | table | User notifications with read tracking |
 | `delivery_handoff_secrets` | table | Buyer/seller-readable delivery PIN; intentionally hidden from drivers |
 | `driver_profile_blocks` | table | Hides buyer/seller profile details from drivers after completed delivery |
+| `geo_locations` | table | Canonical structured location object with address hierarchy, WGS84 latitude/longitude, PostGIS geography point, geohash, timezone, formatted address, and source metadata |
+| `driver_service_profiles` | table | Driver operating-scope constraints (`local` or `national`) plus base geography used to filter and claim jobs |
+| `domain_events` | table | Append-only event outbox for listing, offer, delivery, notification, and review lifecycle events; intended for queues, push, webhooks, analytics, and admin timelines |
 
 ### SQL-Only Tables / Views / Functions Used by Mobile
 
@@ -335,6 +344,8 @@ These are required even though they are not in `prisma/schema.prisma`.
 - `notifications` indexed by `(user_id, read_at)`
 - `driver_profile_blocks` primary key on `(driver_id, blocked_user_id)`
 - `listing_live_locations` indexed by `driver_id`
+- `geo_locations` uses a GiST index on `point`, region btree indexes, and geohash prefix indexing for map/tile filtering.
+- `waste_listings` carries denormalized `origin_country_code/state/city`, `pickup_point`, and `pickup_geohash` synced from `pickup_location_id` for scalable map queries.
 
 ### Multi-Tenant Logic
 
@@ -377,7 +388,8 @@ General notes:
 | Route | Method | Purpose | Request shape | Response shape |
 | --- | --- | --- | --- | --- |
 | `/api/listings` | `GET` | Role-scoped listings list; **buyer** open feed supports `?wasteType=`, `?q=` (title/address), `?sort=` (`newest` \| `price_asc` \| `price_desc`); buyer `?scope=mine` for accepted listings | query `scope?`, `wasteType?`, `q?`, `sort?` | `Listing[]` |
-| `/api/listings` | `POST` | Create seller listing | `{ title, wasteType, quantity, description?, images[], address, askingPrice, currency?, deliveryAvailable?, deliveryFee?, latitude?, longitude?, deliveryRequired?, pickupZip?, commissionKind?, driverCommissionPercent?, driverPayoutFixed? }` | `Listing` |
+| `/api/listings` | `POST` | Create seller listing | `{ title, wasteType, quantity, description?, images[], address?, pickupLocation?, visibilityScope?, askingPrice, currency?, deliveryAvailable?, deliveryFee?, latitude?, longitude?, deliveryRequired?, pickupZip?, commissionKind?, driverCommissionPercent?, driverPayoutFixed? }` | `Listing` |
+| `/api/listings/map` | `GET` | Buyer map search; returns clusters at low zoom and listings at high zoom | query `bbox?`, `centerLat?`, `centerLng?`, `radiusMeters?`, `zoom?`, `scope?`, `wasteType?`, `limit?` | `{ mode: 'clusters' \| 'listings', items }` |
 | `/api/listings/:id` | `GET` | Read single listing if viewer can access it | none | `Listing` plus accepted-offer info and optional `handoffPin` |
 | `/api/listings/:id` | `PATCH` | Edit listing | partial listing fields | updated `Listing` |
 | `/api/listings/:id/cancel` | `POST` | Seller cancel open listing | none | updated `Listing` |
@@ -452,6 +464,8 @@ Mobile reads/writes these directly, so changes here require DB/RLS awareness:
   - `delivery_handoff_secrets`
   - `driver_profile_blocks`
   - `listing_live_locations`
+  - `geo_locations`
+  - `driver_service_profiles`
 - views:
   - `listing_public_feed`
   - `user_public_profiles`
@@ -813,6 +827,10 @@ These details apply to the **Next.js web app** in this repository and extend the
 
 ## Last Updated
 
+- **2026-05-03** — Added `public.domain_events` event outbox with RLS and private trigger helpers. Listing, offer, transport job, notification, and review changes now emit append-only lifecycle events for future Supabase Queues, push notifications, webhook delivery, analytics, and admin timeline consumers. `transport_jobs` and `domain_events` are now in the Supabase Realtime publication.
+- **2026-05-03** — Replaced web notification/chat polling with Supabase Realtime subscriptions: notification bell listens to user-scoped notification inserts/updates; seller/buyer/driver chat panels and conversation pages listen to `messages` / `conversations` changes and refresh through existing secure REST APIs so encrypted chat bodies remain server-decrypted.
+- **2026-05-03** — Began global geo rollout: added canonical `geo_locations`, listing pickup location FKs, driver service profiles, PostGIS/geohash indexes, structured geocode responses, buyer map query endpoint with clustering, and driver regional eligibility checks for feed/claim paths. Legacy string address and coordinate columns remain during web/mobile migration.
+- **2026-05-03** — Production UX copy pass: visible loading/error states now use user-safe product language instead of raw API/provider wording. Login errors now return safe messages plus a small `code` (`email_confirmation_required` / `invalid_credentials`) so the client can show verification guidance without parsing Supabase error text.
 - **2026-05-03** — Buyer/driver floating chat now matches seller chrome with back navigation plus minimize/close controls and no full-inbox shortcut. Driver earnings moved to `/driver/earnings` as a separate nav tab with bank-statement style posted/pending rows. Web chat message bodies are encrypted at rest with server-only AES-GCM envelopes (`MESSAGE_ENCRYPTION_KEY` / `APP_ENCRYPTION_KEY`), participant APIs decrypt responses, admin read access was removed from conversation APIs, and message notifications no longer copy private text.
 - **2026-05-03** — Fixed buyer profile update freshness by healing missing app profile rows, keeping app-shell profile state in sync after save, and best-effort syncing safe display fields into Supabase Auth metadata. Buyer/driver message FAB now opens a bottom-right floating inbox instead of navigating full-screen. Driver jobs now include active/available/completed/all filters plus Uber-style earnings summary cards.
 - **2026-05-03** — Added metadata-table RLS migration for Supabase linter finding on `public._prisma_migrations` plus manual owner-required SQL for `public.spatial_ref_sys`. Marketplace app-table RLS policies for listings/offers/jobs are unchanged; PostGIS SRID metadata should remain readable when the manual SQL is applied.

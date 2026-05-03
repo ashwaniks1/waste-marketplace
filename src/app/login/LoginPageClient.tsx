@@ -40,14 +40,14 @@ export function LoginPageClient() {
         },
       });
       if (oauthError) {
-        setError(oauthError.message);
+        setError("Google sign-in could not start. Try again or sign in with email.");
         return;
       }
       if (data?.url) {
         window.location.href = data.url;
       }
     } catch {
-      setError("Could not start Google sign-in.");
+      setError("Google sign-in could not start. Try again or sign in with email.");
     } finally {
       setGoogleLoading(false);
     }
@@ -73,19 +73,18 @@ export function LoginPageClient() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const message = typeof data.error === "string" ? data.error : "Login failed";
-        if (message.toLowerCase().includes("not confirmed") || message.toLowerCase().includes("email")) {
+        if (data.code === "email_confirmation_required") {
           setVerificationPending(true);
           setError("Your email address is not verified yet. Check your inbox or resend the confirmation email.");
         } else {
-          setError(message);
+          setError("We couldn’t sign you in with those details. Check your email and password, then try again.");
         }
         return;
       }
       const me = await fetch("/api/users/me");
       const profile = await me.json();
       if (!me.ok) {
-        setError("Could not load profile");
+        setError("We couldn’t open your workspace right now. Try signing in again.");
         return;
       }
       if (profile.role === "buyer") router.push("/buyer");
@@ -107,14 +106,13 @@ export function LoginPageClient() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
       });
-      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setResendMessage(typeof data.error === "string" ? data.error : "Unable to resend verification email.");
+        setResendMessage("We couldn’t resend the email right now. Try again in a moment.");
       } else {
         setResendMessage("Verification email resent. Check your inbox.");
       }
     } catch {
-      setResendMessage("Unable to resend verification email.");
+      setResendMessage("We couldn’t resend the email right now. Try again in a moment.");
     } finally {
       setResendLoading(false);
     }

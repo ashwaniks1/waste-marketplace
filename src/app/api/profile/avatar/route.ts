@@ -12,7 +12,7 @@ export async function POST(request: Request) {
     const form = await request.formData();
     const file = form.get("file");
 
-    if (!file || !(file instanceof File)) return jsonError("Missing file", 400);
+    if (!file || !(file instanceof File)) return jsonError("Choose a profile photo to upload.", 400);
     if (file.size > MAX_BYTES) return jsonError("Image must be 3 MB or smaller.", 400);
 
     const buffer = Buffer.from(await file.arrayBuffer());
@@ -30,21 +30,18 @@ export async function POST(request: Request) {
     if (error) {
       const message = error.message ?? "";
       if (/bucket not found/i.test(message)) {
-        return jsonError(
-          `Storage bucket "${BUCKET}" does not exist. Create it in Supabase Storage and make it public for avatar URLs.`,
-          400,
-        );
+        return jsonError("We couldn’t upload your photo right now. Try again in a moment.", 400);
       }
-      return jsonError(message || "Upload failed", 400);
+      return jsonError("We couldn’t upload your photo right now. Try again in a moment.", 400);
     }
 
     const { data } = service.storage.from(BUCKET).getPublicUrl(path);
-    if (!data.publicUrl) return jsonError("Could not get avatar URL", 500);
+    if (!data.publicUrl) return jsonError("We couldn’t upload your photo right now. Try again in a moment.", 500);
 
     return jsonOk({ url: data.publicUrl, path });
   } catch (e) {
     if (e instanceof Error && e.message.includes("SUPABASE_SERVICE_ROLE_KEY")) {
-      return jsonError("Server storage is not configured", 503);
+      return jsonError("We couldn’t upload your photo right now. Try again in a moment.", 503);
     }
     return handleRouteError(e);
   }

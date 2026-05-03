@@ -54,11 +54,11 @@ export async function POST(request: Request) {
     if (error) {
       const msg = error.message.toLowerCase();
       if (msg.includes("already") || msg.includes("registered")) {
-        return jsonError("An account with this email already exists", 409);
+        return jsonError("An account with this email already exists.", 409);
       }
-      return jsonError(error.message, 400);
+      return jsonError("We couldn’t create your account right now. Review your details and try again.", 400);
     }
-    if (!data.user?.id) return jsonError("Signup failed", 400);
+    if (!data.user?.id) return jsonError("We couldn’t create your account right now. Review your details and try again.", 400);
 
     try {
       await prisma.user.upsert({
@@ -109,7 +109,7 @@ export async function POST(request: Request) {
     });
   } catch (e) {
     if (e instanceof Error && e.message.includes("SUPABASE_SERVICE_ROLE_KEY")) {
-      return jsonError("Server misconfiguration: set SUPABASE_SERVICE_ROLE_KEY in .env", 503);
+      return jsonError("We couldn’t create your account right now. Try again in a moment.", 503);
     }
     return handleRouteError(e, { route: "POST /api/auth/signup" });
   }

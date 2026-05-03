@@ -12,6 +12,7 @@ import { HttpError } from "@/lib/errors";
 import { handleRouteError, jsonError, jsonOk } from "@/lib/http";
 import { listingIsOpenForMarketplaceActions } from "@/lib/listing-marketplace";
 import { canViewListing } from "@/lib/listing-visibility";
+import { geoLocationSelect, locationInputSchema, locationToLegacyAddress, toGeoLocationCreateInput, visibilityScopeSchema } from "@/lib/locations";
 import { relistExpiredAcceptedListing } from "@/lib/pickup-window";
 import { prisma } from "@/lib/prisma";
 import { serializeListing } from "@/lib/serialize";
@@ -20,6 +21,7 @@ const listingInclude = {
   seller: { select: { id: true, name: true, email: true, phone: true, avatarUrl: true } },
   acceptor: { select: { id: true, name: true, email: true, phone: true, avatarUrl: true } },
   assignedDriver: { select: { id: true, name: true, email: true, phone: true, avatarUrl: true } },
+  pickupLocation: { select: geoLocationSelect },
   offers: {
     where: { status: OfferStatus.accepted },
     select: { amount: true, currency: true },
@@ -34,6 +36,8 @@ const patchSchema = z.object({
   description: z.string().optional(),
   images: z.array(z.string().url()).min(1).optional(),
   address: z.string().min(1).optional(),
+  pickupLocation: locationInputSchema.optional(),
+  visibilityScope: visibilityScopeSchema.optional(),
   askingPrice: z.coerce.number().positive().optional(),
   currency: z.string().length(3).optional(),
   deliveryAvailable: z.boolean().optional(),
@@ -156,17 +160,35 @@ export async function PATCH(request: Request, ctx: Ctx) {
         ...(body.quantity !== undefined ? { quantity: body.quantity.trim() } : {}),
         ...(body.description !== undefined ? { description: body.description?.trim() || null } : {}),
         ...(body.images !== undefined ? { images: body.images } : {}),
-        ...(body.address !== undefined ? { address: body.address.trim() } : {}),
+        ...(body.pickupLocation !== undefined
+          ? { address: locationToLegacyAddress(body.pickupLocation) }
+          : body.address !== undefined
+            ? { address: body.address.trim() }
+            : {}),
         ...(body.askingPrice !== undefined ? { askingPrice: body.askingPrice } : {}),
         ...(body.currency !== undefined ? { currency: body.currency } : {}),
         ...(body.deliveryAvailable !== undefined ? { deliveryAvailable: body.deliveryAvailable } : {}),
         ...(body.deliveryFee !== undefined ? { deliveryFee: body.deliveryFee } : {}),
-        ...(body.latitude !== undefined ? { latitude: body.latitude } : {}),
-        ...(body.longitude !== undefined ? { longitude: body.longitude } : {}),
+        ...(body.pickupLocation !== undefined
+          ? {
+              latitude: body.pickupLocation.latitude,
+              longitude: body.pickupLocation.longitude,
+              pickupZip: body.pickupLocation.postalCode?.trim() || null,
+            }
+          : {
+              ...(body.latitude !== undefined ? { latitude: body.latitude } : {}),
+              ...(body.longitude !== undefined ? { longitude: body.longitude } : {}),
+              ...(body.pickupZip !== undefined ? { pickupZip: body.pickupZip?.trim() || null } : {}),
+            }),
+        ...(body.visibilityScope !== undefined ? { visibilityScope: body.visibilityScope } : {}),
+        ...(body.pickupLocation?.id
+          ? { pickupLocation: { connect: { id: body.pickupLocation.id } } }
+          : body.pickupLocation
+            ? { pickupLocation: { create: toGeoLocationCreateInput(body.pickupLocation, me.id) } }
+            : {}),
         ...(body.deliveryRequired !== undefined || body.deliveryAvailable !== undefined
           ? { deliveryRequired: mergedDeliveryRequired }
           : {}),
-        ...(body.pickupZip !== undefined ? { pickupZip: body.pickupZip?.trim() || null } : {}),
         ...(nextKind !== undefined ? { commissionKind: nextKind } : {}),
         ...(body.driverCommissionPercent !== undefined
           ? { driverCommissionPercent: body.driverCommissionPercent }

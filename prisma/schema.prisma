@@ -79,111 +79,178 @@ enum CommissionKind {
   fixed
 }
 
+enum LocationSource {
+  manual
+  browser_gps
+  mobile_gps
+  geocoder
+  backfill
+}
+
+enum VisibilityScope {
+  local
+  national
+  international
+}
+
+enum DriverOperatingScope {
+  local
+  national
+}
+
 /// Application profile keyed to auth.users.id (Supabase Auth).
 model User {
-  id            String   @id @db.Uuid
-  name          String
-  firstName     String   @default("") @map("first_name")
-  lastName      String   @default("") @map("last_name")
-  email         String   @unique
-  phone         String?
-  role          UserRole
-  address       String?
+  id                String   @id @db.Uuid
+  name              String
+  firstName         String   @default("") @map("first_name")
+  lastName          String   @default("") @map("last_name")
+  email             String   @unique
+  phone             String?
+  role              UserRole
+  address           String?
   /// ISO-3166-1 alpha-2 (e.g. US, CA). Used to derive default currency.
-  countryCode   String?  @map("country_code")
+  countryCode       String?  @map("country_code")
   /// ISO-4217 code (e.g. USD, EUR). Defaults for listings when currency not provided.
-  currency      String   @default("USD")
-  vehicleType   String?  @map("vehicle_type")
-  licenseNumber String?  @map("license_number")
-  availability  String?
-  avatarUrl     String?  @map("avatar_url")
-  zipCode       String?  @map("zip_code")
+  currency          String   @default("USD")
+  vehicleType       String?  @map("vehicle_type")
+  licenseNumber     String?  @map("license_number")
+  availability      String?
+  avatarUrl         String?  @map("avatar_url")
+  zipCode           String?  @map("zip_code")
   /// IANA timezone for timestamps in the app (e.g. America/New_York); optional.
-  timezone      String?
-  profileLat    Float?   @map("profile_lat")
-  profileLng    Float?   @map("profile_lng")
-  lastActivityAt DateTime @default(now()) @map("last_activity_at")
-  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at")
-  createdAt DateTime @default(now()) @map("created_at")
+  timezone          String?
+  profileLat        Float?   @map("profile_lat")
+  profileLng        Float?   @map("profile_lng")
+  primaryLocationId String?  @map("primary_location_id") @db.Uuid
+  lastActivityAt    DateTime @default(now()) @map("last_activity_at")
+  updatedAt         DateTime @default(now()) @updatedAt @map("updated_at")
+  createdAt         DateTime @default(now()) @map("created_at")
 
-  listingsPosted   WasteListing[]    @relation("SellerListings")
-  listingsAccepted WasteListing[]    @relation("AcceptedBy")
-  offersMade       Offer[]
-  comments         ListingComment[]
-  buyerConversations Conversation[]
-  messagesSent     Message[]
-  driverJobs       TransportJob[]    @relation("DriverJobs")
-  deliveryRequests TransportJob[]    @relation("DeliveryRequests")
-  payerTransactions Transaction[]    @relation("PayerTransactions")
-  payeeTransactions Transaction[]    @relation("PayeeTransactions")
-  reviewsGiven     Review[]         @relation("reviews_from")
-  reviewsReceived  Review[]         @relation("reviews_to")
-  notifications    Notification[]
-  assignedPickups  WasteListing[]  @relation("AssignedDriverPickups")
+  primaryLocation      GeoLocation?          @relation("UserPrimaryLocation", fields: [primaryLocationId], references: [id], onDelete: SetNull)
+  geoLocationsCreated  GeoLocation[]         @relation("GeoLocationsCreated")
+  driverServiceProfile DriverServiceProfile?
+  listingsPosted       WasteListing[]        @relation("SellerListings")
+  listingsAccepted     WasteListing[]        @relation("AcceptedBy")
+  offersMade           Offer[]
+  comments             ListingComment[]
+  buyerConversations   Conversation[]
+  messagesSent         Message[]
+  driverJobs           TransportJob[]        @relation("DriverJobs")
+  deliveryRequests     TransportJob[]        @relation("DeliveryRequests")
+  payerTransactions    Transaction[]         @relation("PayerTransactions")
+  payeeTransactions    Transaction[]         @relation("PayeeTransactions")
+  reviewsGiven         Review[]              @relation("reviews_from")
+  reviewsReceived      Review[]              @relation("reviews_to")
+  notifications        Notification[]
+  assignedPickups      WasteListing[]        @relation("AssignedDriverPickups")
 
   @@map("users")
 }
 
-model WasteListing {
-  id             String        @id @default(uuid()) @db.Uuid
-  userId         String        @map("user_id") @db.Uuid
-  /// Short marketplace title for chat/cards (required).
-  title          String
-  wasteType      WasteType     @map("waste_type")
-  quantity       String
-  description    String?
-  images         String[]      @default([])
-  address        String
-  askingPrice    Decimal       @map("asking_price") @db.Decimal(12, 2)
-  currency       String        @default("USD")
-  status         ListingStatus @default(open)
-  acceptedById   String?       @map("accepted_by") @db.Uuid
-  acceptedAt     DateTime?     @map("accepted_at")
-  pickupDeadlineAt DateTime?   @map("pickup_deadline_at")
-  pickupExtendedAt DateTime?   @map("pickup_extended_at")
-  deliveryAvailable Boolean    @default(false) @map("delivery_available")
-  deliveryFee    Decimal?      @map("delivery_fee") @db.Decimal(12, 2)
-  latitude       Float?
-  longitude      Float?
-  deliveryRequired Boolean     @default(false) @map("delivery_required")
-  pickupJobStatus PickupJobStatus @default(none) @map("pickup_job_status")
-  assignedDriverId String?     @map("assigned_driver_id") @db.Uuid
-  driverCommissionAmount Decimal? @map("driver_commission_amount") @db.Decimal(12, 2)
-  driverCommissionPercent Decimal? @map("driver_commission_percent") @db.Decimal(5, 2)
-  commissionKind CommissionKind? @map("commission_kind")
-  pickupZip      String?      @map("pickup_zip")
-  noShowReason   String?       @map("no_show_reason")
-  reopenedAt     DateTime?     @map("reopened_at")
-  createdAt      DateTime      @default(now()) @map("created_at")
-  updatedAt      DateTime      @default(now()) @updatedAt @map("updated_at")
-  /// When true, drivers should not see pickup PII in clients (buyer/seller use chat).
-  deliveryPrivacyLocked Boolean @default(false) @map("delivery_privacy_locked")
-  /// Buyer tapped “ready for drivers” on marketplace delivery (gates driver claim).
-  buyerDeliveryConfirmed Boolean @default(false) @map("buyer_delivery_confirmed")
+model GeoLocation {
+  id                 String                                 @id @default(uuid()) @db.Uuid
+  createdById        String?                                @map("created_by") @db.Uuid
+  label              String?
+  street             String?
+  city               String?
+  state              String?
+  postalCode         String?                                @map("postal_code")
+  countryCode        String                                 @map("country_code") @db.Char(2)
+  latitude           Float
+  longitude          Float
+  point              Unsupported("geography(Point, 4326)")?
+  geohash            String                                 @default("")
+  timezone           String?
+  formattedAddress   String?                                @map("formatted_address")
+  source             LocationSource                         @default(manual)
+  providerPlaceId    String?                                @map("provider_place_id")
+  rawProviderPayload Json?                                  @map("raw_provider_payload")
+  createdAt          DateTime                               @default(now()) @map("created_at")
+  updatedAt          DateTime                               @default(now()) @updatedAt @map("updated_at")
 
-  seller User               @relation("SellerListings", fields: [userId], references: [id], onDelete: Cascade)
-  acceptor    User?              @relation("AcceptedBy", fields: [acceptedById], references: [id], onDelete: SetNull)
-  assignedDriver User?         @relation("AssignedDriverPickups", fields: [assignedDriverId], references: [id], onDelete: SetNull)
-  offers      Offer[]
-  comments    ListingComment[]
-  conversations Conversation[]
-  transportJobs TransportJob[]
-  transactions Transaction[]
-  reviews      Review[]
+  createdBy             User?                  @relation("GeoLocationsCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  primaryForUsers       User[]                 @relation("UserPrimaryLocation")
+  pickupListings        WasteListing[]         @relation("ListingPickupLocation")
+  pickupTransportJobs   TransportJob[]         @relation("TransportPickupLocation")
+  dropoffTransportJobs  TransportJob[]         @relation("TransportDropoffLocation")
+  driverServiceProfiles DriverServiceProfile[] @relation("DriverBaseLocation")
+
+  @@index([createdById])
+  @@index([countryCode, state, city])
+  @@map("geo_locations")
+}
+
+model WasteListing {
+  id                      String                                 @id @default(uuid()) @db.Uuid
+  userId                  String                                 @map("user_id") @db.Uuid
+  /// Short marketplace title for chat/cards (required).
+  title                   String
+  wasteType               WasteType                              @map("waste_type")
+  quantity                String
+  description             String?
+  images                  String[]                               @default([])
+  address                 String
+  askingPrice             Decimal                                @map("asking_price") @db.Decimal(12, 2)
+  currency                String                                 @default("USD")
+  status                  ListingStatus                          @default(open)
+  acceptedById            String?                                @map("accepted_by") @db.Uuid
+  acceptedAt              DateTime?                              @map("accepted_at")
+  pickupDeadlineAt        DateTime?                              @map("pickup_deadline_at")
+  pickupExtendedAt        DateTime?                              @map("pickup_extended_at")
+  deliveryAvailable       Boolean                                @default(false) @map("delivery_available")
+  deliveryFee             Decimal?                               @map("delivery_fee") @db.Decimal(12, 2)
+  latitude                Float?
+  longitude               Float?
+  pickupLocationId        String?                                @map("pickup_location_id") @db.Uuid
+  visibilityScope         VisibilityScope                        @default(local) @map("visibility_scope")
+  originCity              String?                                @map("origin_city")
+  originState             String?                                @map("origin_state")
+  originPostalCode        String?                                @map("origin_postal_code")
+  originCountryCode       String?                                @map("origin_country_code") @db.Char(2)
+  pickupPoint             Unsupported("geography(Point, 4326)")? @map("pickup_point")
+  pickupGeohash           String?                                @map("pickup_geohash")
+  deliveryRequired        Boolean                                @default(false) @map("delivery_required")
+  pickupJobStatus         PickupJobStatus                        @default(none) @map("pickup_job_status")
+  assignedDriverId        String?                                @map("assigned_driver_id") @db.Uuid
+  driverCommissionAmount  Decimal?                               @map("driver_commission_amount") @db.Decimal(12, 2)
+  driverCommissionPercent Decimal?                               @map("driver_commission_percent") @db.Decimal(5, 2)
+  commissionKind          CommissionKind?                        @map("commission_kind")
+  pickupZip               String?                                @map("pickup_zip")
+  noShowReason            String?                                @map("no_show_reason")
+  reopenedAt              DateTime?                              @map("reopened_at")
+  createdAt               DateTime                               @default(now()) @map("created_at")
+  updatedAt               DateTime                               @default(now()) @updatedAt @map("updated_at")
+  /// When true, drivers should not see pickup PII in clients (buyer/seller use chat).
+  deliveryPrivacyLocked   Boolean                                @default(false) @map("delivery_privacy_locked")
+  /// Buyer tapped “ready for drivers” on marketplace delivery (gates driver claim).
+  buyerDeliveryConfirmed  Boolean                                @default(false) @map("buyer_delivery_confirmed")
+
+  seller                User                   @relation("SellerListings", fields: [userId], references: [id], onDelete: Cascade)
+  acceptor              User?                  @relation("AcceptedBy", fields: [acceptedById], references: [id], onDelete: SetNull)
+  assignedDriver        User?                  @relation("AssignedDriverPickups", fields: [assignedDriverId], references: [id], onDelete: SetNull)
+  pickupLocation        GeoLocation?           @relation("ListingPickupLocation", fields: [pickupLocationId], references: [id], onDelete: SetNull)
+  offers                Offer[]
+  comments              ListingComment[]
+  conversations         Conversation[]
+  transportJobs         TransportJob[]
+  transactions          Transaction[]
+  reviews               Review[]
   deliveryHandoffSecret DeliveryHandoffSecret?
 
   @@index([status])
   @@index([userId])
   @@index([acceptedById])
+  @@index([pickupLocationId])
+  @@index([status, visibilityScope, originCountryCode, originState, originCity])
   @@map("waste_listings")
 }
 
 /// Buyer/seller-only delivery PIN; never exposed to drivers via RLS (drivers verify via RPC).
 model DeliveryHandoffSecret {
-  listingId String    @id @map("listing_id") @db.Uuid
-  pin       String
+  listingId  String    @id @map("listing_id") @db.Uuid
+  pin        String
   consumedAt DateTime? @map("consumed_at")
-  createdAt DateTime  @default(now()) @map("created_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
 
   listing WasteListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
 
@@ -265,40 +332,66 @@ model Message {
 }
 
 model TransportJob {
-  id           String          @id @default(uuid()) @db.Uuid
-  listingId    String          @map("listing_id") @db.Uuid
-  driverId     String?         @map("driver_id") @db.Uuid
-  requesterId  String?         @map("requester_id") @db.Uuid
-  scheduledAt  DateTime        @map("scheduled_at")
-  completedAt  DateTime?       @map("completed_at")
-  status       TransportStatus @default(scheduled)
-  deliveryFee  Decimal?        @map("delivery_fee") @db.Decimal(12, 2)
-  notes        String?
-  createdAt    DateTime        @default(now()) @map("created_at")
-  updatedAt    DateTime        @default(now()) @updatedAt @map("updated_at")
+  id                String               @id @default(uuid()) @db.Uuid
+  listingId         String               @map("listing_id") @db.Uuid
+  driverId          String?              @map("driver_id") @db.Uuid
+  requesterId       String?              @map("requester_id") @db.Uuid
+  scheduledAt       DateTime             @map("scheduled_at")
+  completedAt       DateTime?            @map("completed_at")
+  status            TransportStatus      @default(scheduled)
+  deliveryFee       Decimal?             @map("delivery_fee") @db.Decimal(12, 2)
+  notes             String?
+  pickupLocationId  String?              @map("pickup_location_id") @db.Uuid
+  dropoffLocationId String?              @map("dropoff_location_id") @db.Uuid
+  serviceScope      DriverOperatingScope @default(local) @map("service_scope")
+  createdAt         DateTime             @default(now()) @map("created_at")
+  updatedAt         DateTime             @default(now()) @updatedAt @map("updated_at")
 
-  listing   WasteListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
-  driver    User?         @relation("DriverJobs", fields: [driverId], references: [id], onDelete: Cascade)
-  requester User?         @relation("DeliveryRequests", fields: [requesterId], references: [id], onDelete: Cascade)
+  listing         WasteListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  driver          User?        @relation("DriverJobs", fields: [driverId], references: [id], onDelete: Cascade)
+  requester       User?        @relation("DeliveryRequests", fields: [requesterId], references: [id], onDelete: Cascade)
+  pickupLocation  GeoLocation? @relation("TransportPickupLocation", fields: [pickupLocationId], references: [id], onDelete: SetNull)
+  dropoffLocation GeoLocation? @relation("TransportDropoffLocation", fields: [dropoffLocationId], references: [id], onDelete: SetNull)
 
   @@index([listingId])
   @@index([driverId])
   @@index([requesterId])
+  @@index([pickupLocationId])
+  @@index([dropoffLocationId])
   @@map("transport_jobs")
 }
 
+model DriverServiceProfile {
+  userId              String               @id @map("user_id") @db.Uuid
+  operatingScope      DriverOperatingScope @default(local) @map("operating_scope")
+  baseLocationId      String?              @map("base_location_id") @db.Uuid
+  countryCode         String               @map("country_code") @db.Char(2)
+  state               String?
+  city                String?
+  serviceRadiusMeters Int?                 @map("service_radius_meters")
+  enabledCountryCodes String[]             @default([]) @map("enabled_country_codes")
+  createdAt           DateTime             @default(now()) @map("created_at")
+  updatedAt           DateTime             @default(now()) @updatedAt @map("updated_at")
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  baseLocation GeoLocation? @relation("DriverBaseLocation", fields: [baseLocationId], references: [id], onDelete: SetNull)
+
+  @@index([countryCode, operatingScope])
+  @@map("driver_service_profiles")
+}
+
 model Transaction {
-  id         String            @id @default(uuid()) @db.Uuid
-  listingId  String?           @map("listing_id") @db.Uuid
-  payerId    String            @map("payer_id") @db.Uuid
-  payeeId    String            @map("payee_id") @db.Uuid
-  amount     Decimal           @db.Decimal(12, 2)
-  currency   String            @default("USD")
-  status     TransactionStatus @default(pending)
-  type       TransactionType
-  reference  String?           @unique
-  createdAt  DateTime          @default(now()) @map("created_at")
-  updatedAt  DateTime          @default(now()) @updatedAt @map("updated_at")
+  id        String            @id @default(uuid()) @db.Uuid
+  listingId String?           @map("listing_id") @db.Uuid
+  payerId   String            @map("payer_id") @db.Uuid
+  payeeId   String            @map("payee_id") @db.Uuid
+  amount    Decimal           @db.Decimal(12, 2)
+  currency  String            @default("USD")
+  status    TransactionStatus @default(pending)
+  type      TransactionType
+  reference String?           @unique
+  createdAt DateTime          @default(now()) @map("created_at")
+  updatedAt DateTime          @default(now()) @updatedAt @map("updated_at")
 
   listing WasteListing? @relation(fields: [listingId], references: [id], onDelete: Cascade)
   payer   User          @relation("PayerTransactions", fields: [payerId], references: [id], onDelete: Cascade)
@@ -320,7 +413,7 @@ model Review {
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @default(now()) @updatedAt @map("updated_at")
 
-  listing WasteListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  listing  WasteListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
   fromUser User         @relation("reviews_from", fields: [fromUserId], references: [id], onDelete: Cascade)
   toUser   User         @relation("reviews_to", fields: [toUserId], references: [id], onDelete: Cascade)
 
@@ -355,4 +448,21 @@ model Notification {
 
   @@index([userId, readAt])
   @@map("notifications")
+}
+
+model DomainEvent {
+  id             String    @id @default(uuid()) @db.Uuid
+  eventType      String    @map("event_type")
+  aggregateType  String    @map("aggregate_type")
+  aggregateId    String    @map("aggregate_id") @db.Uuid
+  actorId        String?   @map("actor_id") @db.Uuid
+  payload        Json      @default("{}")
+  idempotencyKey String    @unique @map("idempotency_key")
+  occurredAt     DateTime  @default(now()) @map("occurred_at")
+  processedAt    DateTime? @map("processed_at")
+
+  @@index([eventType, occurredAt])
+  @@index([aggregateType, aggregateId, occurredAt])
+  @@index([processedAt, occurredAt])
+  @@map("domain_events")
 }

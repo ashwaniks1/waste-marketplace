@@ -22,7 +22,7 @@ export default function CustomerListingsPage() {
         setRows(data);
         setError(null);
       } else {
-        setError(typeof data.error === "string" ? data.error : "Unable to load listings");
+        setError("We couldn’t load your listings right now. Try refreshing in a moment.");
       }
       setLoading(false);
     })();

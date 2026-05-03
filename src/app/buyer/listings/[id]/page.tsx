@@ -84,7 +84,7 @@ export default function BuyerListingDetailPage() {
     const res = await fetch(`/api/listings/${id}`);
     const data = await res.json();
     if (!res.ok) {
-      setError(data.error ?? "Failed");
+      setError("We couldn’t load this listing right now. Refresh the page or check back in a moment.");
       return;
     }
     setRow(data);
@@ -116,18 +116,18 @@ export default function BuyerListingDetailPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ amount }),
     });
-    const data = await res.json();
+    await res.json().catch(() => ({}));
     setBusy(false);
-    if (!res.ok) setError(data.error ?? "Offer failed");
+    if (!res.ok) setError("We couldn’t send your offer right now. Check the amount and try again.");
     else await load();
   }
 
   async function withdrawOffer(offerId: string) {
     setBusy(true);
     const res = await fetch(`/api/offers/${offerId}/withdraw`, { method: "POST" });
-    const data = await res.json();
+    await res.json().catch(() => ({}));
     setBusy(false);
-    if (!res.ok) setError(data.error ?? "Withdraw failed");
+    if (!res.ok) setError("We couldn’t withdraw your offer right now. Try again in a moment.");
     else await load();
   }
 
@@ -137,7 +137,7 @@ export default function BuyerListingDetailPage() {
     const data = await res.json();
     setBusy(false);
     if (!res.ok) {
-      setError(data.error ?? "Could not open chat");
+      setError("We couldn’t open this chat right now. Try again in a moment.");
       return;
     }
     setConversationId(data.id);
@@ -158,8 +158,8 @@ export default function BuyerListingDetailPage() {
     });
     setBusy(false);
     if (!res.ok) {
-      const data = await res.json();
-      setError(data.error ?? "Comment failed");
+      await res.json().catch(() => ({}));
+      setError("We couldn’t post your comment right now. Try again in a moment.");
       return;
     }
     setCommentBody("");
@@ -170,18 +170,18 @@ export default function BuyerListingDetailPage() {
   async function submitComplete() {
     setBusy(true);
     const res = await fetch(`/api/listings/${id}/complete`, { method: "POST" });
-    const data = await res.json();
+    await res.json().catch(() => ({}));
     setBusy(false);
-    if (!res.ok) setError(data.error ?? "Could not complete");
+    if (!res.ok) setError("We couldn’t mark this pickup complete right now. Try again in a moment.");
     else await load();
   }
 
   async function confirmMarketplaceDelivery() {
     setBusy(true);
     const res = await fetch(`/api/listings/${id}/confirm-marketplace-delivery`, { method: "POST" });
-    const data = await res.json();
+    await res.json().catch(() => ({}));
     setBusy(false);
-    if (!res.ok) setError(data.error ?? "Could not confirm");
+    if (!res.ok) setError("We couldn’t request driver delivery right now. Try again in a moment.");
     else {
       setError(null);
       await load();
@@ -194,7 +194,7 @@ export default function BuyerListingDetailPage() {
     const data = await res.json();
     setBusy(false);
     if (!res.ok) {
-      setError(data.error ?? "Could not regenerate PIN");
+      setError("We couldn’t create a new PIN right now. Try again in a moment.");
       return;
     }
     setRow((current) => (current ? { ...current, handoffPin: data.handoffPin } : current));
@@ -219,7 +219,7 @@ export default function BuyerListingDetailPage() {
           </p>
         ) : null}
         {!row ? (
-          <p className="text-sm text-slate-600">Loading…</p>
+          <p className="text-sm text-slate-600">Getting the latest listing details.</p>
         ) : (
           <>
             <section className="rounded-3xl border border-slate-200/50 bg-white p-5 shadow-cosmos-md sm:p-6">

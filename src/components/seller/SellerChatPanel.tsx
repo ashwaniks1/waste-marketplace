@@ -8,7 +8,7 @@ import { Button } from "@/components/Button";
 import { UserAvatar } from "@/components/UserAvatar";
 import { useSellerWorkspace } from "@/components/seller/SellerWorkspaceContext";
 import type { SellerConversationRow } from "@/components/seller/seller-inbox-types";
-import { usePollWhileVisible } from "@/hooks/usePollWhileVisible";
+import { useSupabaseRealtimeRefresh } from "@/hooks/useSupabaseRealtimeRefresh";
 import { WASTE_TYPE_OPTIONS } from "@/lib/waste-types";
 
 type MessageRow = {
@@ -17,9 +17,6 @@ type MessageRow = {
   createdAt: string;
   sender: { id: string; name: string };
 };
-
-const LIST_POLL_MS = 25_000;
-const MSG_POLL_MS = 16_000;
 
 function formatConversationTime(iso: string) {
   return new Date(iso).toLocaleString(undefined, {
@@ -109,16 +106,14 @@ export function SellerChatPanel({ onMinimize, onClose }: SellerChatPanelProps = 
       }
 
       if (!conversationsResponse.ok) {
-        setError(
-          typeof conversationsData?.error === "string" ? conversationsData.error : "Unable to load conversations",
-        );
+        setError("We couldn’t load your conversations right now. Try again in a moment.");
         return;
       }
 
       setRows(Array.isArray(conversationsData) ? conversationsData : []);
       setError(null);
     } catch {
-      setError("Unable to load conversations");
+      setError("We couldn’t load your conversations right now. Try again in a moment.");
     } finally {
       setLoadingRows(false);
     }
@@ -128,7 +123,12 @@ export function SellerChatPanel({ onMinimize, onClose }: SellerChatPanelProps = 
     void loadRows();
   }, [loadRows]);
 
-  usePollWhileVisible(() => void loadRows({ silent: true }), LIST_POLL_MS, true);
+  useSupabaseRealtimeRefresh({
+    channelName: "seller-conversations",
+    changes: [{ event: "*", schema: "public", table: "conversations" }],
+    onChange: () => void loadRows({ silent: true }),
+    onSubscribed: () => void loadRows({ silent: true }),
+  });
 
   const loadMessages = useCallback(async (threadId: string, opts?: { silent?: boolean }) => {
     if (!opts?.silent) setLoadingMessages(true);
@@ -136,7 +136,7 @@ export function SellerChatPanel({ onMinimize, onClose }: SellerChatPanelProps = 
       const response = await fetch(`/api/conversations/${threadId}/messages`, { cache: "no-store" });
       const data = await response.json().catch(() => []);
       if (!response.ok) {
-        setError(typeof data?.error === "string" ? data.error : "Unable to load messages");
+        setError("We couldn’t load this conversation right now. Try again in a moment.");
         return;
       }
       if (threadIdForPoll.current === threadId) {
@@ -144,7 +144,7 @@ export function SellerChatPanel({ onMinimize, onClose }: SellerChatPanelProps = 
         setError(null);
       }
     } catch {
-      if (threadIdForPoll.current === threadId) setError("Unable to load messages");
+      if (threadIdForPoll.current === threadId) setError("We couldn’t load this conversation right now. Try again in a moment.");
     } finally {
       if (threadIdForPoll.current === threadId) setLoadingMessages(false);
     }
@@ -159,14 +159,22 @@ export function SellerChatPanel({ onMinimize, onClose }: SellerChatPanelProps = 
     void loadMessages(activeThreadId);
   }, [activeThreadId, loadMessages]);
 
-  usePollWhileVisible(
-    () => {
+  useSupabaseRealtimeRefresh({
+    channelName: activeThreadId ? `seller-messages:${activeThreadId}` : "seller-messages:pending-thread",
+    enabled: Boolean(activeThreadId),
+    changes: [
+      { event: "INSERT", schema: "public", table: "messages", filter: `conversation_id=eq.${activeThreadId}` },
+      { event: "UPDATE", schema: "public", table: "messages", filter: `conversation_id=eq.${activeThreadId}` },
+    ],
+    onChange: () => {
       const id = activeThreadId;
       if (id) void loadMessages(id, { silent: true });
     },
-    MSG_POLL_MS,
-    Boolean(activeThreadId),
-  );
+    onSubscribed: () => {
+      const id = activeThreadId;
+      if (id) void loadMessages(id, { silent: true });
+    },
+  });
 
   const orderedConversationRows = useMemo(() => {
     const statusOrder: Record<string, number> = {
@@ -208,7 +216,7 @@ export function SellerChatPanel({ onMinimize, onClose }: SellerChatPanelProps = 
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        setError(typeof data?.error === "string" ? data.error : "Unable to send message");
+        setError("We couldn’t send your message right now. Try again in a moment.");
         return;
       }
 
@@ -233,7 +241,7 @@ export function SellerChatPanel({ onMinimize, onClose }: SellerChatPanelProps = 
       setBody("");
       setError(null);
     } catch {
-      setError("Unable to send message");
+      setError("We couldn’t send your message right now. Try again in a moment.");
     } finally {
       setSending(false);
     }
@@ -295,7 +303,7 @@ export function SellerChatPanel({ onMinimize, onClose }: SellerChatPanelProps = 
   const threadDetail =
     activeThreadId && !activeRow && loadingRows ? (
       <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-4 py-8">
-        <p className="text-sm text-slate-500">Loading conversation…</p>
+        <p className="text-sm text-slate-500">Getting the conversation ready.</p>
       </div>
     ) : activeThreadId && !activeRow && !loadingRows ? (
       <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-4 py-6 text-center">
@@ -335,7 +343,7 @@ export function SellerChatPanel({ onMinimize, onClose }: SellerChatPanelProps = 
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain bg-cosmos-page-alt/30 px-3 py-3 sm:px-4">
-          {loadingMessages && messages.length === 0 ? <p className="text-sm text-slate-500">Loading…</p> : null}
+          {loadingMessages && messages.length === 0 ? <p className="text-sm text-slate-500">Getting the conversation ready.</p> : null}
 
           {!loadingMessages && messages.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-slate-200/80 bg-white/90 px-4 py-6 text-center shadow-cosmos-sm">

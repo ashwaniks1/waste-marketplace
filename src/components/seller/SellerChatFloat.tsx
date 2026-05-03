@@ -5,9 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "@/components/Button";
 import { useSellerWorkspace } from "@/components/seller/SellerWorkspaceContext";
-import { usePollWhileVisible } from "@/hooks/usePollWhileVisible";
-
-const MSG_POLL_MS = 16_000;
+import { useSupabaseRealtimeRefresh } from "@/hooks/useSupabaseRealtimeRefresh";
 
 type ConvMeta = {
   id: string;
@@ -69,7 +67,16 @@ export function SellerChatFloat() {
     void loadMessages();
   }, [activeThreadId, loadMessages]);
 
-  usePollWhileVisible(() => void loadMessages(), MSG_POLL_MS, Boolean(activeThreadId));
+  useSupabaseRealtimeRefresh({
+    channelName: activeThreadId ? `seller-float-messages:${activeThreadId}` : "seller-float-messages:pending-thread",
+    enabled: Boolean(activeThreadId),
+    changes: [
+      { event: "INSERT", schema: "public", table: "messages", filter: `conversation_id=eq.${activeThreadId}` },
+      { event: "UPDATE", schema: "public", table: "messages", filter: `conversation_id=eq.${activeThreadId}` },
+    ],
+    onChange: () => void loadMessages(),
+    onSubscribed: () => void loadMessages(),
+  });
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -148,7 +155,7 @@ export function SellerChatFloat() {
 
         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
           {!meta ? (
-            <p className="text-sm text-slate-500">Loading…</p>
+            <p className="text-sm text-slate-500">Getting the conversation ready.</p>
           ) : (
             messages.map((m) => (
               <div

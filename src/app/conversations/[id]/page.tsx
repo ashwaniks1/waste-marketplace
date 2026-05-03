@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { Button } from "@/components/Button";
+import { useSupabaseRealtimeRefresh } from "@/hooks/useSupabaseRealtimeRefresh";
 
 type ConvMeta = {
   id: string;
@@ -31,16 +32,16 @@ export default function ConversationPage() {
   const [role, setRole] = useState<"customer" | "buyer" | "admin" | "driver">("buyer");
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  async function loadMeta() {
+  const loadMeta = useCallback(async () => {
     const r = await fetch(`/api/conversations/${id}`);
     const d = await r.json();
     if (r.ok) setMeta(d);
-  }
+  }, [id]);
 
-  async function loadMessages() {
+  const loadMessages = useCallback(async () => {
     const r = await fetch(`/api/conversations/${id}/messages`);
     if (r.ok) setMessages(await r.json());
-  }
+  }, [id]);
 
   useEffect(() => {
     (async () => {
@@ -56,9 +57,8 @@ export default function ConversationPage() {
   }, []);
 
   useEffect(() => {
-    loadMeta();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- load on id only
-  }, [id]);
+    void loadMeta();
+  }, [loadMeta]);
 
   useEffect(() => {
     if (!meta || meId == null) return;
@@ -71,11 +71,24 @@ export default function ConversationPage() {
   }, [id, meId, meta, role, router]);
 
   useEffect(() => {
-    loadMessages();
-    const t = setInterval(loadMessages, 5000);
-    return () => clearInterval(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- poll per conversation id
-  }, [id]);
+    void loadMessages();
+  }, [loadMessages]);
+
+  useSupabaseRealtimeRefresh({
+    channelName: `conversation-page:${id}`,
+    changes: [
+      { event: "INSERT", schema: "public", table: "messages", filter: `conversation_id=eq.${id}` },
+      { event: "UPDATE", schema: "public", table: "messages", filter: `conversation_id=eq.${id}` },
+      { event: "UPDATE", schema: "public", table: "conversations", filter: `id=eq.${id}` },
+    ],
+    onChange: () => {
+      void loadMeta();
+      void loadMessages();
+    },
+    onSubscribed: () => {
+      void loadMessages();
+    },
+  });
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -99,7 +112,7 @@ export default function ConversationPage() {
     return (
       <>
         <AppHeader title="Chat" backHref="/conversations" role={role} />
-        <p className="p-4 text-slate-600">Loading…</p>
+        <p className="p-4 text-slate-600">Getting the conversation ready.</p>
       </>
     );
   }

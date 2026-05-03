@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { BrandMark } from "@/components/brand/BrandMark";
 import { UserMenu } from "@/components/UserMenu";
@@ -10,6 +10,7 @@ import { LocationProvider } from "@/components/LocationProvider";
 import { NotificationBell } from "@/components/NotificationBell";
 import { SessionActivity } from "@/components/SessionActivity";
 import { BuyerDriverInboxFloat } from "@/components/BuyerDriverInboxFloat";
+import { useSupabaseRealtimeRefresh } from "@/hooks/useSupabaseRealtimeRefresh";
 
 type Role = "customer" | "buyer" | "admin" | "driver";
 
@@ -131,32 +132,35 @@ export function AppShell({
     };
   }, []);
 
-  useEffect(() => {
+  const loadDriverJobs = useCallback(async () => {
     if (role !== "driver") {
       setDriverActiveJobCount(0);
       return;
     }
-    let cancelled = false;
-    async function loadJobs() {
-      try {
-        const res = await fetch("/api/driver/jobs", { cache: "no-store" });
-        const data = await res.json();
-        if (!res.ok || cancelled || !Array.isArray(data)) return;
-        const n = data.filter(
-          (j: { status: string }) => j.status === "scheduled" || j.status === "in_transit",
-        ).length;
-        setDriverActiveJobCount(n);
-      } catch {
-        if (!cancelled) setDriverActiveJobCount(0);
-      }
+    try {
+      const res = await fetch("/api/driver/jobs", { cache: "no-store" });
+      const data = await res.json();
+      if (!res.ok || !Array.isArray(data)) return;
+      const n = data.filter(
+        (j: { status: string }) => j.status === "scheduled" || j.status === "in_transit",
+      ).length;
+      setDriverActiveJobCount(n);
+    } catch {
+      setDriverActiveJobCount(0);
     }
-    void loadJobs();
-    const t = window.setInterval(() => void loadJobs(), 60_000);
-    return () => {
-      cancelled = true;
-      window.clearInterval(t);
-    };
   }, [role]);
+
+  useEffect(() => {
+    void loadDriverJobs();
+  }, [loadDriverJobs]);
+
+  useSupabaseRealtimeRefresh({
+    channelName: "driver-active-jobs",
+    enabled: role === "driver",
+    changes: [{ event: "*", schema: "public", table: "transport_jobs" }],
+    onChange: () => void loadDriverJobs(),
+    onSubscribed: () => void loadDriverJobs(),
+  });
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });

@@ -60,7 +60,7 @@ export function ReviewForm({
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        setError(typeof data.error === "string" ? data.error : "Unable to submit review");
+        setError("We couldn’t post your review right now. Try again in a moment.");
         return;
       }
       const created = data as { id: string; score: number; body: string | null; listingId: string };
@@ -69,8 +69,8 @@ export function ReviewForm({
       setScore(0);
       setExisting(created);
       onSubmitted?.();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to submit review");
+    } catch {
+      setError("We couldn’t post your review right now. Try again in a moment.");
     } finally {
       setLoading(false);
     }

@@ -46,7 +46,7 @@ export default function CustomerMessagesPage() {
 
       <div className="space-y-3">
         {loading ? (
-          <p className="text-sm text-slate-600">Loading…</p>
+          <p className="text-sm text-slate-600">Getting your conversations.</p>
         ) : rows.length === 0 ? (
           <EmptyState
             variant="chat"

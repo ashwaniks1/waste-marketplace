@@ -1,6 +1,7 @@
 import type { User } from "@prisma/client";
+import { serializeGeoLocation, type SerializableGeoLocation } from "@/lib/locations";
 
-export function profileToClientDto(u: User) {
+export function profileToClientDto(u: User & { primaryLocation?: SerializableGeoLocation | null }) {
   return {
     id: u.id,
     name: u.name,
@@ -14,5 +15,6 @@ export function profileToClientDto(u: User) {
     zipCode: u.zipCode,
     countryCode: u.countryCode,
     currency: u.currency,
+    primaryLocation: serializeGeoLocation(u.primaryLocation),
   };
 }

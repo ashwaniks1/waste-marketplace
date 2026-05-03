@@ -1,10 +1,11 @@
-import { ListingStatus, OfferStatus, PickupJobStatus, UserRole, WasteType } from "@prisma/client";
+import { DriverOperatingScope, ListingStatus, OfferStatus, PickupJobStatus, Prisma, UserRole, VisibilityScope, WasteType } from "@prisma/client";
 import { z } from "zod";
 import { requireAppUser } from "@/lib/auth";
 import { HttpError } from "@/lib/errors";
 import { handleRouteError, jsonError, jsonOk } from "@/lib/http";
 import { computeDriverPayout, getDefaultDriverCommissionPercent } from "@/lib/commission";
 import { milesBetween } from "@/lib/geo";
+import { geoLocationSelect } from "@/lib/locations";
 import { moneyToNumber } from "@/lib/money";
 import { prisma } from "@/lib/prisma";
 import { serializeListing } from "@/lib/serialize";
@@ -20,12 +21,17 @@ const querySchema = z.object({
 const listingSelect = {
   seller: { select: { id: true, name: true, avatarUrl: true } },
   acceptor: { select: { id: true, name: true, avatarUrl: true } },
+  pickupLocation: { select: geoLocationSelect },
   offers: {
     where: { status: OfferStatus.accepted },
     select: { amount: true, currency: true },
     take: 1,
   },
 } as const;
+
+function joinSql(parts: Prisma.Sql[], separator: Prisma.Sql) {
+  return parts.reduce((acc, part, index) => (index === 0 ? part : Prisma.sql`${acc}${separator}${part}`), Prisma.empty);
+}
 
 function basePayoutAmount(listing: {
   askingPrice: unknown;
@@ -55,23 +61,59 @@ export async function GET(request: Request) {
         ? { lat: q.lat, lng: q.lng }
         : null;
 
-    const listings = await prisma.wasteListing.findMany({
-      where: {
-        deliveryRequired: true,
-        buyerDeliveryConfirmed: true,
-        pickupJobStatus: PickupJobStatus.available,
-        assignedDriverId: null,
-        status: ListingStatus.accepted,
-        ...(q.wasteType ? { wasteType: q.wasteType } : {}),
-      },
-      orderBy: { createdAt: "desc" },
-      take: 200,
-      include: listingSelect,
-    });
+    const serviceProfile = await prisma.driverServiceProfile.findUnique({ where: { userId: me.id } });
+    const operatingScope = serviceProfile?.operatingScope ?? DriverOperatingScope.local;
+    const countryCode = serviceProfile?.countryCode?.toUpperCase() || me.countryCode?.toUpperCase() || null;
+
+    const filters: Prisma.Sql[] = [
+      Prisma.sql`l.delivery_required = true`,
+      Prisma.sql`l.buyer_delivery_confirmed = true`,
+      Prisma.sql`l.pickup_job_status = ${PickupJobStatus.available}::"PickupJobStatus"`,
+      Prisma.sql`l.assigned_driver_id is null`,
+      Prisma.sql`l.status = ${ListingStatus.accepted}::"ListingStatus"`,
+      Prisma.sql`l.pickup_point is not null`,
+      Prisma.sql`l.visibility_scope <> ${VisibilityScope.international}::"VisibilityScope"`,
+    ];
+    if (q.wasteType) filters.push(Prisma.sql`l.waste_type = ${q.wasteType}::"WasteType"`);
+    if (countryCode) {
+      filters.push(Prisma.sql`l.origin_country_code = ${countryCode}`);
+    }
+    if (operatingScope === DriverOperatingScope.local) {
+      filters.push(Prisma.sql`l.visibility_scope = ${VisibilityScope.local}::"VisibilityScope"`);
+    } else {
+      filters.push(Prisma.sql`l.visibility_scope in (${VisibilityScope.local}::"VisibilityScope", ${VisibilityScope.national}::"VisibilityScope")`);
+    }
+    if (q.miles != null && driverPoint) {
+      filters.push(Prisma.sql`
+        ST_DWithin(
+          l.pickup_point,
+          ST_SetSRID(ST_MakePoint(${driverPoint.lng}, ${driverPoint.lat}), 4326)::geography,
+          ${q.miles * 1609.344}
+        )
+      `);
+    }
+
+    const whereSql = joinSql(filters, Prisma.sql` and `);
+    const ids = await prisma.$queryRaw<{ id: string }[]>(Prisma.sql`
+      select l.id
+      from public.waste_listings l
+      where ${whereSql}
+      order by l.created_at desc
+      limit 200
+    `);
+
+    const listings = ids.length
+      ? await prisma.wasteListing.findMany({
+          where: { id: { in: ids.map((row) => row.id) } },
+          include: listingSelect,
+        })
+      : [];
+    const idOrder = new Map(ids.map((row, index) => [row.id, index]));
+    listings.sort((a, b) => (idOrder.get(a.id) ?? 0) - (idOrder.get(b.id) ?? 0));
 
     const defaultPct = await getDefaultDriverCommissionPercent();
 
-    let rows = listings.map((listing) => {
+    const rows = listings.map((listing) => {
       const base = basePayoutAmount(listing);
       const { payout, percentSnapshot, kind } = computeDriverPayout({
         baseAmount: base,
@@ -97,10 +139,6 @@ export async function GET(request: Request) {
         commissionKind: kind,
       };
     });
-
-    if (q.miles != null && driverPoint) {
-      rows = rows.filter((r) => r.distanceMiles != null && r.distanceMiles <= q.miles!);
-    }
 
     if (q.sort === "nearest" && driverPoint) {
       rows.sort((a, b) => (a.distanceMiles ?? 1e9) - (b.distanceMiles ?? 1e9));

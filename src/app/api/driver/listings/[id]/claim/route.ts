@@ -1,8 +1,9 @@
-import { ListingStatus, OfferStatus, PickupJobStatus, TransportStatus, UserRole } from "@prisma/client";
+import { DriverOperatingScope, ListingStatus, OfferStatus, PickupJobStatus, TransportStatus, UserRole, VisibilityScope } from "@prisma/client";
 import { requireAppUser } from "@/lib/auth";
 import { HttpError } from "@/lib/errors";
 import { handleRouteError, jsonError, jsonOk } from "@/lib/http";
 import { computeDriverPayout, getDefaultDriverCommissionPercent } from "@/lib/commission";
+import { geoLocationSelect } from "@/lib/locations";
 import { notifyUsers } from "@/lib/notifications";
 import { moneyToNumber } from "@/lib/money";
 import { prisma } from "@/lib/prisma";
@@ -35,6 +36,7 @@ export async function POST(_request: Request, ctx: Ctx) {
           offers: { where: { status: OfferStatus.accepted }, take: 1, select: { amount: true, currency: true } },
         },
       });
+      const serviceProfile = await tx.driverServiceProfile.findUnique({ where: { userId: me.id } });
       if (!listing) return { error: "not_found" as const };
       if (
         !listing.deliveryRequired ||
@@ -52,6 +54,23 @@ export async function POST(_request: Request, ctx: Ctx) {
         listing.status !== ListingStatus.accepted
       ) {
         return { error: "not_available" as const };
+      }
+      const operatingScope = serviceProfile?.operatingScope ?? DriverOperatingScope.local;
+      const driverCountry = serviceProfile?.countryCode?.toUpperCase() || me.countryCode?.toUpperCase() || null;
+      if (
+        listing.visibilityScope === VisibilityScope.international ||
+        (driverCountry && listing.originCountryCode && listing.originCountryCode !== driverCountry) ||
+        (operatingScope === DriverOperatingScope.local && listing.visibilityScope !== VisibilityScope.local) ||
+        (operatingScope === DriverOperatingScope.local &&
+          serviceProfile?.state &&
+          listing.originState &&
+          serviceProfile.state !== listing.originState) ||
+        (operatingScope === DriverOperatingScope.local &&
+          serviceProfile?.city &&
+          listing.originCity &&
+          serviceProfile.city !== listing.originCity)
+      ) {
+        return { error: "ineligible_region" as const };
       }
 
       const claimed = await tx.wasteListing.updateMany({
@@ -84,6 +103,7 @@ export async function POST(_request: Request, ctx: Ctx) {
         include: {
           seller: { select: { id: true, name: true, email: true, phone: true, avatarUrl: true } },
           acceptor: { select: { id: true, name: true, email: true, phone: true, avatarUrl: true } },
+          pickupLocation: { select: geoLocationSelect },
         },
       });
 
@@ -95,6 +115,8 @@ export async function POST(_request: Request, ctx: Ctx) {
           scheduledAt,
           status: TransportStatus.scheduled,
           deliveryFee: listing.deliveryFee,
+          pickupLocationId: listing.pickupLocationId,
+          serviceScope: operatingScope,
           notes: `Driver commission: ${payout.toFixed(2)} ${listing.currency}`,
         },
       });
@@ -108,6 +130,7 @@ export async function POST(_request: Request, ctx: Ctx) {
       if (result.error === "awaiting_buyer") {
         return jsonError("The buyer has not confirmed marketplace delivery yet", 409);
       }
+      if (result.error === "ineligible_region") return jsonError("This pickup is outside your driver service area", 403);
       return jsonError("Another driver just claimed this pickup", 409);
     }
 

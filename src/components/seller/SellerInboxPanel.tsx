@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { WASTE_TYPE_OPTIONS } from "@/lib/waste-types";
 import { useSellerWorkspace } from "@/components/seller/SellerWorkspaceContext";
 import type { SellerConversationRow } from "@/components/seller/seller-inbox-types";
+import { useSupabaseRealtimeRefresh } from "@/hooks/useSupabaseRealtimeRefresh";
 
 export function SellerInboxPanel() {
   const { openChat, activeThreadId } = useSellerWorkspace();
@@ -12,20 +13,26 @@ export function SellerInboxPanel() {
   const [meId, setMeId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    let ok = true;
-    (async () => {
-      const [me, list] = await Promise.all([fetch("/api/users/me"), fetch("/api/conversations")]);
-      const meJson = await me.json();
-      if (me.ok && meJson.profile) setMeId(meJson.profile.id);
-      const data = await list.json();
-      if (list.ok && ok) setRows(data);
-      if (ok) setLoading(false);
-    })();
-    return () => {
-      ok = false;
-    };
+  const loadRows = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) setLoading(true);
+    const [me, list] = await Promise.all([fetch("/api/users/me"), fetch("/api/conversations")]);
+    const meJson = await me.json();
+    if (me.ok && meJson.profile) setMeId(meJson.profile.id);
+    const data = await list.json();
+    if (list.ok) setRows(data);
+    if (!opts?.silent) setLoading(false);
   }, []);
+
+  useEffect(() => {
+    void loadRows();
+  }, [loadRows]);
+
+  useSupabaseRealtimeRefresh({
+    channelName: "seller-inbox-panel",
+    changes: [{ event: "*", schema: "public", table: "conversations" }],
+    onChange: () => void loadRows({ silent: true }),
+    onSubscribed: () => void loadRows({ silent: true }),
+  });
 
   return (
     <aside className="flex h-min flex-col overflow-hidden rounded-2xl border border-emerald-100/80 bg-white/90 shadow-sm ring-1 ring-emerald-50/50">
@@ -36,7 +43,7 @@ export function SellerInboxPanel() {
       </div>
       <div className="max-h-[min(50vh,420px)] min-h-0 space-y-2 overflow-y-auto p-3">
         {loading ? (
-          <p className="px-1 text-xs text-slate-500">Loading…</p>
+          <p className="px-1 text-xs text-slate-500">Getting recent conversations.</p>
         ) : rows.length === 0 ? (
           <p className="px-1 text-sm leading-6 text-slate-600">
             No messages yet. When buyers open a thread on your listings, it shows up here.

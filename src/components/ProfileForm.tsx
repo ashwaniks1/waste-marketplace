@@ -92,15 +92,15 @@ export function ProfileForm() {
         const data = await res.json();
         if (res.status === 404) {
           const heal = await fetch("/api/ensure-profile", { method: "POST", credentials: "include" });
-          const healBody = await heal.json().catch(() => ({}));
+          await heal.json().catch(() => ({}));
           if (!heal.ok) {
-            setError(healBody.error ?? "Unable to restore profile");
+            setError("We couldn’t prepare your profile right now. Refresh the page or try again in a moment.");
             return;
           }
           const retry = await fetch("/api/profile");
           const retryData = await retry.json();
           if (!retry.ok) {
-            setError(retryData.error ?? "Unable to load profile");
+            setError("We couldn’t load your profile right now. Refresh the page or try again in a moment.");
             return;
           }
           const pr: ProfileData = {
@@ -115,7 +115,7 @@ export function ProfileForm() {
           return;
         }
         if (!res.ok) {
-          setError(data.error ?? "Unable to load profile");
+          setError("We couldn’t load your profile right now. Refresh the page or try again in a moment.");
           return;
         }
         const pr: ProfileData = {
@@ -128,7 +128,7 @@ export function ProfileForm() {
         setProfile(pr);
         hydrateFromProfile(pr);
       } catch {
-        setError("Unable to load profile");
+        setError("We couldn’t load your profile right now. Refresh the page or try again in a moment.");
       } finally {
         setLoading(false);
       }
@@ -227,7 +227,7 @@ export function ProfileForm() {
       });
       const data = await res.json();
       if (!res.ok) {
-        const message = data.error ?? "Unable to save profile";
+        const message = "We couldn’t save your profile right now. Review the highlighted fields and try again.";
         setError(message);
         showToast("error", message);
         return;
@@ -245,20 +245,20 @@ export function ProfileForm() {
       setError(null);
       setIsEditing(false);
       if (data.avatarColumnAvailable === false) {
-        showToast("error", "Profile saved, but avatar could not be stored until the database migration is applied.");
+        showToast("error", "Profile saved, but your photo could not be updated right now.");
       } else {
         showToast("success", "Profile updated");
       }
     } catch {
-      setError("Unable to save profile");
-      showToast("error", "Unable to save profile");
+      setError("We couldn’t save your profile right now. Try again in a moment.");
+      showToast("error", "We couldn’t save your profile right now. Try again in a moment.");
     } finally {
       setSaving(false);
     }
   }
 
   if (loading) {
-    return <p className="text-sm text-slate-600">Loading profile…</p>;
+    return <p className="text-sm text-slate-600">Getting your profile ready.</p>;
   }
 
   if (!profile) {
@@ -544,7 +544,7 @@ export function ProfileForm() {
                     Cancel
                   </Button>
                   <Button type="button" onClick={handleSave} disabled={!hasChanges || busy}>
-                    {saving ? "Saving…" : avatarUploading ? "Uploading…" : "Save changes"}
+                    {saving ? "Saving changes" : avatarUploading ? "Uploading photo" : "Save changes"}
                   </Button>
                 </div>
               </div>

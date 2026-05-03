@@ -60,13 +60,13 @@ export function BuyerDriverLiveMap({
       const res = await fetch(`/api/listings/${listingId}/live-location`, { cache: "no-store" });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(typeof data?.error === "string" ? data.error : "Unable to load driver location");
+        setError("We couldn’t show the driver location right now. Check back in a moment.");
         return;
       }
       setLocation(data.location ?? null);
       setError(null);
     } catch {
-      setError("Unable to load driver location");
+      setError("We couldn’t show the driver location right now. Check back in a moment.");
     } finally {
       if (!opts?.silent) setLoading(false);
     }

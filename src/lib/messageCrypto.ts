@@ -28,7 +28,7 @@ export function decryptMessageBody(body: string) {
   if (!body.startsWith(`${PREFIX}:`)) return body;
 
   const [, , ivPart, tagPart, encryptedPart] = body.split(":");
-  if (!ivPart || !tagPart || !encryptedPart) return "[Unable to decrypt message]";
+  if (!ivPart || !tagPart || !encryptedPart) return "This message can’t be displayed.";
 
   try {
     const decipher = crypto.createDecipheriv("aes-256-gcm", getMessageKey(), Buffer.from(ivPart, "base64url"));
@@ -38,6 +38,6 @@ export function decryptMessageBody(body: string) {
       decipher.final(),
     ]).toString("utf8");
   } catch {
-    return "[Unable to decrypt message]";
+    return "This message can’t be displayed.";
   }
 }

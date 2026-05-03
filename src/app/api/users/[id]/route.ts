@@ -69,9 +69,9 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
         });
       } catch (e) {
         if (e instanceof Error && e.message.includes("SUPABASE_SERVICE_ROLE_KEY")) {
-          return jsonError("Profile lookup is not configured", 503);
+          return jsonError("We couldn’t load this profile right now. Try again in a moment.", 503);
         }
-        return jsonError("User not found", 404);
+        return jsonError("We couldn’t find this profile.", 404);
       }
     }
 

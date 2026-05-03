@@ -23,7 +23,14 @@ export async function POST(request: Request) {
       email: body.email,
       password: body.password,
     });
-    if (error) return jsonError(error.message, 401);
+    if (error) {
+      const emailConfirmationRequired = /not confirmed|confirm|verification/i.test(error.message);
+      return jsonError(
+        emailConfirmationRequired ? "Email confirmation required." : "We couldn’t sign you in with those details.",
+        401,
+        { code: emailConfirmationRequired ? "email_confirmation_required" : "invalid_credentials" },
+      );
+    }
 
     const {
       data: { user },

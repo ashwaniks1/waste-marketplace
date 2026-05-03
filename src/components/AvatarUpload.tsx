@@ -42,11 +42,11 @@ export function AvatarUpload({
         body: formData,
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error ?? "Upload failed");
+      if (!response.ok) throw new Error("We couldn’t upload your photo right now. Try a JPG, PNG, or WEBP under 3 MB.");
 
       return typeof data.url === "string" ? data.url : null;
     } catch (err) {
-      const message = (err as Error)?.message ?? "Upload failed";
+      const message = (err as Error)?.message ?? "We couldn’t upload your photo right now. Try again in a moment.";
       setError(message);
       onError?.(message);
       return null;
@@ -118,7 +118,7 @@ export function AvatarUpload({
             aria-label="Upload profile photo"
             disabled={uploading}
           >
-            {uploading ? "Uploading…" : "Upload photo"}
+            {uploading ? "Uploading photo" : "Upload photo"}
           </Button>
           <p className="text-sm text-slate-500">
             JPG, PNG, or WEBP. Max 3 MB.

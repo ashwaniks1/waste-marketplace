@@ -57,10 +57,10 @@ export function DriverMyJobsContent() {
       fetch("/api/driver/jobs", { cache: "no-store" }),
       fetch("/api/driver/feed", { cache: "no-store" }),
     ]);
-    const jobsData = await jobsResponse.json();
+    const jobsData = await jobsResponse.json().catch(() => []);
     const feedData = await feedResponse.json().catch(() => []);
     if (!jobsResponse.ok) {
-      setError(jobsData.error ?? "Unable to load jobs");
+      setError("We couldn’t load your jobs right now. Try refreshing in a moment.");
       return;
     }
     setJobs(jobsData);
@@ -119,12 +119,16 @@ export function DriverMyJobsContent() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error ?? "Unable to update job");
+        setError(
+          status === "completed"
+            ? "We couldn’t complete this delivery. Check the buyer PIN and try again."
+            : "We couldn’t update this job right now. Try again in a moment.",
+        );
         return;
       }
       setJobs((current) => current.map((job) => (job.id === jobId ? data : job)));
     } catch {
-      setError("Unable to update job");
+      setError("We couldn’t update this job right now. Try again in a moment.");
     } finally {
       setBusyId(null);
     }
@@ -189,7 +193,7 @@ export function DriverMyJobsContent() {
           {error}
         </p>
       ) : null}
-      {loading ? <p className="text-sm text-slate-600">Loading…</p> : null}
+      {loading ? <p className="text-sm text-slate-600">Getting your route board.</p> : null}
       {locationShareListingIds.length > 0 ? (
         <p className="rounded-3xl border border-slate-200/50 bg-white px-4 py-3 text-sm text-slate-600 shadow-cosmos-sm">
           {location.point

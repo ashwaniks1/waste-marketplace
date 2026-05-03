@@ -65,14 +65,14 @@ export function ProfileVisitClient({
     try {
       const listingId = openListings[0].id;
       const response = await fetch(`/api/listings/${listingId}/conversations`, { method: "POST" });
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        setError(data.error ?? "Unable to start conversation");
+        setError("We couldn’t start this conversation right now. Try again in a moment.");
         return;
       }
       router.push(`/conversations/${data.id}`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to start conversation");
+    } catch {
+      setError("We couldn’t start this conversation right now. Try again in a moment.");
     } finally {
       setLoading(false);
     }

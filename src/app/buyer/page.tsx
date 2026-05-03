@@ -31,7 +31,7 @@ export default function BuyerHomePage() {
       setRows(data);
       setError(null);
     } else {
-      setError(typeof data?.error === "string" ? data.error : "Unable to load listings");
+      setError("We couldn’t load listings right now. Try refreshing or check back in a moment.");
     }
   }, [wasteType, sort, debouncedQ]);
 
@@ -73,7 +73,7 @@ export default function BuyerHomePage() {
 
           <div className="space-y-3">
             <p className="rounded-3xl border border-slate-200/50 bg-white px-4 py-3 text-sm leading-relaxed text-slate-600 shadow-cosmos-sm">
-              Filter by material, search title or address, or sort by price. Results update with your choices.
+              Filter by material, search title or address, or sort by price. Results refresh with your choices.
             </p>
 
             <div className="grid gap-2 rounded-3xl border border-slate-200/50 bg-white p-3 shadow-cosmos-sm sm:grid-cols-2 sm:gap-3 lg:grid-cols-1">

@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/Button";
+import { useSupabaseRealtimeRefresh } from "@/hooks/useSupabaseRealtimeRefresh";
+import { createBrowserSupabase } from "@/lib/supabase/client";
 
 type Notif = {
   id: string;
@@ -20,6 +22,7 @@ export function NotificationBell({ role }: { role: "customer" | "buyer" | "admin
   const [items, setItems] = useState<Notif[]>([]);
   const [unread, setUnread] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
@@ -33,9 +36,31 @@ export function NotificationBell({ role }: { role: "customer" | "buyer" | "admin
 
   useEffect(() => {
     void load();
-    const t = window.setInterval(() => void load(), 60_000);
-    return () => window.clearInterval(t);
   }, [load]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const supabase = createBrowserSupabase();
+
+    void supabase.auth.getUser().then(({ data }) => {
+      if (!cancelled) setUserId(data.user?.id ?? null);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useSupabaseRealtimeRefresh({
+    channelName: userId ? `notifications:${userId}` : "notifications:pending-user",
+    enabled: Boolean(userId),
+    changes: [
+      { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
+      { event: "UPDATE", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
+    ],
+    onChange: () => void load(),
+    onSubscribed: () => void load(),
+  });
 
   useEffect(() => {
     if (!open) return;

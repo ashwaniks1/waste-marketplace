@@ -3,6 +3,7 @@ import { getSupabaseUserFromRoute, withEffectiveAuthRole } from "@/lib/auth";
 import { currencyForCountry, normalizeCountryCode } from "@/lib/currency";
 import { ensureAppUserProfile } from "@/lib/ensureAppUserProfile";
 import { handleRouteError, jsonError, jsonOk } from "@/lib/http";
+import { geoLocationSelect, locationInputSchema, locationToLegacyAddress, toGeoLocationCreateInput } from "@/lib/locations";
 import { prisma } from "@/lib/prisma";
 import { profileToClientDto } from "@/lib/profileDto";
 import { rateLimitCombinedResponse } from "@/lib/rateLimitHttp";
@@ -17,6 +18,7 @@ const updateProfileSchema = z.object({
   avatarUrl: z.string().url().optional().nullable(),
   zipCode: z.string().trim().max(20).optional().nullable(),
   countryCode: z.string().trim().length(2).optional().nullable(),
+  primaryLocation: locationInputSchema.optional(),
 });
 
 export async function GET(request: Request) {
@@ -32,22 +34,28 @@ export async function GET(request: Request) {
     const userRl = rateLimitCombinedResponse(request, "profile-get-user", 80, 60_000, authUser.id);
     if (userRl) return userRl;
 
-    let user = await prisma.user.findUnique({ where: { id: authUser.id } });
+    let user = await prisma.user.findUnique({
+      where: { id: authUser.id },
+      include: { primaryLocation: { select: geoLocationSelect } },
+    });
     if (!user) {
       await ensureAppUserProfile(authUser);
-      user = await prisma.user.findUnique({ where: { id: authUser.id } });
+      user = await prisma.user.findUnique({
+        where: { id: authUser.id },
+        include: { primaryLocation: { select: geoLocationSelect } },
+      });
     }
     if (!user) return jsonError("Profile not available", 404);
-    user = withEffectiveAuthRole(user, authUser);
+    const effectiveUser = withEffectiveAuthRole(user, authUser);
 
     const reviewSummary = await prisma.review.aggregate({
       _avg: { score: true },
       _count: { score: true },
-      where: { toUserId: user.id },
+      where: { toUserId: effectiveUser.id },
     });
 
     return jsonOk({
-      profile: profileToClientDto(user),
+      profile: profileToClientDto({ ...effectiveUser, primaryLocation: user.primaryLocation }),
       avatarColumnAvailable: true,
       reviewSummary: {
         averageRating: reviewSummary._avg.score ?? null,
@@ -81,8 +89,9 @@ export async function PATCH(request: Request) {
     }
     if (!existing) return jsonError("Profile not found", 404);
 
-    const normalizedCountry = normalizeCountryCode(body.countryCode);
-    const nextCurrency = body.countryCode !== undefined ? currencyForCountry(normalizedCountry) : undefined;
+    const normalizedCountry = normalizeCountryCode(body.primaryLocation?.country ?? body.countryCode);
+    const nextCurrency =
+      body.primaryLocation !== undefined || body.countryCode !== undefined ? currencyForCountry(normalizedCountry) : undefined;
 
     let nextFirst = existing.firstName ?? "";
     let nextLast = existing.lastName ?? "";
@@ -103,20 +112,45 @@ export async function PATCH(request: Request) {
       nextLast = parts.length > 1 ? parts.slice(1).join(" ") : "";
     }
 
-    const user = withEffectiveAuthRole(await prisma.user.update({
+    const updatedUser = await prisma.user.update({
       where: { id: authUser.id },
       data: {
         name: nextName,
         firstName: nextFirst,
         lastName: nextLast,
         phone: body.phone !== undefined ? body.phone : undefined,
-        address: body.address !== undefined ? body.address : undefined,
+        address:
+          body.primaryLocation !== undefined
+            ? locationToLegacyAddress(body.primaryLocation)
+            : body.address !== undefined
+              ? body.address
+              : undefined,
         ...(body.avatarUrl !== undefined ? { avatarUrl: body.avatarUrl } : {}),
-        ...(body.zipCode !== undefined ? { zipCode: body.zipCode?.trim() || null } : {}),
-        ...(body.countryCode !== undefined ? { countryCode: normalizedCountry } : {}),
+        ...(body.primaryLocation !== undefined
+          ? {
+              zipCode: body.primaryLocation.postalCode?.trim() || null,
+              countryCode: body.primaryLocation.country,
+              profileLat: body.primaryLocation.latitude,
+              profileLng: body.primaryLocation.longitude,
+              timezone: body.primaryLocation.timezone?.trim() || null,
+            }
+          : {
+              ...(body.zipCode !== undefined ? { zipCode: body.zipCode?.trim() || null } : {}),
+              ...(body.countryCode !== undefined ? { countryCode: normalizedCountry } : {}),
+            }),
+        ...(body.primaryLocation?.id
+          ? { primaryLocation: { connect: { id: body.primaryLocation.id } } }
+          : body.primaryLocation
+            ? { primaryLocation: { create: toGeoLocationCreateInput(body.primaryLocation, authUser.id) } }
+            : {}),
         ...(nextCurrency !== undefined ? { currency: nextCurrency } : {}),
       },
-    }), authUser);
+      include: { primaryLocation: { select: geoLocationSelect } },
+    });
+    const user = {
+      ...withEffectiveAuthRole(updatedUser, authUser),
+      primaryLocation: updatedUser.primaryLocation,
+    };
 
     const profile = profileToClientDto(user);
 

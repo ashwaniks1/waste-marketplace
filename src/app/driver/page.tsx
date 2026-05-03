@@ -54,9 +54,12 @@ export default function DriverPage() {
       params.set("lng", String(location.point.lng));
     }
     const res = await fetch(`/api/driver/feed?${params.toString()}`, { cache: "no-store" });
-    const data = await res.json();
-    if (!res.ok) setError(data.error ?? "Unable to load pickups");
-    else setFeed(data);
+    const data = await res.json().catch(() => []);
+    if (!res.ok) setError("We couldn’t load pickup jobs right now. Try refreshing the board in a moment.");
+    else {
+      setFeed(data);
+      setError(null);
+    }
   }, [miles, wasteType, sort, location.point]);
 
   async function refresh() {
@@ -172,7 +175,7 @@ export default function DriverPage() {
             </p>
           ) : null}
 
-          {loading ? <p className="text-sm text-slate-600">Loading…</p> : null}
+          {loading ? <p className="text-sm text-slate-600">Getting available pickups.</p> : null}
 
           {!loading && feed.length === 0 ? (
             <EmptyState

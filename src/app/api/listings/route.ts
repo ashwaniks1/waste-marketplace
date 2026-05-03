@@ -1,8 +1,9 @@
-import { CommissionKind, ListingStatus, PickupJobStatus, Prisma, UserRole, WasteType } from "@prisma/client";
+import { CommissionKind, ListingStatus, PickupJobStatus, Prisma, UserRole, VisibilityScope, WasteType } from "@prisma/client";
 import { z } from "zod";
 import { requireAppUser } from "@/lib/auth";
 import { HttpError } from "@/lib/errors";
 import { handleRouteError, jsonError, jsonOk } from "@/lib/http";
+import { geoLocationSelect, locationInputSchema, locationToLegacyAddress, toGeoLocationCreateInput, visibilityScopeSchema } from "@/lib/locations";
 import { relistExpiredAcceptedListings } from "@/lib/pickup-window";
 import { prisma } from "@/lib/prisma";
 import { serializeListing } from "@/lib/serialize";
@@ -11,6 +12,7 @@ const listingInclude = {
   seller: { select: { id: true, name: true, email: true, phone: true, avatarUrl: true } },
   acceptor: { select: { id: true, name: true, email: true, phone: true, avatarUrl: true } },
   assignedDriver: { select: { id: true, name: true, email: true, phone: true, avatarUrl: true } },
+  pickupLocation: { select: geoLocationSelect },
 } as const;
 
 const createSchema = z.object({
@@ -32,7 +34,10 @@ const createSchema = z.object({
   address: z
     .string()
     .transform((value) => value.trim())
-    .refine((value) => value.length > 0, { message: "Address is required" }),
+    .refine((value) => value.length > 0, { message: "Address is required" })
+    .optional(),
+  pickupLocation: locationInputSchema.optional(),
+  visibilityScope: visibilityScopeSchema.optional().default(VisibilityScope.local),
   askingPrice: z.preprocess((value) => {
     if (typeof value === "string") {
       const normalized = value.replace(/,/g, "").trim();
@@ -63,6 +68,10 @@ const createSchema = z.object({
       (v.latitude != null && v.longitude != null),
     { message: "Provide both latitude and longitude, or omit both", path: ["latitude"] },
   )
+  .refine((value) => value.address || value.pickupLocation, {
+    message: "Provide a pickup location or address",
+    path: ["pickupLocation"],
+  })
   .superRefine((data, ctx) => {
     if (data.commissionKind === CommissionKind.fixed && (data.driverPayoutFixed == null || data.driverPayoutFixed <= 0)) {
       ctx.addIssue({
@@ -76,6 +85,7 @@ const createSchema = z.object({
 const buyerFeedQuery = z.object({
   wasteType: z.nativeEnum(WasteType).optional(),
   q: z.string().trim().max(200).optional(),
+  scope: visibilityScopeSchema.optional().default(VisibilityScope.local),
   sort: z.enum(["newest", "price_asc", "price_desc"]).optional().default("newest"),
 });
 
@@ -84,7 +94,7 @@ export async function GET(request: Request) {
   try {
     const me = await requireAppUser();
     const { searchParams } = new URL(request.url);
-    const scope = searchParams.get("scope");
+    const listScope = searchParams.get("scope");
 
     await relistExpiredAcceptedListings();
 
@@ -97,7 +107,7 @@ export async function GET(request: Request) {
     }
 
     if (me.role === UserRole.buyer) {
-      if (scope === "mine") {
+      if (listScope === "mine") {
         const rows = await prisma.wasteListing.findMany({
           where: { acceptedById: me.id },
           orderBy: { createdAt: "desc" },
@@ -108,14 +118,28 @@ export async function GET(request: Request) {
       const parsed = buyerFeedQuery.safeParse({
         wasteType: searchParams.get("wasteType") || undefined,
         q: searchParams.get("q") || undefined,
+        scope: searchParams.get("scope") || undefined,
         sort: searchParams.get("sort") || undefined,
       });
       if (!parsed.success) {
         return jsonError("Invalid filters", 400);
       }
-      const { wasteType, q, sort } = parsed.data;
+      const { wasteType, q, scope, sort } = parsed.data;
+      const countryCode = me.countryCode?.toUpperCase() || undefined;
       const where: Prisma.WasteListingWhereInput = {
         status: { in: [ListingStatus.open, ListingStatus.reopened] },
+        ...(scope === VisibilityScope.local && countryCode
+          ? { visibilityScope: VisibilityScope.local, originCountryCode: countryCode }
+          : {}),
+        ...(scope === VisibilityScope.national && countryCode
+          ? {
+              visibilityScope: { in: [VisibilityScope.local, VisibilityScope.national] },
+              originCountryCode: countryCode,
+            }
+          : {}),
+        ...(scope === VisibilityScope.international
+          ? { visibilityScope: { in: [VisibilityScope.local, VisibilityScope.national, VisibilityScope.international] } }
+          : {}),
         ...(wasteType ? { wasteType } : {}),
         ...(q
           ? {
@@ -166,23 +190,29 @@ export async function POST(request: Request) {
 
     const row = await prisma.wasteListing.create({
       data: {
-        userId: me.id,
+        seller: { connect: { id: me.id } },
         title: body.title,
         wasteType: body.wasteType,
         quantity: body.quantity.trim(),
         description: body.description?.trim() || null,
         images: body.images,
-        address: body.address.trim(),
+        address: body.pickupLocation ? locationToLegacyAddress(body.pickupLocation) : body.address!.trim(),
         status: ListingStatus.open,
         askingPrice: body.askingPrice,
         currency: body.currency ?? me.currency ?? "USD",
         deliveryAvailable: body.deliveryAvailable,
         deliveryFee: body.deliveryFee,
-        latitude: body.latitude ?? undefined,
-        longitude: body.longitude ?? undefined,
+        latitude: body.pickupLocation?.latitude ?? body.latitude ?? undefined,
+        longitude: body.pickupLocation?.longitude ?? body.longitude ?? undefined,
+        visibilityScope: body.visibilityScope,
+        ...(body.pickupLocation?.id
+          ? { pickupLocation: { connect: { id: body.pickupLocation.id } } }
+          : body.pickupLocation
+            ? { pickupLocation: { create: toGeoLocationCreateInput(body.pickupLocation, me.id) } }
+            : {}),
         deliveryRequired,
         pickupJobStatus,
-        pickupZip: body.pickupZip?.trim() || null,
+        pickupZip: body.pickupLocation?.postalCode?.trim() || body.pickupZip?.trim() || null,
         commissionKind,
         driverCommissionPercent:
           commissionKind === CommissionKind.percent && body.driverCommissionPercent != null

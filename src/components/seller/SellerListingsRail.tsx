@@ -67,13 +67,13 @@ export function SellerListingsRail() {
       const response = await fetch("/api/listings", { cache: "no-store" });
       const data = await response.json().catch(() => []);
       if (!response.ok) {
-        setError(typeof data?.error === "string" ? data.error : "Unable to load listings");
+        setError("We couldn’t load your listings right now. Try refreshing in a moment.");
         return;
       }
       setRows(Array.isArray(data) ? data : []);
       setError(null);
     } catch {
-      setError("Unable to load listings");
+      setError("We couldn’t load your listings right now. Try refreshing in a moment.");
     } finally {
       if (!opts?.silent) setLoading(false);
     }

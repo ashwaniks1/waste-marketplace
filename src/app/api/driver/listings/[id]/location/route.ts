@@ -10,6 +10,7 @@ const locationSchema = z.object({
   longitude: z.number().min(-180).max(180),
   heading: z.number().min(0).max(360).nullable().optional(),
   speed: z.number().min(0).nullable().optional(),
+  accuracyM: z.number().min(0).nullable().optional(),
 });
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -29,8 +30,8 @@ export async function POST(request: Request, ctx: Ctx) {
 
     await prisma.$executeRaw(
       Prisma.sql`
-        insert into public.listing_live_locations (listing_id, driver_id, lat, lng, heading, speed, recorded_at, updated_at)
-        values (${id}::uuid, ${me.id}::uuid, ${body.latitude}, ${body.longitude}, ${body.heading ?? null}, ${body.speed ?? null}, now(), now())
+        insert into public.listing_live_locations (listing_id, driver_id, lat, lng, heading, speed, accuracy_m, recorded_at, updated_at, expires_at)
+        values (${id}::uuid, ${me.id}::uuid, ${body.latitude}, ${body.longitude}, ${body.heading ?? null}, ${body.speed ?? null}, ${body.accuracyM ?? null}, now(), now(), now() + interval '15 minutes')
         on conflict (listing_id)
         do update set
           driver_id = excluded.driver_id,
@@ -38,8 +39,10 @@ export async function POST(request: Request, ctx: Ctx) {
           lng = excluded.lng,
           heading = excluded.heading,
           speed = excluded.speed,
+          accuracy_m = excluded.accuracy_m,
           recorded_at = now(),
-          updated_at = now()
+          updated_at = now(),
+          expires_at = now() + interval '15 minutes'
       `,
     );
 

@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/Button";
 import { UserAvatar } from "@/components/UserAvatar";
+import { useSupabaseRealtimeRefresh } from "@/hooks/useSupabaseRealtimeRefresh";
 
 type MessageRow = {
   id: string;
@@ -69,37 +70,40 @@ export function ConversationDrawer({
     })();
   }, [open]);
 
+  const loadMessages = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!conversationId) return;
+    if (!opts?.silent) setLoading(true);
+    try {
+      const response = await fetch(`/api/conversations/${conversationId}/messages`, { cache: "no-store" });
+      const data = await response.json().catch(() => []);
+      if (!response.ok) {
+        setError("We couldn’t load this conversation right now. Try again in a moment.");
+        return;
+      }
+      setMessages(data);
+      setError(null);
+    } catch {
+      setError("We couldn’t load this conversation right now. Try again in a moment.");
+    } finally {
+      if (!opts?.silent) setLoading(false);
+    }
+  }, [conversationId]);
+
   useEffect(() => {
     if (!open || !conversationId) return;
-    let cancelled = false;
+    void loadMessages();
+  }, [conversationId, loadMessages, open]);
 
-    async function loadMessages() {
-      setLoading(true);
-      try {
-        const response = await fetch(`/api/conversations/${conversationId}/messages`, { cache: "no-store" });
-        const data = await response.json();
-        if (!response.ok) {
-          if (!cancelled) setError(data.error ?? "Could not load messages");
-          return;
-        }
-        if (!cancelled) {
-          setMessages(data);
-          setError(null);
-        }
-      } catch {
-        if (!cancelled) setError("Could not load messages");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-
-    loadMessages();
-    const timer = window.setInterval(loadMessages, 4000);
-    return () => {
-      cancelled = true;
-      window.clearInterval(timer);
-    };
-  }, [conversationId, open]);
+  useSupabaseRealtimeRefresh({
+    channelName: conversationId ? `conversation-drawer:${conversationId}` : "conversation-drawer:pending-thread",
+    enabled: Boolean(open && conversationId),
+    changes: [
+      { event: "INSERT", schema: "public", table: "messages", filter: `conversation_id=eq.${conversationId}` },
+      { event: "UPDATE", schema: "public", table: "messages", filter: `conversation_id=eq.${conversationId}` },
+    ],
+    onChange: () => void loadMessages({ silent: true }),
+    onSubscribed: () => void loadMessages({ silent: true }),
+  });
 
   useEffect(() => {
     if (open) {
@@ -120,16 +124,16 @@ export function ConversationDrawer({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ body }),
       });
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        setError(data.error ?? "Could not send message");
+        setError("We couldn’t send your message right now. Try again in a moment.");
         return;
       }
       setMessages((current) => [...current, data]);
       setBody("");
       setError(null);
     } catch {
-      setError("Could not send message");
+      setError("We couldn’t send your message right now. Try again in a moment.");
     } finally {
       setSending(false);
     }
@@ -165,7 +169,7 @@ export function ConversationDrawer({
         </div>
 
         <div className="flex-1 space-y-3 overflow-y-auto bg-slate-50/70 px-4 py-4">
-          {loading && messages.length === 0 ? <p className="text-sm text-slate-500">Loading chat…</p> : null}
+          {loading && messages.length === 0 ? <p className="text-sm text-slate-500">Getting the conversation ready.</p> : null}
           {!loading && messages.length === 0 ? (
             <div className="rounded-3xl border border-dashed border-slate-200/80 bg-white px-5 py-8 text-center shadow-cosmos-sm">
               <p className="text-sm font-medium text-slate-900">Start the pickup conversation</p>

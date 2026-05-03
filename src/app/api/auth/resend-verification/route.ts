@@ -20,7 +20,7 @@ export async function POST(request: Request) {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     if (!url || !anon) {
-      return jsonError("Auth is not configured", 503);
+      return jsonError("We couldn’t resend the email right now. Try again in a moment.", 503);
     }
 
     const supabase = createClient(url, anon, {

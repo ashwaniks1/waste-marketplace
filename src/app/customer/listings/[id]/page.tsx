@@ -109,7 +109,7 @@ export default function CustomerListingDetailPage() {
     const res = await fetch(`/api/listings/${id}`, { cache: "no-store" });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      setError(typeof data.error === "string" ? data.error : "Failed to load listing");
+      setError("We couldn’t load this listing right now. Refresh the page or check back in a moment.");
       return;
     }
 
@@ -144,9 +144,9 @@ export default function CustomerListingDetailPage() {
     if (!confirm("Cancel this listing?")) return;
     setBusy(true);
     const res = await fetch(`/api/listings/${id}/cancel`, { method: "POST" });
-    const data = await res.json().catch(() => ({}));
+    await res.json().catch(() => ({}));
     setBusy(false);
-    if (!res.ok) setError(typeof data.error === "string" ? data.error : "Could not cancel listing");
+    if (!res.ok) setError("We couldn’t cancel this listing right now. Try again in a moment.");
     else await load();
   }
 
@@ -165,10 +165,10 @@ export default function CustomerListingDetailPage() {
         deliveryFee: deliveryFee ? Number(deliveryFee) : null,
       }),
     });
-    const data = await res.json().catch(() => ({}));
+    await res.json().catch(() => ({}));
     setBusy(false);
     if (!res.ok) {
-      setError(typeof data.error === "string" ? data.error : "Could not save changes");
+      setError("We couldn’t save your listing changes right now. Review the details and try again.");
       return;
     }
 
@@ -179,18 +179,18 @@ export default function CustomerListingDetailPage() {
   async function acceptOffer(offerId: string) {
     setBusy(true);
     const res = await fetch(`/api/offers/${offerId}/accept`, { method: "POST" });
-    const data = await res.json().catch(() => ({}));
+    await res.json().catch(() => ({}));
     setBusy(false);
-    if (!res.ok) setError(typeof data.error === "string" ? data.error : "Could not accept offer");
+    if (!res.ok) setError("We couldn’t accept this offer right now. Try again in a moment.");
     else await load();
   }
 
   async function declineOffer(offerId: string) {
     setBusy(true);
     const res = await fetch(`/api/offers/${offerId}/decline`, { method: "POST" });
-    const data = await res.json().catch(() => ({}));
+    await res.json().catch(() => ({}));
     setBusy(false);
-    if (!res.ok) setError(typeof data.error === "string" ? data.error : "Could not decline offer");
+    if (!res.ok) setError("We couldn’t decline this offer right now. Try again in a moment.");
     else await load();
   }
 
@@ -202,9 +202,9 @@ export default function CustomerListingDetailPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ reason: "No pickup completed" }),
     });
-    const data = await res.json().catch(() => ({}));
+    await res.json().catch(() => ({}));
     setBusy(false);
-    if (!res.ok) setError(typeof data.error === "string" ? data.error : "Could not mark no-show");
+    if (!res.ok) setError("We couldn’t update this pickup status right now. Try again in a moment.");
     else await load();
   }
 
@@ -212,9 +212,9 @@ export default function CustomerListingDetailPage() {
     if (!confirm("Reopen this listing so buyers can make offers again?")) return;
     setBusy(true);
     const res = await fetch(`/api/listings/${id}/reopen`, { method: "POST" });
-    const data = await res.json().catch(() => ({}));
+    await res.json().catch(() => ({}));
     setBusy(false);
-    if (!res.ok) setError(typeof data.error === "string" ? data.error : "Could not reopen listing");
+    if (!res.ok) setError("We couldn’t reopen this listing right now. Try again in a moment.");
     else await load();
   }
 
@@ -229,8 +229,8 @@ export default function CustomerListingDetailPage() {
     });
     setBusy(false);
     if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      setError(typeof data.error === "string" ? data.error : "Comment failed");
+      await res.json().catch(() => ({}));
+      setError("We couldn’t post your comment right now. Try again in a moment.");
       return;
     }
     setCommentBody("");

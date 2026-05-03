@@ -49,14 +49,14 @@ export function DriverEarningsContent() {
       setError(null);
       try {
         const response = await fetch("/api/driver/jobs", { cache: "no-store" });
-        const data = await response.json();
+        const data = await response.json().catch(() => []);
         if (!response.ok) {
-          setError(data.error ?? "Unable to load earnings");
+          setError("We couldn’t load your earnings right now. Try refreshing in a moment.");
           return;
         }
         if (!cancelled) setJobs(Array.isArray(data) ? data : []);
       } catch {
-        if (!cancelled) setError("Unable to load earnings");
+        if (!cancelled) setError("We couldn’t load your earnings right now. Try refreshing in a moment.");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -141,7 +141,7 @@ export function DriverEarningsContent() {
           {error}
         </p>
       ) : null}
-      {loading ? <p className="text-sm text-slate-600">Loading earnings…</p> : null}
+      {loading ? <p className="text-sm text-slate-600">Getting your earnings statement.</p> : null}
 
       {!loading && statement.length === 0 ? (
         <EmptyState

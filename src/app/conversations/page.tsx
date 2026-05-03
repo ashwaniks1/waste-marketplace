@@ -66,7 +66,7 @@ export default function ConversationsListPage() {
         </section>
 
         {loading ? (
-          <p className="text-sm text-slate-600">Loading…</p>
+          <p className="text-sm text-slate-600">Getting your conversations.</p>
         ) : rows.length === 0 ? (
           role === "admin" ? (
             <EmptyState

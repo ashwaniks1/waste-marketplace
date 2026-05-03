@@ -37,8 +37,8 @@ export default function NewListingPage() {
       const fd = new FormData();
       fd.set("file", file);
       const res = await fetch("/api/upload", { method: "POST", body: fd });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Upload failed");
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error("We couldn’t upload one of your photos. Try a JPG, PNG, or WEBP under 5 MB.");
       urls.push(data.url);
     }
     return urls;
@@ -82,18 +82,13 @@ export default function NewListingPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        const details = data.details
-          ? Array.isArray(data.details._errors)
-            ? data.details._errors.join(" ")
-            : JSON.stringify(data.details)
-          : null;
-        setError(data.error ? `${data.error}${details ? ": " + details : ""}` : "Could not create listing");
+        setError("We couldn’t publish this listing right now. Review the required details and try again.");
         return;
       }
       router.push(`/customer/listings/${data.id}`);
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
+      setError(err instanceof Error ? err.message : "We couldn’t publish this listing right now. Try again in a moment.");
     } finally {
       setLoading(false);
     }
@@ -110,7 +105,7 @@ export default function NewListingPage() {
         </h1>
         <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">
           Clear photos, honest quantity, and a clean pickup help offers come in faster. Use the map pin to place your
-          pickup—your related list and inbox return after you publish.
+          pickup. Your related list and inbox return after you publish.
         </p>
       </section>
 
@@ -307,7 +302,7 @@ export default function NewListingPage() {
         {error ? <p className="text-sm text-rose-600">{error}</p> : null}
 
         <Button type="submit" disabled={loading} className="w-full">
-          {loading ? "Submitting…" : "Submit request"}
+          {loading ? "Publishing listing…" : "Publish listing"}
         </Button>
         </section>
       </form>

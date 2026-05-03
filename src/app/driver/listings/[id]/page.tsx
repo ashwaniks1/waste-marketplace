@@ -35,9 +35,9 @@ export default function DriverListingDetailPage() {
 
   async function load() {
     const res = await fetch(`/api/listings/${id}`);
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      setError(data.error ?? "Failed to load");
+      setError("We couldn’t load this pickup right now. Refresh the page or check back in a moment.");
       setRow(null);
       return;
     }
@@ -54,10 +54,10 @@ export default function DriverListingDetailPage() {
     setBusy(true);
     setError(null);
     const res = await fetch(`/api/driver/listings/${id}/claim`, { method: "POST" });
-    const data = await res.json();
+    await res.json().catch(() => ({}));
     setBusy(false);
     if (!res.ok) {
-      setError(data.error ?? "Could not claim pickup");
+      setError("We couldn’t claim this pickup right now. It may already be assigned, or you can try again in a moment.");
       return;
     }
     router.push("/driver");
@@ -77,7 +77,7 @@ export default function DriverListingDetailPage() {
     return (
       <>
         <AppHeader title="Pickup" backHref="/driver" role="driver" />
-        <p className="px-4 py-6 text-sm text-slate-600">Loading…</p>
+        <p className="px-4 py-6 text-sm text-slate-600">Getting pickup details.</p>
       </>
     );
   }

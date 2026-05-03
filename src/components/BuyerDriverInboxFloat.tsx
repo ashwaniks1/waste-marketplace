@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/Button";
 import { UserAvatar } from "@/components/UserAvatar";
 import { WASTE_TYPE_OPTIONS } from "@/lib/waste-types";
-import { usePollWhileVisible } from "@/hooks/usePollWhileVisible";
+import { useSupabaseRealtimeRefresh } from "@/hooks/useSupabaseRealtimeRefresh";
 
 type ConversationRow = {
   id: string;
@@ -28,9 +28,6 @@ type MessageRow = {
   createdAt: string;
   sender: { id: string; name: string };
 };
-
-const LIST_POLL_MS = 25_000;
-const MSG_POLL_MS = 16_000;
 
 function formatTime(iso: string) {
   return new Date(iso).toLocaleString(undefined, {
@@ -106,13 +103,13 @@ export function BuyerDriverInboxFloat({
       const conversationsData = await conversationsResponse.json().catch(() => []);
       if (meResponse.ok && meData.profile?.id) setMeId(meData.profile.id);
       if (!conversationsResponse.ok) {
-        setError(typeof conversationsData?.error === "string" ? conversationsData.error : "Unable to load messages");
+        setError("We couldn’t load your conversations right now. Try again in a moment.");
         return;
       }
       setRows(Array.isArray(conversationsData) ? conversationsData : []);
       setError(null);
     } catch {
-      setError("Unable to load messages");
+      setError("We couldn’t load your conversations right now. Try again in a moment.");
     } finally {
       setLoadingRows(false);
     }
@@ -124,13 +121,13 @@ export function BuyerDriverInboxFloat({
       const response = await fetch(`/api/conversations/${threadId}/messages`, { cache: "no-store" });
       const data = await response.json().catch(() => []);
       if (!response.ok) {
-        setError(typeof data?.error === "string" ? data.error : "Unable to load messages");
+        setError("We couldn’t load this conversation right now. Try again in a moment.");
         return;
       }
       setMessages(Array.isArray(data) ? data : []);
       setError(null);
     } catch {
-      setError("Unable to load messages");
+      setError("We couldn’t load this conversation right now. Try again in a moment.");
     } finally {
       setLoadingMessages(false);
     }
@@ -154,13 +151,28 @@ export function BuyerDriverInboxFloat({
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  usePollWhileVisible(() => {
-    if (open) void loadRows({ silent: true });
-  }, LIST_POLL_MS, open);
+  useSupabaseRealtimeRefresh({
+    channelName: "buyer-driver-conversations",
+    enabled: open,
+    changes: [{ event: "*", schema: "public", table: "conversations" }],
+    onChange: () => void loadRows({ silent: true }),
+    onSubscribed: () => void loadRows({ silent: true }),
+  });
 
-  usePollWhileVisible(() => {
-    if (open && activeThreadId) void loadMessages(activeThreadId, { silent: true });
-  }, MSG_POLL_MS, Boolean(open && activeThreadId));
+  useSupabaseRealtimeRefresh({
+    channelName: activeThreadId ? `buyer-driver-messages:${activeThreadId}` : "buyer-driver-messages:pending-thread",
+    enabled: Boolean(open && activeThreadId),
+    changes: [
+      { event: "INSERT", schema: "public", table: "messages", filter: `conversation_id=eq.${activeThreadId}` },
+      { event: "UPDATE", schema: "public", table: "messages", filter: `conversation_id=eq.${activeThreadId}` },
+    ],
+    onChange: () => {
+      if (activeThreadId) void loadMessages(activeThreadId, { silent: true });
+    },
+    onSubscribed: () => {
+      if (activeThreadId) void loadMessages(activeThreadId, { silent: true });
+    },
+  });
 
   async function sendMessage(event: React.FormEvent) {
     event.preventDefault();
@@ -174,7 +186,7 @@ export function BuyerDriverInboxFloat({
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        setError(typeof data?.error === "string" ? data.error : "Unable to send message");
+        setError("We couldn’t send your message right now. Try again in a moment.");
         return;
       }
       setMessages((current) => [...current, data as MessageRow]);
@@ -182,7 +194,7 @@ export function BuyerDriverInboxFloat({
       setError(null);
       void loadRows({ silent: true });
     } catch {
-      setError("Unable to send message");
+      setError("We couldn’t send your message right now. Try again in a moment.");
     } finally {
       setSending(false);
     }
@@ -212,7 +224,7 @@ export function BuyerDriverInboxFloat({
 
         {!activeThreadId ? (
           <div className="min-h-0 flex-1 overflow-y-auto bg-cosmos-page-alt/30 px-3 py-3">
-            {loadingRows ? <p className="text-sm text-slate-500">Loading…</p> : null}
+            {loadingRows ? <p className="text-sm text-slate-500">Getting your conversations.</p> : null}
             {!loadingRows && rows.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-slate-200 bg-white/80 px-4 py-8 text-center">
                 <p className="text-sm font-semibold text-slate-900">No conversations yet</p>
@@ -278,7 +290,7 @@ export function BuyerDriverInboxFloat({
               ) : null}
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto bg-cosmos-page-alt/30 px-3 py-3">
-              {loadingMessages && messages.length === 0 ? <p className="text-sm text-slate-500">Loading…</p> : null}
+              {loadingMessages && messages.length === 0 ? <p className="text-sm text-slate-500">Getting the conversation ready.</p> : null}
               <div className="space-y-2.5">
                 {messages.map((message) => {
                   const mine = message.sender.id === meId;

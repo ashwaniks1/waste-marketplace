@@ -72,7 +72,7 @@ export function MapCoordinatesPicker({ address, latitude, longitude, onChange, o
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(typeof data.error === "string" ? data.error : "Could not find that address on the map.");
+        setError("We couldn’t place this address on the map. Check the address or set the pin manually.");
         return;
       }
       onChange(data.latitude, data.longitude);
@@ -115,7 +115,7 @@ export function MapCoordinatesPicker({ address, latitude, longitude, onChange, o
         setError(
           err.code === 1
             ? "Location permission is off. You can type an address and place the pin on the map instead."
-            : "Could not read your location. Try again or set the address manually.",
+            : "We couldn’t read your location. Try again or set the address manually.",
         );
         setBusy(false);
       },
