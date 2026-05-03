@@ -141,10 +141,6 @@ export function DriverMyJobsContent() {
     if (filter === "available") return [];
     return jobs;
   }, [activeJobs, completedJobs, filter, jobs]);
-  const currency = jobs[0]?.listing.currency ?? availableJobs[0]?.currency ?? "USD";
-  const completedEarnings = completedJobs.reduce((sum, job) => sum + Number(job.listing.driverCommissionAmount ?? 0), 0);
-  const activeEarnings = activeJobs.reduce((sum, job) => sum + Number(job.listing.driverCommissionAmount ?? 0), 0);
-  const availableEarnings = availableJobs.reduce((sum, job) => sum + Number(job.estimatedDriverPayout ?? 0), 0);
   const filterOptions: { id: JobFilter; label: string; count: number }[] = [
     { id: "active", label: "Active", count: activeJobs.length },
     { id: "available", label: "Available", count: availableJobs.length },
@@ -164,31 +160,6 @@ export function DriverMyJobsContent() {
         <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">
           Start the run, enter the buyer handoff PIN at completion, and keep cancelled or completed work visible for review.
         </p>
-      </section>
-
-      <section className="grid gap-3 md:grid-cols-4">
-        <div className="rounded-3xl border border-emerald-100 bg-emerald-50/80 p-4 shadow-cosmos-sm">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-700">Earned</p>
-          <p className="mt-2 text-2xl font-bold text-emerald-950">{formatMoney(completedEarnings, currency)}</p>
-          <p className="mt-1 text-xs text-emerald-800">{completedJobs.length} completed pickup{completedJobs.length === 1 ? "" : "s"}</p>
-        </div>
-        <div className="rounded-3xl border border-sky-100 bg-sky-50/80 p-4 shadow-cosmos-sm">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-sky-700">Active route</p>
-          <p className="mt-2 text-2xl font-bold text-sky-950">{formatMoney(activeEarnings, currency)}</p>
-          <p className="mt-1 text-xs text-sky-800">{activeJobs.length} job{activeJobs.length === 1 ? "" : "s"} in motion</p>
-        </div>
-        <div className="rounded-3xl border border-amber-100 bg-amber-50/80 p-4 shadow-cosmos-sm">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-700">Open board</p>
-          <p className="mt-2 text-2xl font-bold text-amber-950">{formatMoney(availableEarnings, currency)}</p>
-          <p className="mt-1 text-xs text-amber-800">{availableJobs.length} available listing{availableJobs.length === 1 ? "" : "s"}</p>
-        </div>
-        <div className="rounded-3xl border border-slate-200/70 bg-white p-4 shadow-cosmos-sm">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Completion rate</p>
-          <p className="mt-2 text-2xl font-bold text-slate-950">
-            {jobs.length > 0 ? `${Math.round((completedJobs.length / jobs.length) * 100)}%` : "0%"}
-          </p>
-          <p className="mt-1 text-xs text-slate-600">Across claimed pickups</p>
-        </div>
       </section>
 
       <section className="rounded-3xl border border-slate-200/50 bg-white p-2 shadow-cosmos-sm">

@@ -39,6 +39,7 @@ const adminNav = [
 const driverNav = [
   { href: "/driver", label: "Board" },
   { href: "/driver/jobs", label: "Jobs" },
+  { href: "/driver/earnings", label: "Earnings" },
 ];
 
 const roleHomeHrefs = ["/buyer", "/driver", "/customer", "/admin"] as const;
@@ -247,7 +248,11 @@ export function AppShell({
               />
             </svg>
           </button>
-          <BuyerDriverInboxFloat open={inboxOpen} onClose={() => setInboxOpen(false)} />
+          <BuyerDriverInboxFloat
+            open={inboxOpen}
+            onMinimize={() => setInboxOpen(false)}
+            onClose={() => setInboxOpen(false)}
+          />
         </>
       ) : null}
 

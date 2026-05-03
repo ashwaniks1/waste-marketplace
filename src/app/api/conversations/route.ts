@@ -1,6 +1,7 @@
 import { UserRole } from "@prisma/client";
 import { requireAppUser } from "@/lib/auth";
 import { handleRouteError, jsonOk } from "@/lib/http";
+import { decryptMessageBody } from "@/lib/messageCrypto";
 import { prisma } from "@/lib/prisma";
 
 /** List conversations the current user participates in (buyer, or listing seller). */
@@ -38,7 +39,15 @@ export async function GET() {
       },
     });
 
-    return jsonOk(rows);
+    return jsonOk(
+      rows.map((row) => ({
+        ...row,
+        messages: row.messages.map((message) => ({
+          ...message,
+          body: decryptMessageBody(message.body),
+        })),
+      })),
+    );
   } catch (e) {
     return handleRouteError(e);
   }

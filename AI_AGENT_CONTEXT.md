@@ -129,7 +129,7 @@ Third-party services:
   - claim pickup
   - get transport job
   - filter assigned work by active, available, completed, or all
-  - review earnings summary for completed, active, and available pickup payouts
+  - review a separate earnings tab with statement-style posted and pending payout rows
   - share live location
   - update transport status
   - complete with buyer PIN in mobile RPC flow
@@ -272,7 +272,7 @@ Third-party services:
 | `offers` | table | Buyer offers on listings; `status` is `pending/accepted/declined/withdrawn` |
 | `listing_comments` | table | Listing discussion thread visible to listing readers |
 | `conversations` | table | One row per `(listing_id, buyer_id)` private thread |
-| `messages` | table | Chat messages within a conversation |
+| `messages` | table | Chat messages within a conversation; new web/API messages are stored as AES-GCM envelopes in `body` and decrypted only by participant APIs |
 | `transport_jobs` | table | Driver delivery jobs tied to listings |
 | `transactions` | table | Payment ledger placeholder; not wired to a gateway |
 | `reviews` | table | Ratings and optional review text |
@@ -296,7 +296,7 @@ These are required even though they are not in `prisma/schema.prisma`.
 | `buyer_confirm_marketplace_delivery(uuid)` | RPC | Releases delivery job to drivers |
 | `admin_list_orphan_auth_user_ids()` | RPC | Edge/admin-only health check for auth/profile drift |
 | `on_offer_created_notify()` | trigger function | Creates seller notification on new offer |
-| `on_message_created_notify()` | trigger function | Creates peer notification and bumps conversation timestamp |
+| `on_message_created_notify()` | trigger function | Creates generic peer notification without copying private message text and bumps conversation timestamp |
 | `wmp_handle_new_auth_user()` | trigger function | Mirrors new auth users into `public.users` |
 | `private.sync_user_public_profile()` | trigger function | Keeps `user_public_profiles` in sync with `users` |
 
@@ -401,9 +401,9 @@ General notes:
 | `/api/listings/:id/conversations` | `GET` | Seller/admin fetches threads; buyer fetches own | none | `Conversation[]` |
 | `/api/listings/:id/conversations` | `POST` | Buyer opens or reuses private thread | none | `Conversation` |
 | `/api/conversations` | `GET` | List conversations where user is buyer or listing seller; buyers and customers only (others get `[]`) | none | `Conversation[]` (includes listing, buyer, latest message) |
-| `/api/conversations/:id` | `GET` | Conversation metadata | none | `Conversation` |
-| `/api/conversations/:id/messages` | `GET` | Fetch chat history | none | `Message[]` |
-| `/api/conversations/:id/messages` | `POST` | Send chat message | `{ body }` | `Message` |
+| `/api/conversations/:id` | `GET` | Conversation metadata for buyer or listing seller only | none | `Conversation` |
+| `/api/conversations/:id/messages` | `GET` | Fetch decrypted chat history for buyer or listing seller only | none | `Message[]` |
+| `/api/conversations/:id/messages` | `POST` | Encrypt and store chat message for buyer or listing seller only | `{ body }` | decrypted `Message` |
 
 ### Driver
 
@@ -813,6 +813,7 @@ These details apply to the **Next.js web app** in this repository and extend the
 
 ## Last Updated
 
+- **2026-05-03** — Buyer/driver floating chat now matches seller chrome with back navigation plus minimize/close controls and no full-inbox shortcut. Driver earnings moved to `/driver/earnings` as a separate nav tab with bank-statement style posted/pending rows. Web chat message bodies are encrypted at rest with server-only AES-GCM envelopes (`MESSAGE_ENCRYPTION_KEY` / `APP_ENCRYPTION_KEY`), participant APIs decrypt responses, admin read access was removed from conversation APIs, and message notifications no longer copy private text.
 - **2026-05-03** — Fixed buyer profile update freshness by healing missing app profile rows, keeping app-shell profile state in sync after save, and best-effort syncing safe display fields into Supabase Auth metadata. Buyer/driver message FAB now opens a bottom-right floating inbox instead of navigating full-screen. Driver jobs now include active/available/completed/all filters plus Uber-style earnings summary cards.
 - **2026-05-03** — Added metadata-table RLS migration for Supabase linter finding on `public._prisma_migrations` plus manual owner-required SQL for `public.spatial_ref_sys`. Marketplace app-table RLS policies for listings/offers/jobs are unchanged; PostGIS SRID metadata should remain readable when the manual SQL is applied.
 - **2026-05-03** — Updated buyer marketplace delivery release so accepted delivery-offered listings can be converted into driver pickup jobs, aligned driver feed visibility to buyer-released accepted jobs, replaced the driver live map Leaflet/OSM preview with Google Maps embed, and refreshed driver/chat UI panels to match the seller workspace style.

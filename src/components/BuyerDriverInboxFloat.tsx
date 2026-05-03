@@ -41,7 +41,44 @@ function formatTime(iso: string) {
   });
 }
 
-export function BuyerDriverInboxFloat({ open, onClose }: { open: boolean; onClose: () => void }) {
+function ChromeButtons({ onMinimize, onClose }: { onMinimize: () => void; onClose: () => void }) {
+  return (
+    <div className="flex shrink-0 items-center gap-0.5">
+      <button
+        type="button"
+        onClick={onMinimize}
+        className="inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-200/80 hover:text-slate-800"
+        title="Minimize"
+        aria-label="Minimize inbox"
+      >
+        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+          <rect x="4" y="11" width="16" height="2" rx="0.5" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        onClick={onClose}
+        className="inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-200/80 hover:text-slate-800"
+        title="Close"
+        aria-label="Close inbox"
+      >
+        <span className="text-lg leading-none" aria-hidden>
+          ×
+        </span>
+      </button>
+    </div>
+  );
+}
+
+export function BuyerDriverInboxFloat({
+  open,
+  onMinimize,
+  onClose,
+}: {
+  open: boolean;
+  onMinimize: () => void;
+  onClose: () => void;
+}) {
   const [rows, setRows] = useState<ConversationRow[]>([]);
   const [messages, setMessages] = useState<MessageRow[]>([]);
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
@@ -151,11 +188,16 @@ export function BuyerDriverInboxFloat({ open, onClose }: { open: boolean; onClos
     }
   }
 
+  function closeInbox() {
+    setActiveThreadId(null);
+    onClose();
+  }
+
   if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-end bg-slate-950/20 p-0 backdrop-blur-[1px] sm:p-5">
-      <button type="button" className="absolute inset-0 cursor-default" aria-label="Close inbox" onClick={onClose} />
+      <button type="button" className="absolute inset-0 cursor-default" aria-label="Close inbox" onClick={closeInbox} />
       <section className="relative z-10 flex h-[min(84dvh,620px)] w-full flex-col overflow-hidden rounded-t-3xl border border-slate-200/80 bg-white shadow-2xl shadow-slate-900/20 sm:max-w-md sm:rounded-3xl">
         <header className="shrink-0 border-b border-slate-200/50 bg-cosmos-page-alt/80 px-4 py-3">
           <div className="flex items-center justify-between gap-3">
@@ -163,19 +205,7 @@ export function BuyerDriverInboxFloat({ open, onClose }: { open: boolean; onClos
               <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">Inbox</p>
               <h2 className="mt-0.5 text-base font-bold text-slate-900">Messages</h2>
             </div>
-            <div className="flex items-center gap-2">
-              <Link href="/conversations" onClick={onClose} className="text-xs font-semibold text-teal-700 hover:text-teal-900">
-                Full inbox
-              </Link>
-              <button
-                type="button"
-                onClick={onClose}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-200/80 hover:text-slate-800"
-                aria-label="Close messages"
-              >
-                ×
-              </button>
-            </div>
+            <ChromeButtons onMinimize={onMinimize} onClose={closeInbox} />
           </div>
         </header>
         {error ? <p className="shrink-0 border-b border-rose-100 bg-rose-50 px-4 py-2 text-xs text-rose-800">{error}</p> : null}
@@ -219,17 +249,32 @@ export function BuyerDriverInboxFloat({ open, onClose }: { open: boolean; onClos
         ) : (
           <div className="flex min-h-0 flex-1 flex-col">
             <div className="shrink-0 border-b border-slate-200/50 bg-cosmos-page-alt/60 px-3 py-2">
-              <button
-                type="button"
-                onClick={() => setActiveThreadId(null)}
-                className="inline-flex h-9 items-center rounded-full px-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-200/70"
-              >
-                Back
-              </button>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setActiveThreadId(null)}
+                  className="inline-flex h-9 shrink-0 items-center justify-center gap-1 rounded-full px-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-200/70"
+                  aria-label="Back to conversation list"
+                >
+                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                    <path d="M15 18l-6-6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  <span>Back</span>
+                </button>
+                <div className="min-w-0 flex-1" />
+                <ChromeButtons onMinimize={onMinimize} onClose={closeInbox} />
+              </div>
               {activeRow ? (
-                <p className="truncate px-2 pb-1 text-xs text-slate-500">
-                  {activeRow.listing.title || activeRow.listing.wasteType}
-                </p>
+                <div className="px-2 pb-1">
+                  <p className="truncate text-xs text-slate-500">{activeRow.listing.title || activeRow.listing.wasteType}</p>
+                  <Link
+                    href={`/buyer/listings/${activeRow.listing.id}`}
+                    onClick={closeInbox}
+                    className="text-xs font-semibold text-teal-700 hover:text-teal-900"
+                  >
+                    View listing
+                  </Link>
+                </div>
               ) : null}
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto bg-cosmos-page-alt/30 px-3 py-3">
